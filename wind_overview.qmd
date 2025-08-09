@@ -1,0 +1,155 @@
+---
+title: "Wind Data Overview"
+format:
+  html:
+    toc: true
+    number-sections: false
+execute:
+  echo: true
+  warning: false
+  message: false
+editor: visual
+---
+
+```{r}
+#| label: setup
+#| include: true
+library(tidyverse)
+library(lubridate)
+library(DBI)
+library(RSQLite)
+library(glue)
+
+theme_set(theme_minimal(base_size = 12))
+
+# Local timezone for parsing/display
+local_tz <- "America/Los_Angeles"
+```
+
+## Deployments
+
+```{r}
+#| label: load-deployments
+deployments <- readr::read_csv("data/deployments_combined.csv", show_col_types = FALSE) %>%
+  mutate(
+    deploy_start = lubridate::ymd_hms(Deployed_time, tz = local_tz, quiet = TRUE),
+    recover_end  = lubridate::ymd_hms(Recovered_time, tz = local_tz, quiet = TRUE)
+  )
+
+deployments %>%
+  select(camera_name, wind_meter_name, deployment_id, deploy_start, recover_end, notes) %>%
+  arrange(wind_meter_name, deploy_start) %>%
+  head(10)
+```
+
+```{r}
+# Helper: available wind DBs
+wind_db_dir <- "data/wind"
+db_files <- tibble(
+  db_path = list.files(wind_db_dir, pattern = "\\.s3db$", full.names = TRUE)
+) %>% mutate(
+  wind_meter_name = tools::file_path_sans_ext(basename(db_path))
+)
+
+db_files
+```
+
+## Database Time Ranges
+
+```{r}
+#| label: db-time-ranges
+# Get min/max time from each DB to understand coverage
+get_db_range <- function(db_path) {
+  con <- dbConnect(RSQLite::SQLite(), db_path)
+  on.exit(dbDisconnect(con), add = TRUE)
+  rng <- dbGetQuery(con, "select min(time) as min_time, max(time) as max_time from Wind") %>%
+    mutate(
+      min_time = ymd_hms(min_time, tz = local_tz, quiet = TRUE),
+      max_time = ymd_hms(max_time, tz = local_tz, quiet = TRUE)
+    )
+  rng
+}
+
+db_ranges <- db_files %>%
+  mutate(range = purrr::map(db_path, get_db_range)) %>%
+  tidyr::unnest(range)
+
+db_ranges
+```
+
+## Timeseries Per Deployment
+
+```{r}
+#| label: plot-timeseries
+#| fig-width: 9
+#| fig-height: 4
+
+# Function to fetch wind data for a given time window and DB
+fetch_wind <- function(db_path, t_start, t_end) {
+  con <- dbConnect(RSQLite::SQLite(), db_path)
+  on.exit(dbDisconnect(con), add = TRUE)
+
+  # Use parameterized query; filter in SQL by time window
+  q <- "select time, speed, gust from Wind where time >= ? and time <= ? order by time"
+  dat <- dbGetQuery(con, q, params = list(format(t_start, "%Y-%m-%d %H:%M:%S"),
+                                          format(t_end,   "%Y-%m-%d %H:%M:%S"))) %>%
+    mutate(
+      time = ymd_hms(time, tz = local_tz, quiet = TRUE),
+      speed = as.numeric(speed),
+      gust = as.numeric(gust)
+    )
+  dat
+}
+
+plot_wind_dep <- function(dep_row, db_ranges_tbl, db_files_tbl) {
+  wm <- dep_row$wind_meter_name
+  dep_id <- dep_row$deployment_id
+  start <- dep_row$deploy_start
+  end <- dep_row$recover_end
+
+  if (is.na(wm) || wm == "NA") return(NULL)
+
+  db_row <- db_files_tbl %>% filter(wind_meter_name == wm)
+  if (nrow(db_row) == 0) return(NULL)
+
+  db_rng <- db_ranges_tbl %>% filter(wind_meter_name == wm)
+  if (nrow(db_rng) == 0) return(NULL)
+
+  # Intersect deployment window with DB coverage
+  t_start <- max(start, db_rng$min_time, na.rm = TRUE)
+  t_end   <- min(end,   db_rng$max_time, na.rm = TRUE)
+  if (!is.finite(as.numeric(t_start)) || !is.finite(as.numeric(t_end)) || t_end <= t_start) return(NULL)
+
+  dat <- fetch_wind(db_row$db_path[[1]], t_start, t_end)
+  if (nrow(dat) == 0) return(NULL)
+
+  ggplot(dat, aes(x = time)) +
+    geom_line(aes(y = speed, color = "speed"), linewidth = 0.3) +
+    geom_line(aes(y = gust,  color = "gust"),  linewidth = 0.3) +
+    scale_color_manual(values = c(speed = "#2C7BB6", gust = "#D7191C"), name = NULL) +
+    labs(
+      title = glue("{wm} — {dep_id}"),
+      subtitle = glue("{format(t_start, format = '%Y-%m-%d %H:%M', tz = local_tz)} to {format(t_end, format = '%Y-%m-%d %H:%M', tz = local_tz)}"),
+      x = NULL, y = "Wind (units as logged)"
+    ) +
+    theme(legend.position = "top")
+}
+
+# Iterate deployments and print a plot for each where data exists
+dep_subset <- deployments %>%
+  filter(!is.na(wind_meter_name), wind_meter_name %in% db_files$wind_meter_name) %>%
+  arrange(wind_meter_name, deploy_start)
+
+plots <- purrr::map(seq_len(nrow(dep_subset)), function(i) {
+  plot_wind_dep(dep_subset[i, ], db_ranges, db_files)
+})
+
+# Print all plots (skipping NULLs)
+purrr::walk(plots, ~{ if (!is.null(.x)) print(.x) })
+```
+
+## Notes
+
+- Timezone: timestamps are parsed as `America/Los_Angeles` (Pacific). No additional adjustments are applied.
+- Missing DBs or NA `wind_meter_name` are skipped.
+- Units/interval can be read from the `Units` and `LogInt` tables if needed.
