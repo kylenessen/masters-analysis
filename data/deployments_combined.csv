@@ -1,6 +1,6 @@
 camera_name,wind_meter_name,Deployed_time,Recovered_time,notes,height_m,horizontal_dist_to_cluster_m,view_direction,cluster_count,deployment_id,status,photo_interval_min,monarchs_present,youtube_url,latitude,longitude,label_status,Percent Complete,Observer,Effort,label_notes,label_youtube_url
 EM03,JazzPlay,2023/11/17 11:40:00,2023/12/15 11:00:00,Location and height estimated after deployment,7,4.2,90,,SC1,Complete,5,true,https://youtu.be/-zeGd_WTeWo,34.6318631241188,-120.618244611051,Complete,100%,Skyler,Medium,,https://www.youtube.com/watch?v=-zeGd_WTeWo&list=PLI9PCtr_g-ll_PTp6OJ82KwyK_WNI3z97&index=1
-JINX,Stardust,2024/01/05 16:06:04.149,2024/01/31 20:30:00,"Swapped cameras from SC4
+JINX,StarDust,2024/01/05 16:06:04.149,2024/01/31 20:30:00,"Swapped cameras from SC4
 
 This camera fell during a storm and was destroyed on impact.",5.9,7.5,320,,SC10,Complete,10,true,https://youtu.be/0zLjm9PA6YM,34.6312571527367,-120.618104598629,Complete,5%,Emery,Hard,,https://www.youtube.com/watch?v=0zLjm9PA6YM&list=PLI9PCtr_g-ll_PTp6OJ82KwyK_WNI3z97&index=10
 IRIS,FunStorm,2024/01/05 16:45:00.444,2024/02/05 14:05:00.373,Last camera to survive Spring Canyon. Only one that didn’t get knocked down,6.1,,90,,SC11,Complete,10,true,https://youtu.be/HLJHMDtCeeQ,34.631722404219,-120.618481930133,No Monarchs,100%,NA,NA,,https://www.youtube.com/watch?v=HLJHMDtCeeQ&list=PLI9PCtr_g-ll_PTp6OJ82KwyK_WNI3z97&index=16
