@@ -24,6 +24,9 @@ theme_set(theme_minimal(base_size = 12))
 
 # Local timezone for parsing/display
 local_tz <- "America/Los_Angeles"
+
+# QC exclusions: deployments to exclude from further analyses
+excluded_deployments <- c("UDMH1")
 ```
 
 ## Deployments
@@ -130,7 +133,7 @@ plot_wind_dep <- function(dep_row, db_ranges_tbl, db_files_tbl) {
     labs(
       title = glue("{wm} — {dep_id}"),
       subtitle = glue("{format(t_start, format = '%Y-%m-%d %H:%M', tz = local_tz)} to {format(t_end, format = '%Y-%m-%d %H:%M', tz = local_tz)}"),
-      x = NULL, y = "Wind (units as logged)"
+      x = NULL, y = "Wind (m/s)"
     ) +
     theme(legend.position = "top")
 }
@@ -146,10 +149,290 @@ plots <- purrr::map(seq_len(nrow(dep_subset)), function(i) {
 
 # Print all plots (skipping NULLs)
 purrr::walk(plots, ~{ if (!is.null(.x)) print(.x) })
+
+```
+
+## Comparative Gusts (Overlaps)
+
+```{r}
+#| label: comp-gusts-overlaps
+# Helper to compute overlapping time range between two deployments and their DB ranges
+overlap_range <- function(a_start, a_end, b_start, b_end, a_db_min, a_db_max, b_db_min, b_db_max) {
+  t_start <- max(a_start, b_start, a_db_min, b_db_min, na.rm = TRUE)
+  t_end   <- min(a_end,   b_end,   a_db_max, b_db_max, na.rm = TRUE)
+  if (!is.finite(as.numeric(t_start)) || !is.finite(as.numeric(t_end)) || t_end <= t_start) return(NULL)
+  list(start = t_start, end = t_end)
+}
+
+fetch_gust_series <- function(db_path, t_start, t_end, meter_label) {
+  con <- dbConnect(RSQLite::SQLite(), db_path)
+  on.exit(dbDisconnect(con), add = TRUE)
+  q <- "select time, gust from Wind where time >= ? and time <= ? order by time"
+  dbGetQuery(con, q, params = list(format(t_start, "%Y-%m-%d %H:%M:%S"),
+                                   format(t_end,   "%Y-%m-%d %H:%M:%S"))) %>%
+    mutate(time = ymd_hms(time, tz = local_tz, quiet = TRUE),
+           gust = as.numeric(gust),
+           meter = meter_label)
+}
+
+plot_overlap_gusts_for <- function(base_dep_id) {
+  base <- deployments %>% filter(deployment_id == base_dep_id)
+  if (nrow(base) == 0) return(NULL)
+  base <- base[1, ]
+
+  # Candidates: other deployments with overlapping windows
+  candidates <- deployments %>%
+    filter(!is.na(wind_meter_name),
+           wind_meter_name %in% db_files$wind_meter_name,
+           deployment_id != base_dep_id,
+           deploy_start < base$recover_end,
+           recover_end  > base$deploy_start)
+
+  if (nrow(candidates) == 0 || is.na(base$wind_meter_name)) return(NULL)
+
+  # DB rows and ranges for base
+  base_db_row <- db_files %>% filter(wind_meter_name == base$wind_meter_name)
+  base_db_rng <- db_ranges %>% filter(wind_meter_name == base$wind_meter_name)
+  if (nrow(base_db_row) == 0 || nrow(base_db_rng) == 0) return(NULL)
+
+  series_list <- list()
+
+  # Always include base meter series
+  ov <- overlap_range(base$deploy_start, base$recover_end,
+                      base$deploy_start, base$recover_end,
+                      base_db_rng$min_time, base_db_rng$max_time,
+                      base_db_rng$min_time, base_db_rng$max_time)
+  if (!is.null(ov)) {
+    series_list[[base$wind_meter_name]] <- fetch_gust_series(base_db_row$db_path[[1]], ov$start, ov$end, base$wind_meter_name)
+  }
+
+  # Add overlapping other meters
+  for (i in seq_len(nrow(candidates))) {
+    cand <- candidates[i, ]
+    cand_db_row <- db_files %>% filter(wind_meter_name == cand$wind_meter_name)
+    cand_db_rng <- db_ranges %>% filter(wind_meter_name == cand$wind_meter_name)
+    if (nrow(cand_db_row) == 0 || nrow(cand_db_rng) == 0) next
+
+    ov <- overlap_range(base$deploy_start, base$recover_end,
+                        cand$deploy_start, cand$recover_end,
+                        base_db_rng$min_time, base_db_rng$max_time,
+                        cand_db_rng$min_time, cand_db_rng$max_time)
+    if (is.null(ov)) next
+
+    series_list[[cand$wind_meter_name]] <- fetch_gust_series(cand_db_row$db_path[[1]], ov$start, ov$end, cand$wind_meter_name)
+  }
+
+  if (length(series_list) == 0) return(NULL)
+
+  dat <- bind_rows(series_list)
+  if (nrow(dat) == 0) return(NULL)
+
+  ggplot(dat, aes(x = time, y = gust, color = meter)) +
+    geom_line(linewidth = 0.4, alpha = 0.9) +
+    labs(title = glue("Overlapping gusts: base {base_dep_id}"), x = NULL, y = "Gust (m/s)") +
+    theme(legend.position = "top")
+}
+
+# Render comparative plots for specific deployments of interest
+comp_targets <- c("SC2", "SC7")
+comp_plots <- purrr::map(comp_targets, plot_overlap_gusts_for)
+purrr::walk(comp_plots, ~{ if (!is.null(.x)) print(.x) })
+```
+
+## UDMH1 Cleaned Gusts
+
+```{r}
+#| label: udmh1-cleaned
+# Find UDMH1 deployment and plot with gusts > 15 removed (set to NA)
+dep_udmh1 <- deployments %>% filter(deployment_id == "UDMH1")
+if (nrow(dep_udmh1) > 0 && !is.na(dep_udmh1$wind_meter_name[1])) {
+  row <- dep_udmh1[1, ]
+  db_row <- db_files %>% filter(wind_meter_name == row$wind_meter_name)
+  db_rng <- db_ranges %>% filter(wind_meter_name == row$wind_meter_name)
+  if (nrow(db_row) > 0 && nrow(db_rng) > 0) {
+    t_start <- max(row$deploy_start, db_rng$min_time, na.rm = TRUE)
+    t_end   <- min(row$recover_end,  db_rng$max_time, na.rm = TRUE)
+    if (is.finite(as.numeric(t_start)) && is.finite(as.numeric(t_end)) && t_end > t_start) {
+      dat <- fetch_wind(db_row$db_path[[1]], t_start, t_end) %>%
+        mutate(gust = ifelse(!is.na(gust) & gust > 15, NA_real_, gust))
+
+      ggplot(dat, aes(x = time)) +
+        geom_line(aes(y = speed, color = "speed"), linewidth = 0.3) +
+        geom_line(aes(y = gust,  color = "gust"),  linewidth = 0.3) +
+        scale_color_manual(values = c(speed = "#2C7BB6", gust = "#D7191C"), name = NULL) +
+        labs(title = "UDMH1 — gusts > 15 removed", x = NULL, y = "Wind (m/s)") +
+        theme(legend.position = "top")
+    }
+  }
+}
+```
+
+## Findings So Far
+
+-   SC2 and SC7: potential issues (zeros/spikes) are present, but during periods with butterflies on-site the patterns look reasonable. No additional correction applied.
+-   UDMH1: even after removing gusts \> 15 m/s, series appears noisy and may be untrustworthy (possible contact corrosion).
+-   Decision: exclude UDMH1 from further analyses based on abnormal variance relative to peers and visual QC concerns.
+-   Approach: compare per-deployment variance against UDMH1; if UDMH1 is an outlier (substantially higher variance than peers), exclude it from downstream analysis. This criterion is satisfied here.
+
+## QC Exclusions
+
+```{r}
+#| label: qc-exclusions
+deployments_qc <- deployments %>% filter(!deployment_id %in% excluded_deployments)
+tibble(
+  excluded_deployments = excluded_deployments,
+  excluded_n = sum(deployments$deployment_id %in% excluded_deployments)
+)
+```
+
+Use `deployments_qc` for subsequent analysis to ensure excluded deployments are not included.
+
+## Variance Comparison: UDMH1 vs Others
+
+```{r}
+#| label: variance-comparison
+# Compare per-deployment variance of speed and gust between UDMH1 and other datasets
+
+compute_dep_variance <- function(dep_row, db_ranges_tbl, db_files_tbl, clean_udmh1 = TRUE) {
+  wm <- dep_row$wind_meter_name
+  dep_id <- dep_row$deployment_id
+  start <- dep_row$deploy_start
+  end <- dep_row$recover_end
+
+  if (is.na(wm) || wm == "NA") return(NULL)
+  db_row <- db_files_tbl %>% filter(wind_meter_name == wm)
+  db_rng <- db_ranges_tbl %>% filter(wind_meter_name == wm)
+  if (nrow(db_row) == 0 || nrow(db_rng) == 0) return(NULL)
+
+  t_start <- max(start, db_rng$min_time, na.rm = TRUE)
+  t_end   <- min(end,   db_rng$max_time, na.rm = TRUE)
+  if (!is.finite(as.numeric(t_start)) || !is.finite(as.numeric(t_end)) || t_end <= t_start) return(NULL)
+
+  dat <- fetch_wind(db_row$db_path[[1]], t_start, t_end)
+  if (nrow(dat) == 0) return(NULL)
+
+  # Only apply gust clean for UDMH1
+  if (clean_udmh1 && identical(dep_id, "UDMH1")) {
+    dat <- dat %>% mutate(gust = ifelse(!is.na(gust) & gust > 15, NA_real_, gust))
+  }
+
+  tibble(
+    deployment_id = dep_id,
+    wind_meter_name = wm,
+    t_start = t_start,
+    t_end = t_end,
+    n = nrow(dat),
+    var_speed = var(dat$speed, na.rm = TRUE),
+    var_gust  = var(dat$gust,  na.rm = TRUE)
+  )
+}
+
+# Build variance table across deployments present in DBs
+dep_present <- deployments %>%
+  filter(!is.na(wind_meter_name), wind_meter_name %in% db_files$wind_meter_name)
+
+vars_list <- purrr::map(seq_len(nrow(dep_present)), function(i) {
+  compute_dep_variance(dep_present[i, ], db_ranges, db_files)
+})
+
+vars_tbl <- bind_rows(vars_list)
+
+# Extract UDMH1 stats
+udmh1_stats <- vars_tbl %>% filter(deployment_id == "UDMH1") %>% slice_head(n = 1)
+
+if (nrow(udmh1_stats) > 0) {
+  v_udmh1_speed <- udmh1_stats$var_speed[[1]]
+  v_udmh1_gust  <- udmh1_stats$var_gust[[1]]
+
+  # Compare all datasets except SC2 and SC7 against UDMH1
+  comp_tbl <- vars_tbl %>%
+    filter(deployment_id != "UDMH1", !deployment_id %in% c("SC2", "SC7")) %>%
+    mutate(
+      ratio_speed_vs_UDMH1 = var_speed / v_udmh1_speed,
+      ratio_gust_vs_UDMH1  = var_gust  / v_udmh1_gust
+    ) %>%
+    arrange(desc(ratio_gust_vs_UDMH1))
+
+  # Show a concise table
+  comp_tbl %>%
+    transmute(
+      deployment_id,
+      wind_meter_name,
+      n,
+      var_speed = round(var_speed, 3),
+      var_gust = round(var_gust, 3),
+      ratio_speed_vs_UDMH1 = round(ratio_speed_vs_UDMH1, 2),
+      ratio_gust_vs_UDMH1  = round(ratio_gust_vs_UDMH1, 2)
+    ) %>%
+    arrange(deployment_id)
+} else {
+  tibble(note = "UDMH1 variance not available in current data subset")
+}
+```
+
+### Interpretation
+
+-   If `ratio_*_vs_UDMH1` values are much less than 1.0, UDMH1 has higher variance than peers, supporting the “noisy contacts” hypothesis.
+-   A reasonable approach: if UDMH1 variance is an extreme outlier relative to other working meters, exclude UDMH1 from downstream analyses or flag it for QC.
+-   Other ideas:
+    -   Apply a light median filter or rolling quantile filter to detect/fill isolated spikes and stuck-zero runs.
+    -   Compare gust-to-speed ratio distributions across meters; abnormal ratios can indicate sensor faults.
+    -   Check `Units` and `LogInt` tables for logging changes; inconsistent intervals can inflate variance.
+    -   Cross-check overlapping time windows with nearby meters (done above) to quantify correlation, not just variance.
+
+### Variance Summary
+
+```{r}
+#| label: variance-summary
+if (exists("vars_tbl") && nrow(vars_tbl) > 0) {
+  udmh1_stats <- vars_tbl %>% filter(deployment_id == "UDMH1") %>% slice_head(n = 1)
+  peer_tbl <- vars_tbl %>% filter(deployment_id != "UDMH1", !deployment_id %in% c("SC2", "SC7"))
+  if (nrow(udmh1_stats) > 0 && nrow(peer_tbl) > 0) {
+    med_speed <- median(peer_tbl$var_speed / udmh1_stats$var_speed[[1]], na.rm = TRUE)
+    med_gust  <- median(peer_tbl$var_gust  / udmh1_stats$var_gust[[1]],  na.rm = TRUE)
+    sum_tbl <- tibble(
+      n_peers = nrow(peer_tbl),
+      median_ratio_speed_vs_UDMH1 = round(med_speed, 2),
+      median_ratio_gust_vs_UDMH1  = round(med_gust,  2),
+      peers_lt1_speed = sum((peer_tbl$var_speed / udmh1_stats$var_speed[[1]]) < 1, na.rm = TRUE),
+      peers_gt1_speed = sum((peer_tbl$var_speed / udmh1_stats$var_speed[[1]]) > 1, na.rm = TRUE),
+      peers_lt1_gust  = sum((peer_tbl$var_gust  / udmh1_stats$var_gust[[1]]) < 1, na.rm = TRUE),
+      peers_gt1_gust  = sum((peer_tbl$var_gust  / udmh1_stats$var_gust[[1]]) > 1, na.rm = TRUE)
+    )
+    sum_tbl
+  } else {
+    tibble(note = "Insufficient data for variance summary")
+  }
+} else {
+  tibble(note = "Variance table not available")
+}
+```
+
+```{r}
+#| label: variance-top-outliers
+# Top peers with variance higher than UDMH1 (ratios > 1)
+if (exists("vars_tbl") && nrow(vars_tbl) > 0) {
+  udmh1_stats <- vars_tbl %>% filter(deployment_id == "UDMH1") %>% slice_head(n = 1)
+  peer_tbl <- vars_tbl %>% filter(deployment_id != "UDMH1", !deployment_id %in% c("SC2", "SC7"))
+  if (nrow(udmh1_stats) > 0 && nrow(peer_tbl) > 0) {
+    peer_tbl %>%
+      mutate(
+        ratio_speed_vs_UDMH1 = var_speed / udmh1_stats$var_speed[[1]],
+        ratio_gust_vs_UDMH1  = var_gust  / udmh1_stats$var_gust[[1]]
+      ) %>%
+      filter(ratio_speed_vs_UDMH1 > 1 | ratio_gust_vs_UDMH1 > 1) %>%
+      arrange(desc(pmax(ratio_speed_vs_UDMH1, ratio_gust_vs_UDMH1))) %>%
+      transmute(deployment_id, wind_meter_name, n,
+                var_speed = round(var_speed, 3), var_gust = round(var_gust, 3),
+                ratio_speed_vs_UDMH1 = round(ratio_speed_vs_UDMH1, 2),
+                ratio_gust_vs_UDMH1  = round(ratio_gust_vs_UDMH1, 2)) %>%
+      head(5)
+  }
+}
 ```
 
 ## Notes
 
-- Timezone: timestamps are parsed as `America/Los_Angeles` (Pacific). No additional adjustments are applied.
-- Missing DBs or NA `wind_meter_name` are skipped.
-- Units/interval can be read from the `Units` and `LogInt` tables if needed.
+-   Timezone: timestamps are parsed as `America/Los_Angeles` (Pacific). No additional adjustments are applied.
+-   Missing DBs or NA `wind_meter_name` are skipped.
+-   Units/interval can be read from the `Units` and `LogInt` tables if needed.
