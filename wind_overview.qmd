@@ -440,3 +440,35 @@ if (exists("vars_tbl") && nrow(vars_tbl) > 0) {
 ## UDMH1
 
 There were no butterflies for UDMH1, so it is a moot point. Woohoo!
+
+## Combined Export
+
+```{r}
+#| label: combine-and-export-all-dbs
+# Read all Wind tables, tag with wind_meter_name, and export CSV
+
+fetch_all_wind <- function(db_path) {
+  con <- dbConnect(RSQLite::SQLite(), db_path)
+  on.exit(dbDisconnect(con), add = TRUE)
+  q <- "select time, speed, gust from Wind order by time"
+  dbGetQuery(con, q) %>%
+    mutate(
+      time = ymd_hms(time, tz = local_tz, quiet = TRUE),
+      speed = as.numeric(speed),
+      gust  = as.numeric(gust)
+    )
+}
+
+wind_all <- db_files %>%
+  mutate(data = purrr::map(db_path, fetch_all_wind)) %>%
+  tidyr::unnest(data) %>%
+  relocate(wind_meter_name, .before = time)
+
+# Preview combined data
+wind_all %>% arrange(wind_meter_name, time) %>% head(10)
+
+# Export to CSV in data folder
+out_path <- file.path("data", "wind_all.csv")
+readr::write_csv(wind_all, out_path)
+glue("Wrote {scales::comma(nrow(wind_all))} rows to {out_path}")
+```
