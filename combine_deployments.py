@@ -10,7 +10,7 @@ def combine_deployment_data():
     
     # Read QGIS data
     qgis_data = {}
-    with open('data/deployments_QGIS.csv', 'r') as f:
+    with open('data/deployments/deployments_QGIS.csv', 'r') as f:
         reader = csv.DictReader(f)
         for row in reader:
             deployment_id = row['deployment_id']
@@ -19,7 +19,7 @@ def combine_deployment_data():
     
     # Read label data
     label_data = {}
-    with open('data/deployments_label.csv', 'r', encoding='utf-8-sig') as f:
+    with open('data/deployments/deployments_label.csv', 'r', encoding='utf-8-sig') as f:
         reader = csv.DictReader(f)
         for row in reader:
             deployment_id = row['Deployment ID']
@@ -79,7 +79,7 @@ def combine_deployment_data():
         combined_data.append(combined_row)
     
     # Write combined data
-    with open('data/deployments_combined.csv', 'w', newline='') as f:
+    with open('data/deployments.csv', 'w', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=output_columns)
         writer.writeheader()
         writer.writerows(combined_data)
@@ -87,7 +87,7 @@ def combine_deployment_data():
     print(f"Combined {len(combined_data)} deployment records")
     print(f"QGIS records: {len(qgis_data)}")
     print(f"Label records: {len(label_data)}")
-    print(f"Output written to: data/deployments_combined.csv")
+    print(f"Output written to: data/deployments.csv")
     
     # Show records that are in one file but not the other
     qgis_only = set(qgis_data.keys()) - set(label_data.keys())
