@@ -436,3 +436,7 @@ if (exists("vars_tbl") && nrow(vars_tbl) > 0) {
 -   Timezone: timestamps are parsed as `America/Los_Angeles` (Pacific). No additional adjustments are applied.
 -   Missing DBs or NA `wind_meter_name` are skipped.
 -   Units/interval can be read from the `Units` and `LogInt` tables if needed.
+
+## UDMH1
+
+There were no butterflies for UDMH1, so it is a moot point. Woohoo!
