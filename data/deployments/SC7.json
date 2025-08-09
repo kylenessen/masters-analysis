@@ -1,0 +1,2134 @@
+{
+  "rows": 9,
+  "columns": 16,
+  "classifications": {
+    "SC7_20231215144501.JPG": {
+      "confirmed": true,
+      "cells": {
+        "cell_0_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_0_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_12": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_6": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_5": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_4_5": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_5": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_6": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_7": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_7": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_6_4": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_7_5": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_5": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_6_6": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_6_7": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_4_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_4_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_4_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_4_12": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_7_8": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_8_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_7_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_6_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_6_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_7": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_13": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_7": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_6_8": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_7_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_7_6": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "index": 0,
+      "user": "VVR",
+      "isNight": false
+    },
+    "SC7_20231215145501.JPG": {
+      "cells": {
+        "cell_0_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_0_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_12": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_3_6": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_3_5": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_4_5": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_5": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_6": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_7": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_7": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_6_4": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_7_5": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_5": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_6_6": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_6_7": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_6_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_4_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_4_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_12": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_12": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_7_8": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_8_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_7_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_6_12": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_7": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_13": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_2_7": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_6_8": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_7_4": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_7_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_4": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_12": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_7_6": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_13": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_1_12": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_1_13": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "VVR",
+      "isNight": false,
+      "index": 1
+    },
+    "SC7_20231215150501.JPG": {
+      "confirmed": true,
+      "cells": {
+        "cell_4_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_0_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_4_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_1_12": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_1_13": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_12": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_4_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_12": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_7_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_8_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_7_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_6_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_6_12": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_13": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_7": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_5": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_4_5": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_6": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_4": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_5": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_6_6": {
+          "count": "10-99",
+          "directSun": true
+        },
+        "cell_6_5": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_6_4": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_7_5": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_6": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_4_7": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_7_6": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_7_8": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_8": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "index": 2,
+      "user": "VVR",
+      "isNight": false
+    },
+    "SC7_20231215170501.JPG": {
+      "confirmed": true,
+      "cells": {
+        "cell_6_4": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "index": 14,
+      "user": "VVR",
+      "isNight": false
+    },
+    "SC7_20231215162501.JPG": {
+      "confirmed": true,
+      "cells": {
+        "cell_6_4": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "index": 10,
+      "user": "VVR",
+      "isNight": false
+    },
+    "SC7_20231215163501.JPG": {
+      "confirmed": true,
+      "cells": {
+        "cell_6_4": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "index": 11,
+      "user": "VVR",
+      "isNight": false
+    },
+    "SC7_20231215164501.JPG": {
+      "confirmed": true,
+      "cells": {
+        "cell_6_4": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "index": 12,
+      "user": "VVR",
+      "isNight": false
+    },
+    "SC7_20231215165501.JPG": {
+      "confirmed": true,
+      "cells": {
+        "cell_6_4": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "index": 13,
+      "user": "VVR",
+      "isNight": false
+    },
+    "SC7_20231215151501.JPG": {
+      "confirmed": true,
+      "cells": {
+        "cell_3_5": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_4_5": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_4": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_4": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_7_5": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_7_4": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_7_6": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_6": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_4_6": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_4_7": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_7": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_7_8": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_8": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_4_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_1_13": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_1_12": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_0_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_7_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_8_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_12": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_5": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_6_5": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_6_6": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_6_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_12": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_12": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_7_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_6_7": {
+          "count": "0",
+          "directSun": false
+        }
+      },
+      "index": 3,
+      "user": "VVR",
+      "isNight": false
+    },
+    "SC7_20231215152501.JPG": {
+      "confirmed": true,
+      "cells": {
+        "cell_3_5": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_4_4": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_4_5": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_4": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_4": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_7_4": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_7_5": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_5": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_5": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_6": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_6": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_7_6": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_7_8": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_7": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_4_7": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_4_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_4_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_6_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_12": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_7_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_7_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_6_12": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_1_13": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_1_12": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_0_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_8_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_12": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "index": 4,
+      "user": "VVR",
+      "isNight": false
+    },
+    "SC7_20231215161501.JPG": {
+      "confirmed": true,
+      "cells": {
+        "cell_0_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_4_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_8_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_7_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_7_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_12": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_12": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_4_12": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_4_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_4_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_6_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_5": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_4_5": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_4_4": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_4": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_4": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_7_4": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_7_5": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_6": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_5": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_6": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_5": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_7_6": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_6": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_1_13": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_1_12": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "index": 9,
+      "user": "VVR",
+      "isNight": false
+    },
+    "SC7_20231215160501.JPG": {
+      "confirmed": true,
+      "cells": {
+        "cell_3_5": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_4": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_4": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_4": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_7_4": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_7_5": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_7_6": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_7_8": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_7": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_4_7": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_6": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_6": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_4_5": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_5": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_6_6": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_6_5": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_4_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_1_13": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_1_12": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_0_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_4_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_6_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_7_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_7_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_8_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_12": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_12": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_4_11": {
+          "count": "10-99",
+          "directSun": false
+        }
+      },
+      "index": 8,
+      "user": "VVR",
+      "isNight": false
+    },
+    "SC7_20231215155501.JPG": {
+      "confirmed": true,
+      "cells": {
+        "cell_3_6": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_5": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_5": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_4_4": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_5_4": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_5": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_6_6": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_6_5": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_6_4": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_7_4": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_7_5": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_7_6": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_6": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_7": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_4_7": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_7_8": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_4_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_4_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_6_12": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_7_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_7_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_12": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_4_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_1_12": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_1_13": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_0_10": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_0_11": {
+          "count": "1-9",
+          "directSun": true
+        }
+      },
+      "index": 7,
+      "user": "VVR",
+      "isNight": false
+    },
+    "SC7_20231215153501.JPG": {
+      "confirmed": true,
+      "cells": {
+        "cell_3_6": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_5": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_5": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_4_4": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_4": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_5": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_6_6": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_6_5": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_6_4": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_7_4": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_7_5": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_7_6": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_6": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_7": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_4_7": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_7_8": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_4_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_4_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_6_12": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_7_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_7_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_12": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_4_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_1_12": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_1_13": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_0_10": {
+          "count": "1-9",
+          "directSun": true
+        },
+        "cell_0_11": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "index": 5,
+      "user": "VVR",
+      "isNight": false
+    },
+    "SC7_20231215154501.JPG": {
+      "cells": {
+        "cell_3_6": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_5": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_5": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_4_4": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_5_4": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_5": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_6_6": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_6_5": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_6_4": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_7_4": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_7_5": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_7_6": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_6": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_7": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_4_7": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_7_8": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_4_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_4_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_6_12": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_7_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_7_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_12": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_4_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_1_12": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_1_13": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_0_10": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_0_11": {
+          "count": "1-9",
+          "directSun": true
+        }
+      },
+      "confirmed": true,
+      "user": "VVR",
+      "isNight": false,
+      "index": 6
+    },
+    "SC7_20231215171503.JPG": {
+      "cells": {
+        "cell_6_4": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "VVR",
+      "isNight": true,
+      "index": 15
+    },
+    "SC7_20231215172501.JPG": {
+      "cells": {
+        "cell_6_4": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "VVR",
+      "isNight": true,
+      "index": 16
+    },
+    "SC7_20231215173501.JPG": {
+      "cells": {
+        "cell_6_4": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "VVR",
+      "isNight": true,
+      "index": 17
+    },
+    "SC7_20231215174501.JPG": {
+      "cells": {
+        "cell_6_4": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "VVR",
+      "isNight": true,
+      "index": 18
+    },
+    "SC7_20231215175501.JPG": {
+      "cells": {
+        "cell_6_4": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "VVR",
+      "isNight": true,
+      "index": 19
+    },
+    "SC7_20231215180501.JPG": {
+      "cells": {
+        "cell_6_4": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "VVR",
+      "isNight": true,
+      "index": 20
+    },
+    "SC7_20231215181501.JPG": {
+      "cells": {
+        "cell_6_4": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "VVR",
+      "isNight": true,
+      "index": 21
+    },
+    "SC7_20231215182501.JPG": {
+      "cells": {
+        "cell_6_4": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "VVR",
+      "isNight": true,
+      "index": 22
+    },
+    "SC7_20231215183501.JPG": {
+      "cells": {
+        "cell_6_4": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "VVR",
+      "isNight": true,
+      "index": 23
+    },
+    "SC7_20231215184501.JPG": {
+      "cells": {
+        "cell_6_4": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "VVR",
+      "isNight": true,
+      "index": 24
+    },
+    "SC7_20231215185501.JPG": {
+      "cells": {
+        "cell_6_4": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "VVR",
+      "isNight": true,
+      "index": 25
+    },
+    "SC7_20231215190501.JPG": {
+      "cells": {
+        "cell_6_4": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "VVR",
+      "isNight": true,
+      "index": 26
+    },
+    "SC7_20231215191501.JPG": {
+      "cells": {
+        "cell_6_4": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "VVR",
+      "isNight": true,
+      "index": 27
+    },
+    "SC7_20231215192501.JPG": {
+      "cells": {
+        "cell_6_4": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "VVR",
+      "isNight": true,
+      "index": 28
+    },
+    "SC7_20231215193501.JPG": {
+      "cells": {
+        "cell_6_4": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "VVR",
+      "isNight": true,
+      "index": 29
+    },
+    "SC7_20231215194501.JPG": {
+      "cells": {
+        "cell_6_4": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "VVR",
+      "isNight": true,
+      "index": 30
+    },
+    "SC7_20231215195501.JPG": {
+      "cells": {
+        "cell_6_4": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "VVR",
+      "isNight": true,
+      "index": 31
+    },
+    "SC7_20231215200501.JPG": {
+      "cells": {
+        "cell_6_4": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "VVR",
+      "isNight": true,
+      "index": 32
+    },
+    "SC7_20231215201501.JPG": {
+      "cells": {
+        "cell_6_4": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "VVR",
+      "isNight": true,
+      "index": 33
+    },
+    "SC7_20231215202501.JPG": {
+      "cells": {
+        "cell_6_4": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "VVR",
+      "isNight": true,
+      "index": 34
+    },
+    "SC7_20231215203501.JPG": {
+      "cells": {
+        "cell_6_4": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "VVR",
+      "isNight": true,
+      "index": 35
+    },
+    "SC7_20231215204501.JPG": {
+      "cells": {
+        "cell_6_4": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "VVR",
+      "isNight": true,
+      "index": 36
+    },
+    "SC7_20231215205501.JPG": {
+      "cells": {
+        "cell_6_4": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "VVR",
+      "isNight": true,
+      "index": 37
+    },
+    "SC7_20231215210501.JPG": {
+      "cells": {
+        "cell_6_4": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "VVR",
+      "isNight": true,
+      "index": 38
+    },
+    "SC7_20231215211501.JPG": {
+      "cells": {
+        "cell_6_4": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "VVR",
+      "isNight": true,
+      "index": 39
+    },
+    "SC7_20231215212501.JPG": {
+      "cells": {
+        "cell_6_4": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "VVR",
+      "isNight": true,
+      "index": 40
+    },
+    "SC7_20231215213501.JPG": {
+      "cells": {
+        "cell_6_4": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "VVR",
+      "isNight": true,
+      "index": 41
+    },
+    "SC7_20231215214501.JPG": {
+      "cells": {
+        "cell_6_4": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "VVR",
+      "isNight": true,
+      "index": 42
+    },
+    "SC7_20231215215501.JPG": {
+      "cells": {
+        "cell_6_4": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "VVR",
+      "isNight": true,
+      "index": 43
+    },
+    "SC7_20231215220501.JPG": {
+      "cells": {
+        "cell_6_4": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "VVR",
+      "isNight": true,
+      "index": 44
+    },
+    "SC7_20231215221501.JPG": {
+      "cells": {
+        "cell_6_4": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "VVR",
+      "isNight": true,
+      "index": 45
+    },
+    "SC7_20231215222501.JPG": {
+      "cells": {
+        "cell_6_4": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "VVR",
+      "isNight": true,
+      "index": 46
+    },
+    "SC7_20231215223501.JPG": {
+      "cells": {
+        "cell_6_4": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "VVR",
+      "isNight": true,
+      "index": 47
+    },
+    "SC7_20231215224501.JPG": {
+      "cells": {
+        "cell_6_4": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "VVR",
+      "isNight": true,
+      "index": 48
+    },
+    "SC7_20231215225501.JPG": {
+      "cells": {
+        "cell_6_4": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "VVR",
+      "isNight": true,
+      "index": 49
+    },
+    "SC7_20231215230501.JPG": {
+      "cells": {
+        "cell_6_4": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "VVR",
+      "isNight": true,
+      "index": 50
+    },
+    "SC7_20231215231501.JPG": {
+      "cells": {
+        "cell_6_4": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "VVR",
+      "isNight": true,
+      "index": 51
+    },
+    "SC7_20231215232501.JPG": {
+      "cells": {
+        "cell_6_4": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "VVR",
+      "isNight": true,
+      "index": 52
+    },
+    "SC7_20231215233501.JPG": {
+      "cells": {
+        "cell_6_4": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "VVR",
+      "isNight": true,
+      "index": 53
+    },
+    "SC7_20231215234501.JPG": {
+      "cells": {
+        "cell_6_4": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "VVR",
+      "isNight": true,
+      "index": 54
+    },
+    "SC7_20231215235501.JPG": {
+      "cells": {
+        "cell_6_4": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "VVR",
+      "isNight": true,
+      "index": 55
+    },
+    "SC7_20231216000501.JPG": {
+      "cells": {
+        "cell_6_4": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "confirmed": false,
+      "user": null,
+      "isNight": false,
+      "index": 56
+    }
+  }
+}
