@@ -1,0 +1,189 @@
+---
+title: "Butterfly Abundance Index"
+format:
+  html:
+    toc: true
+    number-sections: false
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+```{r}
+#| label: setup
+#| include: true
+library(jsonlite)
+library(dplyr)
+library(purrr)
+library(tidyr)
+library(stringr)
+library(tibble)
+library(ggplot2)
+library(lubridate)
+
+deploy_dir <- "data/deployments"
+json_files <- list.files(deploy_dir, pattern = "\\.json$", full.names = TRUE)
+
+# Null-coalescing helper
+or_else <- function(x, default) {
+  if (is.null(x)) default else x
+}
+
+# Map a count value to conservative minimum for its category
+count_min_value <- function(x) {
+  # Handle NULLs
+  if (is.null(x)) return(NA_real_)
+  # If numeric, return as-is
+  if (is.numeric(x)) return(as.numeric(x))
+  # If logical NA
+  if (is.na(x)) return(NA_real_)
+  # Coerce to character
+  xc <- as.character(x)
+  xc <- str_trim(xc)
+  if (xc == "") return(NA_real_)
+  # Exact zero
+  if (xc == "0") return(0)
+  # Range like "1-9" or "10-99" or "100-999"
+  m <- str_match(xc, "^(\\d+)-(\\d+)$")
+  if (!anyNA(m)) return(as.numeric(m[2]))
+  # "1000+" style
+  m2 <- str_match(xc, "^(\\d+)\\+$")
+  if (!anyNA(m2)) return(as.numeric(m2[2]))
+  # Fallback: try numeric coercion
+  suppressWarnings({
+    n <- as.numeric(xc)
+  })
+  if (!is.na(n)) return(n)
+  NA_real_
+}
+
+extract_cells_df <- function(cells) {
+  if (is.null(cells) || length(cells) == 0) return(tibble())
+  # cells is a named list of cell_ij -> list(count=..., directSun/sunlight=...)
+  keys <- names(cells)
+  vals <- cells
+  tibble(
+    cell = keys,
+    count_raw = map(vals, ~ or_else(.x[["count"]], NA)),
+    direct_sun = map_lgl(vals, function(.x) {
+      # Prefer directSun; fall back to sunlight; default FALSE if missing
+      if (!is.null(.x[["directSun"]])) {
+        isTRUE(.x[["directSun"]])
+      } else if (!is.null(.x[["sunlight"]])) {
+        isTRUE(.x[["sunlight"]])
+      } else {
+        FALSE
+      }
+    })
+  ) %>%
+    mutate(
+      count_min = map_dbl(count_raw, count_min_value)
+    )
+}
+
+parse_deployment <- function(file) {
+  # deployment_id is the filename without extension
+  deployment_id <- tools::file_path_sans_ext(basename(file))
+  x <- jsonlite::read_json(file, simplifyVector = FALSE)
+
+  # Determine structure: either top-level has 'classifications' or the top-level itself maps images
+  if (is.list(x) && !is.null(x$classifications)) {
+    # Newer structure: possibly includes rows/columns and classifications
+    cls <- x$classifications
+  } else {
+    # Older structure: top-level keys are image filenames
+    cls <- x
+  }
+
+  # Ensure we have named list of images -> objects with cells
+  if (length(cls) == 0) {
+    return(tibble(
+      deployment_id = deployment_id,
+      image_filename = NA_character_,
+      total_butterflies = NA_real_,
+      butterflies_direct_sun = NA_real_
+    ))
+  }
+
+  im_names <- names(cls)
+  res <- map2_dfr(cls, im_names, function(im_obj, im_name) {
+    cells <- or_else(im_obj$cells, NULL)
+    df <- extract_cells_df(cells)
+    if (nrow(df) == 0) {
+      tibble(
+        deployment_id = deployment_id,
+        image_filename = im_name,
+        total_butterflies = NA_real_,
+        butterflies_direct_sun = NA_real_
+      )
+    } else {
+      tibble(
+        deployment_id = deployment_id,
+        image_filename = im_name,
+        total_butterflies = sum(df$count_min, na.rm = TRUE),
+        butterflies_direct_sun = sum(df$count_min[df$direct_sun], na.rm = TRUE)
+      )
+    }
+  })
+
+  res
+}
+
+# Parse all deployments
+abundance_index <- map_dfr(json_files, function(f) {
+  tryCatch(parse_deployment(f), error = function(e) {
+    warning(sprintf("Failed to parse %s: %s", f, conditionMessage(e)))
+    tibble(
+      deployment_id = tools::file_path_sans_ext(basename(f)),
+      image_filename = NA_character_,
+      total_butterflies = NA_real_,
+      butterflies_direct_sun = NA_real_
+    )
+  })
+}) %>%
+  arrange(deployment_id, image_filename)
+
+abundance_index
+```
+
+```{r}
+#| label: print-summary
+#| echo: false
+library(knitr)
+knitr::kable(head(abundance_index, 20), caption = "First 20 rows of abundance index")
+```
+
+```{r}
+#| label: plot-timeseries
+# Build a timestamp from the 14-digit datetime in image filenames (e.g., *_YYYYMMDDHHMMSS.JPG)
+abundance_index_ts <- abundance_index %>%
+  mutate(
+    timestamp_str = stringr::str_match(tidyr::replace_na(image_filename, ""), ".*_(\\d{14})")[, 2],
+    timestamp = as.POSIXct(strptime(timestamp_str, "%Y%m%d%H%M%S", tz = "UTC"))
+  ) %>%
+  filter(!is.na(timestamp))
+
+ggplot(abundance_index_ts, aes(x = timestamp, y = total_butterflies)) +
+  geom_line() +
+  geom_point(size = 0.7) +
+  facet_wrap(~ deployment_id, scales = "free_x") +
+  labs(
+    title = "Butterfly abundance timeseries by deployment",
+    x = "Timestamp",
+    y = "Total butterflies"
+  ) +
+  theme_minimal()
+```
+
+```{r}
+#| label: save-csv
+#| eval: false
+# Optionally save to CSV for downstream analyses
+readr::write_csv(abundance_index, "data/butterfly_abundance_index.csv")
+```
+
+```{r}
+#| label: methods-note
+cat("Abundance index computed using conservative category minima: 1 for '1-9', 10 for '10-99', 100 for '100-999', and lower bound for any 'N+' values.")
+```

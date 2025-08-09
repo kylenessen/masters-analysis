@@ -1,0 +1,3666 @@
+{
+  "rows": 9,
+  "columns": 16,
+  "classifications": {
+    "UDMH4_20240118155001.JPG": {
+      "confirmed": true,
+      "cells": {
+        "cell_5_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_8": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_7": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_2": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_2_3": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_3_8": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_14": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_4_14": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_7_3": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_9": {
+          "count": "0",
+          "directSun": false
+        }
+      },
+      "index": 0,
+      "user": "SM",
+      "isNight": false
+    },
+    "UDMH4_20240118162001.JPG": {
+      "confirmed": true,
+      "cells": {
+        "cell_5_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_8": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_7": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_2": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_2_3": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_3_8": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_4_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_7_3": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_9": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_1_10": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "index": 1,
+      "user": "SM",
+      "isNight": false
+    },
+    "UDMH4_20240118165001.JPG": {
+      "confirmed": true,
+      "cells": {
+        "cell_5_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_8": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_3_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_7": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_2": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_2_3": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_3_8": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_4_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_7_3": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_9": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_1_10": {
+          "count": "0",
+          "directSun": false
+        }
+      },
+      "index": 2,
+      "user": "SM",
+      "isNight": false
+    },
+    "UDMH4_20240118172001.JPG": {
+      "confirmed": true,
+      "cells": {
+        "cell_5_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_8": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_3_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_7": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_2": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_2_3": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_3_8": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_4_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_7_3": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_9": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_1_10": {
+          "count": "0",
+          "directSun": false
+        }
+      },
+      "index": 3,
+      "user": "SM",
+      "isNight": false
+    },
+    "UDMH4_20240118175002.JPG": {
+      "cells": {
+        "cell_5_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_8": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_3_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_7": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_2": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_2_3": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_3_8": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_4_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_7_3": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_9": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_1_10": {
+          "count": "0",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "SM",
+      "isNight": true,
+      "index": 4
+    },
+    "UDMH4_20240118182001.JPG": {
+      "cells": {
+        "cell_5_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_8": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_3_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_7": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_2": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_2_3": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_3_8": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_4_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_7_3": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_9": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_1_10": {
+          "count": "0",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "SM",
+      "isNight": true,
+      "index": 5
+    },
+    "UDMH4_20240118185001.JPG": {
+      "cells": {
+        "cell_5_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_8": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_3_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_7": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_2": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_2_3": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_3_8": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_4_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_7_3": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_9": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_1_10": {
+          "count": "0",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "SM",
+      "isNight": true,
+      "index": 6
+    },
+    "UDMH4_20240118192001.JPG": {
+      "cells": {
+        "cell_5_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_8": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_3_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_7": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_2": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_2_3": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_3_8": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_4_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_7_3": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_9": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_1_10": {
+          "count": "0",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "SM",
+      "isNight": true,
+      "index": 7
+    },
+    "UDMH4_20240118195001.JPG": {
+      "cells": {
+        "cell_5_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_8": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_3_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_7": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_2": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_2_3": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_3_8": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_4_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_7_3": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_9": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_1_10": {
+          "count": "0",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "SM",
+      "isNight": true,
+      "index": 8
+    },
+    "UDMH4_20240118202001.JPG": {
+      "cells": {
+        "cell_5_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_8": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_3_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_7": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_2": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_2_3": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_3_8": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_4_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_7_3": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_9": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_1_10": {
+          "count": "0",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "SM",
+      "isNight": true,
+      "index": 9
+    },
+    "UDMH4_20240118205001.JPG": {
+      "cells": {
+        "cell_5_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_8": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_3_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_7": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_2": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_2_3": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_3_8": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_4_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_7_3": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_9": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_1_10": {
+          "count": "0",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "SM",
+      "isNight": true,
+      "index": 10
+    },
+    "UDMH4_20240118212000.JPG": {
+      "cells": {
+        "cell_5_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_8": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_3_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_7": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_2": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_2_3": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_3_8": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_4_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_7_3": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_9": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_1_10": {
+          "count": "0",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "SM",
+      "isNight": true,
+      "index": 11
+    },
+    "UDMH4_20240118215001.JPG": {
+      "cells": {
+        "cell_5_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_8": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_3_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_7": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_2": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_2_3": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_3_8": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_4_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_7_3": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_9": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_1_10": {
+          "count": "0",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "SM",
+      "isNight": true,
+      "index": 12
+    },
+    "UDMH4_20240118222001.JPG": {
+      "cells": {
+        "cell_5_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_8": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_3_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_7": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_2": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_2_3": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_3_8": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_4_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_7_3": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_9": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_1_10": {
+          "count": "0",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "SM",
+      "isNight": true,
+      "index": 13
+    },
+    "UDMH4_20240118225001.JPG": {
+      "cells": {
+        "cell_5_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_8": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_3_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_7": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_2": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_2_3": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_3_8": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_4_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_7_3": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_9": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_1_10": {
+          "count": "0",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "SM",
+      "isNight": true,
+      "index": 14
+    },
+    "UDMH4_20240118232001.JPG": {
+      "cells": {
+        "cell_5_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_8": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_3_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_7": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_2": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_2_3": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_3_8": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_4_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_7_3": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_9": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_1_10": {
+          "count": "0",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "SM",
+      "isNight": true,
+      "index": 15
+    },
+    "UDMH4_20240118235001.JPG": {
+      "cells": {
+        "cell_5_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_8": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_3_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_7": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_2": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_2_3": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_3_8": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_4_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_7_3": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_9": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_1_10": {
+          "count": "0",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "SM",
+      "isNight": true,
+      "index": 16
+    },
+    "UDMH4_20240119002001.JPG": {
+      "cells": {
+        "cell_5_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_8": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_3_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_7": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_2": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_2_3": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_3_8": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_4_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_7_3": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_9": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_1_10": {
+          "count": "0",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "SM",
+      "isNight": true,
+      "index": 17
+    },
+    "UDMH4_20240119005001.JPG": {
+      "cells": {
+        "cell_5_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_8": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_3_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_7": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_2": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_2_3": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_3_8": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_4_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_7_3": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_9": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_1_10": {
+          "count": "0",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "SM",
+      "isNight": true,
+      "index": 18
+    },
+    "UDMH4_20240119012001.JPG": {
+      "cells": {
+        "cell_5_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_8": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_3_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_7": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_2": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_2_3": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_3_8": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_4_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_7_3": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_9": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_1_10": {
+          "count": "0",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "SM",
+      "isNight": true,
+      "index": 19
+    },
+    "UDMH4_20240119015001.JPG": {
+      "cells": {
+        "cell_5_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_8": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_3_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_7": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_2": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_2_3": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_3_8": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_4_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_7_3": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_9": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_1_10": {
+          "count": "0",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "SM",
+      "isNight": true,
+      "index": 20
+    },
+    "UDMH4_20240119022001.JPG": {
+      "cells": {
+        "cell_5_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_8": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_3_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_7": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_2": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_2_3": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_3_8": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_4_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_7_3": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_9": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_1_10": {
+          "count": "0",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "SM",
+      "isNight": true,
+      "index": 21
+    },
+    "UDMH4_20240119025001.JPG": {
+      "cells": {
+        "cell_5_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_8": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_3_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_7": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_2": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_2_3": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_3_8": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_4_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_7_3": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_9": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_1_10": {
+          "count": "0",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "SM",
+      "isNight": true,
+      "index": 22
+    },
+    "UDMH4_20240119032001.JPG": {
+      "cells": {
+        "cell_5_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_8": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_3_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_7": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_2": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_2_3": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_3_8": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_4_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_7_3": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_9": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_1_10": {
+          "count": "0",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "SM",
+      "isNight": true,
+      "index": 23
+    },
+    "UDMH4_20240119035001.JPG": {
+      "cells": {
+        "cell_5_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_8": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_3_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_7": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_2": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_2_3": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_3_8": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_4_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_7_3": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_9": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_1_10": {
+          "count": "0",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "SM",
+      "isNight": true,
+      "index": 24
+    },
+    "UDMH4_20240119042001.JPG": {
+      "cells": {
+        "cell_5_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_8": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_3_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_7": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_2": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_2_3": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_3_8": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_4_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_7_3": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_9": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_1_10": {
+          "count": "0",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "SM",
+      "isNight": true,
+      "index": 25
+    },
+    "UDMH4_20240119045001.JPG": {
+      "cells": {
+        "cell_5_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_8": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_3_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_7": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_2": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_2_3": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_3_8": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_4_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_7_3": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_9": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_1_10": {
+          "count": "0",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "SM",
+      "isNight": true,
+      "index": 26
+    },
+    "UDMH4_20240119052001.JPG": {
+      "cells": {
+        "cell_5_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_8": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_3_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_7": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_2": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_2_3": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_3_8": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_4_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_7_3": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_9": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_1_10": {
+          "count": "0",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "SM",
+      "isNight": true,
+      "index": 27
+    },
+    "UDMH4_20240119055001.JPG": {
+      "cells": {
+        "cell_5_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_8": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_3_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_7": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_2": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_2_3": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_3_8": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_4_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_7_3": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_9": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_1_10": {
+          "count": "0",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "SM",
+      "isNight": true,
+      "index": 28
+    },
+    "UDMH4_20240119062001.JPG": {
+      "cells": {
+        "cell_5_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_8": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_3_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_7": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_2": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_2_3": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_3_8": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_4_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_7_3": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_9": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_1_10": {
+          "count": "0",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "SM",
+      "isNight": true,
+      "index": 29
+    },
+    "UDMH4_20240119065001.JPG": {
+      "cells": {
+        "cell_5_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_8": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_3_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_7": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_2": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_2_3": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_3_8": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_4_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_7_3": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_9": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_1_10": {
+          "count": "0",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "SM",
+      "isNight": true,
+      "index": 30
+    },
+    "UDMH4_20240119072000.JPG": {
+      "cells": {
+        "cell_5_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_8": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_3_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_7": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_2": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_2_3": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_3_8": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_4_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_7_3": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_10": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_2_9": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_1_10": {
+          "count": "0",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "SM",
+      "isNight": false,
+      "index": 31
+    },
+    "UDMH4_20240119075002.JPG": {
+      "cells": {
+        "cell_5_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_8": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_3_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_7": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_2": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_2_3": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_3_8": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_4_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_7_3": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_10": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_2_9": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_1_10": {
+          "count": "0",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "SM",
+      "isNight": false,
+      "index": 32
+    },
+    "UDMH4_20240119082001.JPG": {
+      "cells": {
+        "cell_5_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_12": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_4_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_8": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_4_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_3_12": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_7": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_3_9": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_6_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_2": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_2_3": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_3_8": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_4_14": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_7_3": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_10": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_2_9": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_1_10": {
+          "count": "0",
+          "directSun": false
+        },
+        "cell_3_13": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "confirmed": true,
+      "user": "SM",
+      "isNight": false,
+      "index": 33
+    },
+    "UDMH4_20240119085001.JPG": {
+      "confirmed": true,
+      "cells": {
+        "cell_6_3": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_4_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_10": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_5_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_3_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_12": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_12": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_4_8": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_8": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_13": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "index": 34,
+      "user": "SM",
+      "isNight": false
+    },
+    "UDMH4_20240119092001.JPG": {
+      "confirmed": true,
+      "cells": {
+        "cell_4_11": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_9": {
+          "count": "10-99",
+          "directSun": false
+        },
+        "cell_4_8": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_8": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_4_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_4_12": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_12": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_0_13": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_13": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_10": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "index": 35,
+      "user": "SM",
+      "isNight": false
+    },
+    "UDMH4_20240119095001.JPG": {
+      "confirmed": true,
+      "cells": {
+        "cell_3_10": {
+          "count": "10-99",
+          "directSun": true
+        },
+        "cell_3_9": {
+          "count": "1-9",
+          "directSun": true
+        },
+        "cell_3_11": {
+          "count": "1-9",
+          "directSun": true
+        },
+        "cell_4_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_4_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_12": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_13": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_12": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_4_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_3": {
+          "count": "1-9",
+          "directSun": true
+        }
+      },
+      "index": 36,
+      "user": "SM",
+      "isNight": false
+    },
+    "UDMH4_20240119102001.JPG": {
+      "confirmed": true,
+      "cells": {
+        "cell_4_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_3_11": {
+          "count": "1-9",
+          "directSun": true
+        },
+        "cell_3_10": {
+          "count": "1-9",
+          "directSun": true
+        },
+        "cell_4_10": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_5_9": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_4_9": {
+          "count": "1-9",
+          "directSun": true
+        },
+        "cell_2_12": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_2_11": {
+          "count": "1-9",
+          "directSun": false
+        },
+        "cell_6_3": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "index": 37,
+      "user": "SM",
+      "isNight": false
+    },
+    "UDMH4_20240119105001.JPG": {
+      "confirmed": true,
+      "cells": {
+        "cell_3_11": {
+          "count": "1-9",
+          "directSun": true
+        },
+        "cell_3_12": {
+          "count": "1-9",
+          "directSun": true
+        }
+      },
+      "index": 38,
+      "user": "SM",
+      "isNight": false
+    },
+    "UDMH4_20240119112001.JPG": {
+      "confirmed": true,
+      "cells": {
+        "cell_6_10": {
+          "count": "1-9",
+          "directSun": false
+        }
+      },
+      "index": 39,
+      "user": "SM",
+      "isNight": false
+    }
+  }
+}
