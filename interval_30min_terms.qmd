@@ -342,6 +342,93 @@ tbl_compare <- tibble(
 tbl_compare
 ```
 
+## Step 10 — Model Refinements and Alternatives
+
+```{r}
+#| label: refinements
+# Center/scale predictors to reduce VIF and stabilize interaction estimates
+analysis_30_ref <- analysis_30 %>%
+  mutate(
+    ambient_temp_c = as.numeric(scale(ambient_temp, center = TRUE, scale = TRUE)),
+    sunlight_exposure_prop_c = as.numeric(scale(sunlight_exposure_prop, center = TRUE, scale = TRUE)),
+    gust_above2_per10 = gust_minutes_above_2ms / 10,
+    sustained_above2_per10 = sustained_minutes_above_2ms / 10
+  ) %>%
+  # Sequential time index per view for optional AR1 test
+  group_by(view) %>% arrange(timestamp, .by_group = TRUE) %>%
+  mutate(time_index = row_number()) %>%
+  ungroup()
+
+# Refit with centered predictors (gust)
+model_gust_centered <- glmmTMB(
+  abundance_index_t ~ abundance_index_t_minus_1 +
+    gust_above2_per10 +
+    sunlight_exposure_prop_c * ambient_temp_c +
+    (1 | view),
+  family = nbinom2(),
+  data = analysis_30_ref
+)
+
+# Refit with centered predictors (sustained)
+model_sustained_centered <- glmmTMB(
+  abundance_index_t ~ abundance_index_t_minus_1 +
+    sustained_above2_per10 +
+    sunlight_exposure_prop_c * ambient_temp_c +
+    (1 | view),
+  family = nbinom2(),
+  data = analysis_30_ref
+)
+
+# Optional: allow wind effect to vary by view (random slope)
+model_gust_rslope <- tryCatch({
+  glmmTMB(
+    abundance_index_t ~ abundance_index_t_minus_1 +
+      gust_above2_per10 +
+      sunlight_exposure_prop_c * ambient_temp_c +
+      (1 + gust_above2_per10 | view),
+    family = nbinom2(),
+    data = analysis_30_ref
+  )
+}, error = function(e) NULL)
+
+# If there are no zeros in response, consider zero-truncated NB
+has_zero <- any(analysis_30_ref$abundance_index_t == 0, na.rm = TRUE)
+model_gust_trunc <- NULL
+if (!has_zero) {
+  model_gust_trunc <- glmmTMB(
+    abundance_index_t ~ abundance_index_t_minus_1 +
+      gust_above2_per10 +
+      sunlight_exposure_prop_c * ambient_temp_c +
+      (1 | view),
+    family = truncated_nbinom2(),
+    data = analysis_30_ref
+  )
+}
+
+# DHARMa residual diagnostics including temporal autocorrelation
+diag_gust <- DHARMa::simulateResiduals(model_gust_centered, plot = FALSE)
+DHARMa::testUniformity(diag_gust)
+DHARMa::testDispersion(diag_gust)
+DHARMa::testZeroInflation(diag_gust)
+DHARMa::testTemporalAutocorrelation(diag_gust, time = analysis_30_ref$time_index, group = analysis_30_ref$view)
+
+# Compare models where available
+cmp <- performance::compare_performance(
+  model_gust_threshold,
+  model_sustained_threshold,
+  model_gust_centered,
+  model_sustained_centered,
+  model_gust_rslope,
+  model_gust_trunc,
+  rank = TRUE
+)
+cmp
+
+# Tidy summaries (centered models)
+broom.mixed::tidy(model_gust_centered, effects = "fixed", conf.int = TRUE)
+broom.mixed::tidy(model_sustained_centered, effects = "fixed", conf.int = TRUE)
+```
+
 ## Notes / Questions for Kyle
 
 - Confirm `view`: should we use `view_id` from `deployments.csv`, or a different grouping for the random intercept? If a separate mapping exists, where is it stored?
