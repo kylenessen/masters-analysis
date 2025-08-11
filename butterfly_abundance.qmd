@@ -108,6 +108,15 @@ parse_deployment <- function(file) {
 
   im_names <- names(cls)
   res <- map2_dfr(cls, im_names, function(im_obj, im_name) {
+    # Exclude frames explicitly marked as night in newer JSONs
+    if (isTRUE(or_else(im_obj[["isNight"]], FALSE))) {
+      return(tibble(
+        deployment_id = character(0),
+        image_filename = character(0),
+        total_butterflies = double(0),
+        butterflies_direct_sun = double(0)
+      ))
+    }
     cells <- or_else(im_obj$cells, NULL)
     df <- extract_cells_df(cells)
     if (nrow(df) == 0) {
@@ -145,24 +154,58 @@ abundance_index <- map_dfr(json_files, function(f) {
   arrange(deployment_id, image_filename)
 
 abundance_index
+
+# SC1/SC2 adjustments:
+# - Exclude known night intervals (these deployments lack isNight flags)
+# - Downsample from 5-minute cadence to 30-minute cadence to match others
+
+# Night intervals provided by user for SC1 and SC2
+night_periods <- list(
+  SC1 = list(
+    list(start = "20231117174001", end = "20231118062001"),
+    list(start = "20231118172501", end = "20231119061501"),
+    list(start = "20231119171001", end = "20231120062001")
+  ),
+  SC2 = list(
+    list(start = "20231117172501", end = "20231118062001"),
+    list(start = "20231118171501", end = "20231119061501")
+  )
+)
+
+parse_ts <- function(s) as.POSIXct(strptime(s, "%Y%m%d%H%M%S", tz = "UTC"))
+
+sc_is_night <- function(id, ts) {
+  if (is.na(ts)) return(FALSE)
+  if (!(id %in% names(night_periods))) return(FALSE)
+  periods <- night_periods[[id]]
+  any(purrr::map_lgl(periods, function(p) {
+    ts >= parse_ts(p$start) & ts <= parse_ts(p$end)
+  }))
+}
+
+abundance_index_filtered <- abundance_index %>%
+  mutate(
+    timestamp_str = stringr::str_match(tidyr::replace_na(image_filename, ""), ".*_(\\d{14})")[, 2],
+    timestamp = parse_ts(timestamp_str)
+  ) %>%
+  filter(!is.na(timestamp)) %>%
+  # Exclude SC1/SC2 frames that fall in known night intervals
+  filter(!(deployment_id %in% c("SC1", "SC2") & purrr::map2_lgl(deployment_id, timestamp, sc_is_night))) %>%
+  # Downsample SC1/SC2 from 5-min to 30-min by keeping minutes 00 or 30
+  filter(!(deployment_id %in% c("SC1", "SC2") & (lubridate::minute(timestamp) %% 30 != 0)))
 ```
 
 ```{r}
 #| label: print-summary
 #| echo: false
 library(knitr)
-knitr::kable(head(abundance_index, 20), caption = "First 20 rows of abundance index")
+knitr::kable(head(abundance_index_filtered, 20), caption = "First 20 rows (night-excluded, 30-min SC1/SC2)")
 ```
 
 ```{r}
 #| label: plot-timeseries
-# Build a timestamp from the 14-digit datetime in image filenames (e.g., *_YYYYMMDDHHMMSS.JPG)
-abundance_index_ts <- abundance_index %>%
-  mutate(
-    timestamp_str = stringr::str_match(tidyr::replace_na(image_filename, ""), ".*_(\\d{14})")[, 2],
-    timestamp = as.POSIXct(strptime(timestamp_str, "%Y%m%d%H%M%S", tz = "UTC"))
-  ) %>%
-  filter(!is.na(timestamp))
+# Use the filtered dataset with computed timestamps
+abundance_index_ts <- abundance_index_filtered
 
 ggplot(abundance_index_ts, aes(x = timestamp, y = total_butterflies)) +
   geom_line() +
@@ -180,7 +223,7 @@ ggplot(abundance_index_ts, aes(x = timestamp, y = total_butterflies)) +
 #| label: save-csv
 #| eval: false
 # Optionally save to CSV for downstream analyses
-readr::write_csv(abundance_index, "data/butterfly_abundance_index.csv")
+readr::write_csv(abundance_index_filtered, "data/butterfly_abundance_index.csv")
 ```
 
 ```{r}
