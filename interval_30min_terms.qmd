@@ -16,6 +16,10 @@ editor: visual
 # Load tidyverse and helpers
 library(tidyverse)
 library(lubridate)
+library(glmmTMB)
+library(performance)
+library(broom.mixed)
+library(DHARMa)
 
 # Data paths (adjust if needed)
 path_abund <- "data/butterfly_abundance_index.csv"
@@ -240,6 +244,102 @@ abund_30 %>%
     ambient_temp
   ) %>%
   head(20)
+```
+
+## Step 9 — Modeling (GLMM, nbinom2)
+
+```{r}
+#| label: build-model-data
+# Prepare analysis dataset with required fields, drop remaining NAs
+analysis_30 <- abund_30 %>%
+  transmute(
+    deployment_id,
+    view,
+    timestamp,
+    abundance_index_t,
+    abundance_index_t_minus_1,
+    sustained_minutes_above_2ms,
+    gust_minutes_above_2ms,
+    sunlight_exposure_prop,
+    ambient_temp
+  ) %>%
+  filter(
+    !is.na(view),
+    !is.na(abundance_index_t),
+    !is.na(abundance_index_t_minus_1)
+  )
+
+# Quick counts and missingness audit for predictors
+summary_tbl <- tibble(
+  n = nrow(analysis_30),
+  na_sun = sum(is.na(analysis_30$sunlight_exposure_prop)),
+  na_temp = sum(is.na(analysis_30$ambient_temp)),
+  na_sustained = sum(is.na(analysis_30$sustained_minutes_above_2ms)),
+  na_gust = sum(is.na(analysis_30$gust_minutes_above_2ms))
+)
+summary_tbl
+```
+
+```{r}
+#| label: model-sustained
+#| fig-width: 7
+# Model with sustained minutes above 2 m/s
+model_sustained_threshold <- glmmTMB(
+  abundance_index_t ~ abundance_index_t_minus_1 +
+    sustained_minutes_above_2ms +
+    sunlight_exposure_prop * ambient_temp +
+    (1 | view),
+  family = nbinom2(),
+  data = analysis_30
+)
+
+summary(model_sustained_threshold)
+performance::r2(model_sustained_threshold)
+performance::check_overdispersion(model_sustained_threshold)
+performance::check_zeroinflation(model_sustained_threshold)
+performance::check_collinearity(model_sustained_threshold)
+performance::check_model(model_sustained_threshold)
+
+# Tidy table with CIs
+broom.mixed::tidy(model_sustained_threshold, effects = "fixed", conf.int = TRUE)
+```
+
+```{r}
+#| label: model-gust
+#| fig-width: 7
+# Model with gust minutes above 2 m/s
+model_gust_threshold <- glmmTMB(
+  abundance_index_t ~ abundance_index_t_minus_1 +
+    gust_minutes_above_2ms +
+    sunlight_exposure_prop * ambient_temp +
+    (1 | view),
+  family = nbinom2(),
+  data = analysis_30
+)
+
+summary(model_gust_threshold)
+performance::r2(model_gust_threshold)
+performance::check_overdispersion(model_gust_threshold)
+performance::check_zeroinflation(model_gust_threshold)
+performance::check_collinearity(model_gust_threshold)
+performance::check_model(model_gust_threshold)
+
+# Tidy table with CIs
+broom.mixed::tidy(model_gust_threshold, effects = "fixed", conf.int = TRUE)
+```
+
+```{r}
+#| label: compare-aic
+# Compare AIC and R2 side by side
+tbl_compare <- tibble(
+  model = c("sustained", "gust"),
+  AIC = c(AIC(model_sustained_threshold), AIC(model_gust_threshold)),
+  R2_marginal = c(performance::r2(model_sustained_threshold)$R2_marginal,
+                  performance::r2(model_gust_threshold)$R2_marginal),
+  R2_conditional = c(performance::r2(model_sustained_threshold)$R2_conditional,
+                     performance::r2(model_gust_threshold)$R2_conditional)
+)
+tbl_compare
 ```
 
 ## Notes / Questions for Kyle
