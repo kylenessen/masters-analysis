@@ -213,7 +213,6 @@ for (dep in deployments) {
   df <- dplyr::filter(abundance_index_ts, deployment_id == dep)
   if (nrow(df) == 0) next
   p <- ggplot(df, aes(x = timestamp, y = total_butterflies)) +
-    geom_line() +
     geom_point(size = 0.7) +
     labs(
       title = paste("Butterfly abundance timeseries -", dep),
