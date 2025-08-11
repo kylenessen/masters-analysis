@@ -79,6 +79,12 @@ abund_30 <- abund_steps %>%
     abundance_index_t = abundance_index
   )
 
+# Drop any rows where either t or t-1 abundance is missing
+na_pair_removed <- sum(is.na(abund_30$abundance_index_t) | is.na(abund_30$abundance_index_t_minus_1))
+abund_30 <- abund_30 %>% filter(!is.na(abundance_index_t) & !is.na(abundance_index_t_minus_1))
+
+cat(sprintf("Removed %d 30-min pairs due to NA abundance at t or t-1.\n", na_pair_removed))
+
 # Sanity check: no missing lags and correct gap
 stopifnot(all(!is.na(abund_30$abundance_index_t_minus_1)))
 stopifnot(all(abs(abund_30$dt_min - 30) < 1e-6))
