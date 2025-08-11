@@ -203,20 +203,26 @@ knitr::kable(head(abundance_index_filtered, 20), caption = "First 20 rows (night
 ```
 
 ```{r}
-#| label: plot-timeseries
-# Use the filtered dataset with computed timestamps
+#| label: plot-by-deployment
+#| fig-cap: "Butterfly abundance timeseries by deployment"
+# Generate one plot per deployment using the filtered dataset
 abundance_index_ts <- abundance_index_filtered
 
-ggplot(abundance_index_ts, aes(x = timestamp, y = total_butterflies)) +
-  geom_line() +
-  geom_point(size = 0.7) +
-  facet_wrap(~ deployment_id, scales = "free_x") +
-  labs(
-    title = "Butterfly abundance timeseries by deployment",
-    x = "Timestamp",
-    y = "Total butterflies"
-  ) +
-  theme_minimal()
+deployments <- sort(unique(abundance_index_ts$deployment_id))
+for (dep in deployments) {
+  df <- dplyr::filter(abundance_index_ts, deployment_id == dep)
+  if (nrow(df) == 0) next
+  p <- ggplot(df, aes(x = timestamp, y = total_butterflies)) +
+    geom_line() +
+    geom_point(size = 0.7) +
+    labs(
+      title = paste("Butterfly abundance timeseries -", dep),
+      x = "Timestamp",
+      y = "Total butterflies"
+    ) +
+    theme_minimal()
+  print(p)
+}
 ```
 
 ```{r}
