@@ -1,0 +1,263 @@
+---
+title: "30-min Interval: Term Build-Up"
+format:
+  html:
+    toc: true
+    number-sections: false
+execute:
+  echo: true
+  warning: false
+  message: false
+editor: visual
+---
+
+```{r}
+#| label: setup
+# Load tidyverse and helpers
+library(tidyverse)
+library(lubridate)
+library(jsonlite)
+library(glmmTMB)
+library(performance)
+library(broom.mixed)
+library(DHARMa)
+
+# Data paths (adjust if needed)
+path_abund <- "data/butterfly_abundance_index.csv"
+path_deps <- "data/deployments.csv"
+path_wind <- "data/wind_all.csv"
+path_temp <- "data/temperature_data_2023.csv"
+
+# Toggle: should we drop intervals where t-1 == 0 and t == 0?
+drop_empty_zero_intervals <- TRUE
+
+# Ensure export dirs exist when rendering
+invisible(dir.create("results", showWarnings = FALSE))
+invisible(dir.create("diagnostics", showWarnings = FALSE))
+```
+
+## Step 1 — Load Abundance Index
+
+```{r}
+#| label: load-abundance
+abund <- readr::read_csv(path_abund, show_col_types = FALSE) %>%
+    mutate(
+        timestamp = ymd_hms(timestamp, tz = "UTC", quiet = TRUE),
+        # response naming convenience (we will call this abundance_index_t later)
+        abundance_index = total_butterflies
+    ) %>%
+    arrange(deployment_id, timestamp)
+
+# Quick glance
+abund %>%
+    group_by(deployment_id) %>%
+    summarise(n = n(), first = min(timestamp), last = max(timestamp)) %>%
+    arrange(deployment_id)
+```
+
+```{r}
+#| label: check-intervals
+# Verify step sizes (minutes) between consecutive images within each deployment
+abund_steps <- abund %>%
+    group_by(deployment_id) %>%
+    arrange(timestamp, .by_group = TRUE) %>%
+    mutate(
+        dt_min = as.numeric(difftime(timestamp, lag(timestamp), units = "mins")),
+        abundance_index_t_minus_1 = lag(abundance_index)
+    ) %>%
+    ungroup()
+
+# Summarize the distribution of dt_min
+abund_steps %>%
+    filter(!is.na(dt_min)) %>%
+    count(deployment_id, dt_min) %>%
+    arrange(deployment_id, dt_min) %>%
+    group_by(deployment_id) %>%
+    mutate(prop = n / sum(n)) %>%
+    ungroup()
+```
+
+## Step 2 — Restrict to 30-min Consecutive Pairs
+
+```{r}
+#| label: only-30min-pairs
+# Keep rows where the previous image exists and the gap is exactly 30 minutes
+abund_30 <- abund_steps %>%
+    filter(!is.na(dt_min) & abs(dt_min - 30) < 1e-6) %>%
+    mutate(
+        abundance_index_t = abundance_index
+    )
+
+# Drop any rows where either t or t-1 abundance is missing
+na_pair_removed <- sum(is.na(abund_30$abundance_index_t) | is.na(abund_30$abundance_index_t_minus_1))
+abund_30 <- abund_30 %>% filter(!is.na(abundance_index_t) & !is.na(abundance_index_t_minus_1))
+
+cat(sprintf("Removed %d 30-min pairs due to NA abundance at t or t-1.\n", na_pair_removed))
+
+# Sanity check: no missing lags and correct gap
+stopifnot(all(!is.na(abund_30$abundance_index_t_minus_1)))
+stopifnot(all(abs(abund_30$dt_min - 30) < 1e-6))
+
+abund_30 %>%
+    select(deployment_id, timestamp, abundance_index_t_minus_1, abundance_index_t) %>%
+    head(10)
+```
+
+## Step 3 — Sunlight Exposure Proportion
+
+```{r}
+#| label: sunlight-prop
+# If butterflies_direct_sun is present, compute within-frame proportion
+abund_30 <- abund_30 %>%
+    mutate(
+        sunlight_exposure_prop = case_when(
+            !is.na(butterflies_direct_sun) & !is.na(total_butterflies) & total_butterflies > 0 ~
+                pmin(1, pmax(0, butterflies_direct_sun / total_butterflies)),
+            TRUE ~ NA_real_
+        )
+    )
+
+abund_30 %>% summarise(
+    n = n(),
+    with_sun = sum(!is.na(sunlight_exposure_prop)),
+    mean_sun = mean(sunlight_exposure_prop, na.rm = TRUE)
+)
+```
+
+## Step 4 — Ambient Temperature (mean over window)
+
+```{r}
+#| label: join-temp
+# Temperature file keyed by deployment_id + per-image timestamp string
+temps <- readr::read_csv(path_temp, show_col_types = FALSE) %>%
+    mutate(
+        timestamp_img = ymd_hms(strptime(timestamp, format = "%Y%m%d%H%M%S", tz = "UTC")),
+        temperature = as.numeric(temperature)
+    ) %>%
+    select(deployment_id, timestamp_img, temperature, confidence, extraction_status)
+
+# Compute mean temperature over (t-30, t] per row
+compute_temp_mean <- function(dep_id, t_end, t_minutes = 30) {
+    if (is.na(dep_id) || is.na(t_end)) {
+        return(tibble(ambient_temp_mean = NA_real_, temp_rows_in_window = NA_integer_))
+    }
+    t_start <- t_end - lubridate::minutes(t_minutes)
+    seg <- temps %>% dplyr::filter(deployment_id == dep_id, timestamp_img > t_start, timestamp_img <= t_end)
+    tibble(
+        ambient_temp_mean = {
+            m <- mean(seg$temperature, na.rm = TRUE)
+            if (is.nan(m)) NA_real_ else m
+        },
+        temp_rows_in_window = nrow(seg)
+    )
+}
+
+temp_tbl <- purrr::map2_dfr(abund_30$deployment_id, abund_30$timestamp, compute_temp_mean)
+abund_30 <- dplyr::bind_cols(abund_30, temp_tbl) %>%
+    mutate(ambient_temp = ambient_temp_mean)
+
+abund_30 %>% summarise(
+    n = n(),
+    temp_rows_mean = mean(temp_rows_in_window, na.rm = TRUE),
+    temp_available = sum(!is.na(ambient_temp)),
+    mean_temp = mean(ambient_temp, na.rm = TRUE)
+)
+```
+
+## Step 5 — Map Deployments to Wind Meters
+
+```{r}
+#| label: map-wind-meter
+deps <- readr::read_csv(path_deps, show_col_types = FALSE) %>%
+    select(deployment_id, wind_meter_name, view_id, camera_name) %>%
+    mutate(
+        wind_meter_name = na_if(wind_meter_name, "NA"),
+        view = as.character(view_id)
+    )
+
+# view is set to view_id as requested.
+
+abund_30 <- abund_30 %>% left_join(deps, by = "deployment_id")
+
+abund_30 %>%
+    count(deployment_id, wind_meter_name) %>%
+    arrange(deployment_id)
+```
+
+## Step 6 — Wind Threshold Minutes per 30-min Interval
+
+```{r}
+#| label: wind-thresholds
+# Read combined per-minute wind, parse timestamps as UTC
+wind <- readr::read_csv(path_wind, show_col_types = FALSE) %>%
+    mutate(
+        time = ymd_hms(time, tz = "UTC", quiet = TRUE),
+        speed = as.numeric(speed),
+        gust = as.numeric(gust)
+    ) %>%
+    select(wind_meter_name, time, speed, gust)
+
+# Helper to compute minutes above threshold within (t-30, t]
+compute_thresholds <- function(wm, t_end, t_minutes = 30, thr = 2) {
+    if (is.na(wm) || is.na(t_end)) {
+        return(tibble(sustained_minutes_above_2ms = NA_integer_, gust_minutes_above_2ms = NA_integer_))
+    }
+    t_start <- t_end - minutes(t_minutes)
+    seg <- wind %>%
+        filter(wind_meter_name == wm, time > t_start, time <= t_end)
+    tibble(
+        wind_rows_in_window         = nrow(seg),
+        sustained_minutes_above_2ms = sum(!is.na(seg$speed) & seg$speed > thr),
+        gust_minutes_above_2ms      = sum(!is.na(seg$gust) & seg$gust > thr)
+    )
+}
+
+# Vectorized map over each row of abund_30
+thr_tbl <- purrr::pmap_dfr(list(abund_30$wind_meter_name, abund_30$timestamp), compute_thresholds)
+
+abund_30 <- bind_cols(abund_30, thr_tbl)
+
+abund_30 %>%
+    select(deployment_id, timestamp, wind_rows_in_window, sustained_minutes_above_2ms, gust_minutes_above_2ms) %>%
+    head(10)
+```
+
+## Step 7 — Optional: Drop Empty Intervals (0→0)
+
+```{r}
+#| label: drop-empty
+abund_30 <- abund_30 %>% mutate(empty_zero_interval = (abundance_index_t_minus_1 == 0 & abundance_index_t == 0))
+
+empty_summary <- abund_30 %>% summarise(
+    n = n(),
+    zero_zero_n = sum(empty_zero_interval, na.rm = TRUE),
+    zero_zero_prop = mean(empty_zero_interval, na.rm = TRUE)
+)
+
+empty_summary
+
+if (isTRUE(drop_empty_zero_intervals)) {
+    abund_30 <- abund_30 %>% filter(!empty_zero_interval)
+}
+```
+
+## Output Preview (No Modeling Yet)
+
+```{r}
+#| label: preview-output
+abund_30 %>%
+    transmute(
+        deployment_id,
+        view,
+        timestamp,
+        abundance_index_t_minus_1,
+        abundance_index_t,
+        wind_rows_in_window,
+        sustained_minutes_above_2ms,
+        gust_minutes_above_2ms,
+        sunlight_exposure_prop,
+        ambient_temp
+    ) %>%
+    head(20)
+```
+
