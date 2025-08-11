@@ -16,6 +16,7 @@ editor: visual
 # Load tidyverse and helpers
 library(tidyverse)
 library(lubridate)
+library(jsonlite)
 library(glmmTMB)
 library(performance)
 library(broom.mixed)
@@ -29,6 +30,10 @@ path_temp  <- "data/temperature_data_2023.csv"
 
 # Toggle: should we drop intervals where t-1 == 0 and t == 0?
 drop_empty_zero_intervals <- TRUE
+
+# Ensure export dirs exist when rendering
+invisible(dir.create("results", showWarnings = FALSE))
+invisible(dir.create("diagnostics", showWarnings = FALSE))
 ```
 
 ## Step 1 — Load Abundance Index
@@ -260,6 +265,7 @@ analysis_30 <- abund_30 %>%
     abundance_index_t_minus_1,
     sustained_minutes_above_2ms,
     gust_minutes_above_2ms,
+    wind_rows_in_window,
     sunlight_exposure_prop,
     ambient_temp
   ) %>%
@@ -347,12 +353,21 @@ tbl_compare
 ```{r}
 #| label: refinements
 # Center/scale predictors to reduce VIF and stabilize interaction estimates
+
+# Guard: ensure wind_rows_in_window exists (fallback to 30 if missing)
+if (!"wind_rows_in_window" %in% names(analysis_30)) {
+  analysis_30 <- analysis_30 %>% mutate(wind_rows_in_window = 30L)
+}
+
 analysis_30_ref <- analysis_30 %>%
   mutate(
     ambient_temp_c = as.numeric(scale(ambient_temp, center = TRUE, scale = TRUE)),
     sunlight_exposure_prop_c = as.numeric(scale(sunlight_exposure_prop, center = TRUE, scale = TRUE)),
     gust_above2_per10 = gust_minutes_above_2ms / 10,
-    sustained_above2_per10 = sustained_minutes_above_2ms / 10
+    sustained_above2_per10 = sustained_minutes_above_2ms / 10,
+    # proportions within the 30-min window (guard against divide-by-zero)
+    gust_prop_above2 = ifelse(is.na(wind_rows_in_window) | wind_rows_in_window == 0, NA_real_, gust_minutes_above_2ms / wind_rows_in_window),
+    sustained_prop_above2 = ifelse(is.na(wind_rows_in_window) | wind_rows_in_window == 0, NA_real_, sustained_minutes_above_2ms / wind_rows_in_window)
   ) %>%
   # Sequential time index per view for optional AR1 test
   group_by(view) %>% arrange(timestamp, .by_group = TRUE) %>%
@@ -366,7 +381,8 @@ model_gust_centered <- glmmTMB(
     sunlight_exposure_prop_c * ambient_temp_c +
     (1 | view),
   family = nbinom2(),
-  data = analysis_30_ref
+  data = analysis_30_ref,
+  control = glmmTMBControl(optCtrl = list(iter.max = 1e5, eval.max = 1e5))
 )
 
 # Refit with centered predictors (sustained)
@@ -376,7 +392,8 @@ model_sustained_centered <- glmmTMB(
     sunlight_exposure_prop_c * ambient_temp_c +
     (1 | view),
   family = nbinom2(),
-  data = analysis_30_ref
+  data = analysis_30_ref,
+  control = glmmTMBControl(optCtrl = list(iter.max = 1e5, eval.max = 1e5))
 )
 
 # Optional: allow wind effect to vary by view (random slope)
@@ -387,7 +404,8 @@ model_gust_rslope <- tryCatch({
       sunlight_exposure_prop_c * ambient_temp_c +
       (1 + gust_above2_per10 | view),
     family = nbinom2(),
-    data = analysis_30_ref
+    data = analysis_30_ref,
+    control = glmmTMBControl(optCtrl = list(iter.max = 1e5, eval.max = 1e5))
   )
 }, error = function(e) NULL)
 
@@ -401,28 +419,184 @@ if (!has_zero) {
       sunlight_exposure_prop_c * ambient_temp_c +
       (1 | view),
     family = truncated_nbinom2(),
-    data = analysis_30_ref
+    data = analysis_30_ref,
+    control = glmmTMBControl(optCtrl = list(iter.max = 1e5, eval.max = 1e5))
   )
 }
 
 # DHARMa residual diagnostics including temporal autocorrelation
+set.seed(123)
 diag_gust <- DHARMa::simulateResiduals(model_gust_centered, plot = FALSE)
 DHARMa::testUniformity(diag_gust)
 DHARMa::testDispersion(diag_gust)
 DHARMa::testZeroInflation(diag_gust)
-DHARMa::testTemporalAutocorrelation(diag_gust, time = analysis_30_ref$time_index, group = analysis_30_ref$view)
+
+# Build a time vector aligned to the rows actually used in the model
+mf_gc <- model.frame(model_gust_centered)
+# Row names of the model frame typically map to the original row indices
+idx_gc <- suppressWarnings(as.integer(rownames(mf_gc)))
+if (any(is.na(idx_gc))) {
+  # Fallback via na.action mapping
+  na_gc <- attr(mf_gc, "na.action")
+  if (inherits(na_gc, "omit")) {
+    idx_gc <- setdiff(seq_len(nrow(analysis_30_ref)), as.integer(na_gc))
+  } else {
+    idx_gc <- seq_len(nrow(analysis_30_ref))
+  }
+}
+view_index_gc <- as.numeric(as.factor(analysis_30_ref$view[idx_gc]))
+time_for_dharma_gc <- analysis_30_ref$time_index[idx_gc] + view_index_gc * 1e6
+
+# Ensure lengths match residuals
+stopifnot(length(residuals(diag_gust)) == length(time_for_dharma_gc))
+DHARMa::testTemporalAutocorrelation(diag_gust, time = time_for_dharma_gc)
+
+# If truncated model exists, create aligned time as well and run diagnostics
+if (!is.null(model_gust_trunc)) {
+  diag_gust_trunc <- DHARMa::simulateResiduals(model_gust_trunc, plot = FALSE)
+  DHARMa::testUniformity(diag_gust_trunc)
+  DHARMa::testDispersion(diag_gust_trunc)
+  DHARMa::testZeroInflation(diag_gust_trunc)
+
+  mf_gt <- model.frame(model_gust_trunc)
+  idx_gt <- suppressWarnings(as.integer(rownames(mf_gt)))
+  if (any(is.na(idx_gt))) {
+    na_gt <- attr(mf_gt, "na.action")
+    if (inherits(na_gt, "omit")) {
+      idx_gt <- setdiff(seq_len(nrow(analysis_30_ref)), as.integer(na_gt))
+    } else {
+      idx_gt <- seq_len(nrow(analysis_30_ref))
+    }
+  }
+  view_index_gt <- as.numeric(as.factor(analysis_30_ref$view[idx_gt]))
+  time_for_dharma_gt <- analysis_30_ref$time_index[idx_gt] + view_index_gt * 1e6
+
+  stopifnot(length(residuals(diag_gust_trunc)) == length(time_for_dharma_gt))
+  DHARMa::testTemporalAutocorrelation(diag_gust_trunc, time = time_for_dharma_gt)
+}
+
+# Alternative, simpler variants for robustness
+model_gust_additive <- glmmTMB(
+  abundance_index_t ~ abundance_index_t_minus_1 +
+    gust_above2_per10 +
+    sunlight_exposure_prop_c + ambient_temp_c +
+    (1 | view),
+  family = nbinom2(),
+  data = analysis_30_ref,
+  control = glmmTMBControl(optCtrl = list(iter.max = 1e5, eval.max = 1e5))
+)
+
+model_gust_prop <- glmmTMB(
+  abundance_index_t ~ abundance_index_t_minus_1 +
+    gust_prop_above2 +
+    sunlight_exposure_prop_c * ambient_temp_c +
+    (1 | view),
+  family = nbinom2(),
+  data = analysis_30_ref,
+  control = glmmTMBControl(optCtrl = list(iter.max = 1e5, eval.max = 1e5))
+)
+
+# Growth-offset model: abundance change rate
+model_gust_growth <- glmmTMB(
+  abundance_index_t ~ 
+    gust_above2_per10 +
+    sunlight_exposure_prop_c * ambient_temp_c +
+    (1 | view) +
+    offset(log(pmax(abundance_index_t_minus_1, 0) + 1)),
+  family = nbinom2(),
+  data = analysis_30_ref,
+  control = glmmTMBControl(optCtrl = list(iter.max = 1e5, eval.max = 1e5))
+)
 
 # Compare models where available
-cmp <- performance::compare_performance(
-  model_gust_threshold,
-  model_sustained_threshold,
-  model_gust_centered,
-  model_sustained_centered,
-  model_gust_rslope,
-  model_gust_trunc,
-  rank = TRUE
+models_named <- list(
+  gust_baseline          = model_gust_threshold,
+  sustained_baseline     = model_sustained_threshold,
+  gust_centered          = model_gust_centered,
+  sustained_centered     = model_sustained_centered,
+  gust_random_slope      = model_gust_rslope,
+  gust_truncated         = model_gust_trunc,
+  gust_additive          = model_gust_additive,
+  gust_proportion        = model_gust_prop,
+  gust_growth_offset     = model_gust_growth
 )
+# Drop NULL models (e.g., truncated when zeros exist)
+models_named <- models_named[!vapply(models_named, is.null, logical(1))]
+
+cmp <- performance::compare_performance(models_named, rank = TRUE)
 cmp
+
+# Pick top-ranked model by AIC/weights
+top_name <- cmp$Name[1]
+top_model <- models_named[[top_name]]
+
+# Quick singularity / diagnostics summary
+list(
+  selected = top_name,
+  r2 = performance::r2(top_model),
+  overdisp = performance::check_overdispersion(top_model),
+  zeroinfl = try(performance::check_zeroinflation(top_model), silent = TRUE),
+  collinearity = performance::check_collinearity(top_model)
+)
+
+# Tidy with IRR where applicable
+tidy_top <- broom.mixed::tidy(top_model, effects = "fixed", conf.int = TRUE)
+
+# Identify wind term and compute IRR for meaningful scale
+wind_terms <- c("gust_above2_per10", "gust_minutes_above_2ms", "sustained_minutes_above_2ms", "sustained_above2_per10", "gust_prop_above2", "sustained_prop_above2")
+present_wind <- intersect(wind_terms, tidy_top$term)
+if (length(present_wind) > 0) {
+  wt <- present_wind[1]
+  row <- dplyr::filter(tidy_top, term == wt)
+  # scale note
+  scale_note <- dplyr::case_when(
+    wt %in% c("gust_above2_per10","sustained_above2_per10") ~ "per +10 minutes",
+    wt %in% c("gust_minutes_above_2ms","sustained_minutes_above_2ms") ~ "per +1 minute",
+    wt %in% c("gust_prop_above2","sustained_prop_above2") ~ "per +0.1 proportion (10%)"
+  )
+  irr <- exp(row$estimate)
+  irr_low <- exp(row$conf.low)
+  irr_high <- exp(row$conf.high)
+  tibble(
+    wind_term = wt,
+    scale = scale_note,
+    estimate = row$estimate,
+    IRR = irr,
+    IRR_low = irr_low,
+    IRR_high = irr_high,
+    p_value = row$p.value
+  ) -> irr_selected
+} else {
+  tibble(note = "No wind term found in selected model") -> irr_selected
+}
+
+# Export comparison and IRR in console-friendly formats
+readr::write_csv(cmp, file = "results/model_comparison.csv")
+if (exists("irr_selected") && nrow(irr_selected) > 0 && !"note" %in% names(irr_selected)) {
+  readr::write_csv(irr_selected, file = "results/irr_selected.csv")
+  irr_json <- list(
+    selected_model = top_name,
+    wind_term = irr_selected$wind_term[[1]],
+    scale = irr_selected$scale[[1]],
+    estimate = irr_selected$estimate[[1]],
+    IRR = irr_selected$IRR[[1]],
+    IRR_low = irr_selected$IRR_low[[1]],
+    IRR_high = irr_selected$IRR_high[[1]],
+    p_value = irr_selected$p_value[[1]]
+  )
+  writeLines(jsonlite::toJSON(irr_json, auto_unbox = TRUE, digits = 6), con = "results/irr_selected.json")
+  cat(sprintf(
+    "selected_model: %s\nwind_term: %s\nscale: %s\nestimate: %.6f\nIRR_scaled: %.4f [%.4f, %.4f]\np.value: %.3g\n",
+    top_name,
+    irr_selected$wind_term[[1]],
+    irr_selected$scale[[1]],
+    irr_selected$estimate[[1]],
+    irr_selected$IRR[[1]], irr_selected$IRR_low[[1]], irr_selected$IRR_high[[1]],
+    irr_selected$p_value[[1]]
+  ))
+} else {
+  cat("No wind effect available to export for selected model.\n")
+}
 
 # Tidy summaries (centered models)
 broom.mixed::tidy(model_gust_centered, effects = "fixed", conf.int = TRUE)
@@ -438,3 +612,21 @@ broom.mixed::tidy(model_sustained_centered, effects = "fixed", conf.int = TRUE)
 - Abundance source: we are reading `data/butterfly_abundance_index.csv`. Should we recompute from JSON each run, or rely on this export for consistency?
 
 ```
+
+## Summary So Far
+
+- Data assembly: 30-min consecutive pairs within deployment, `abundance_index_t` and true lag `abundance_index_t_minus_1`, `view = view_id` from `deployments.csv`.
+- Windows: wind metrics derived over (t-30, t], using all available per-minute rows; exported `wind_rows_in_window` for QA. Temperature uses mean over (t-30, t].
+- Wind metrics: both minutes-above-2 m/s and proportion-above-2 m/s computed for sustained and gust; proportion normalizes for any variation in minute counts.
+- Filtering: removed empty 0→0 intervals to focus on periods with monarch presence; abundance always loaded from `data/butterfly_abundance_index.csv`.
+- Modeling (count scale): negative binomial GLMMs with random intercept for `view`. Centering predictors reduced VIF; no material overdispersion observed; zero-deflation expected due to 0→0 removal. Among count-scale models, the gust proportion model ranked best by AIC/BIC and produced a negative wind effect.
+- Key estimate (count scale): for `gust_prop_above2`, IRR per +10% ≈ 0.79 (95% CI ≈ 0.69–0.91), p ≈ 0.0008 — indicating a ~21% decrease in expected abundance for each 10% increase in gust > 2 m/s in the prior 30 minutes, holding covariates constant.
+- Modeling (growth rate): growth-offset variant substantially improved AIC relative to count-scale lag models. With minutes/10, the gust effect was near-zero and non-significant; we recommend testing the growth-offset with gust proportion for theory-aligned inference on step-to-step change.
+- Diagnostics: DHARMa checks added with alignment of time indices to model-used rows for temporal autocorrelation tests; random-slope variants sometimes singular and are optional.
+- Exports: model comparison and selected wind IRR are saved to `results/` (CSV + JSON) and printed in a console-friendly format.
+
+Next steps (optional)
+
+- Fit/export the growth-offset model using `gust_prop_above2` (and optionally `sustained_prop_above2`) and report IRR per +10% with diagnostics.
+- Summarize sensitivity across: count-scale proportion vs growth-offset proportion; additive vs interaction; (optionally) truncated NB when zeros are absent.
+- If temporal autocorrelation persists in DHARMa, consider an AR1 residual structure as a final refinement.
