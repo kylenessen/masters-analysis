@@ -1,0 +1,327 @@
+---
+title: "Hypothesis 1 — 2 m/s Disruptive Threshold"
+format:
+  html:
+    toc: true
+    number-sections: true
+execute:
+  echo: true
+  warning: false
+  message: false
+editor: visual
+---
+
+```{r}
+#| label: setup
+# Core libs
+library(tidyverse)
+library(lubridate)
+
+# Modeling: prefer glmmTMB for nbinom2; fallback to lme4
+has_glmmTMB <- requireNamespace("glmmTMB", quietly = TRUE)
+has_lme4    <- requireNamespace("lme4", quietly = TRUE)
+
+theme_set(theme_minimal(base_size = 12))
+
+local_tz <- "America/Los_Angeles"   # deployment metadata timezone
+utc_tz   <- "UTC"                    # unify times for joins
+
+# QC exclusions from wind overview
+excluded_deployments <- c("UDMH1")
+```
+
+## Load Inputs
+
+```{r}
+#| label: load-inputs
+# Abundance index per image (precomputed)
+abund_raw <- readr::read_csv("data/butterfly_abundance_index.csv", show_col_types = FALSE) %>%
+  mutate(
+    # parse timestamp from filename suffix _YYYYMMDDHHMMSS
+    ts_str = stringr::str_match(image_filename, ".*_(\\d{14})")[, 2],
+    timestamp = ymd_hms(ts_str, tz = utc_tz),
+    sunlight_exposure_prop = dplyr::if_else(total_butterflies > 0,
+                                            butterflies_direct_sun / total_butterflies,
+                                            NA_real_)
+  ) %>%
+  filter(!is.na(timestamp)) %>%
+  arrange(deployment_id, timestamp)
+
+# Temperature extracted from images
+temp_raw <- readr::read_csv("data/temperature_data_2023.csv", show_col_types = FALSE) %>%
+  mutate(
+    timestamp = ymd_hms(as.character(timestamp), tz = utc_tz)
+  ) %>%
+  select(deployment_id, timestamp, temperature)
+
+# Wind (all meters combined, already exported from .s3db files)
+wind_raw <- readr::read_csv("data/wind_all.csv", show_col_types = FALSE) %>%
+  mutate(time = ymd_hms(time, tz = utc_tz)) %>%
+  rename(timestamp = time)
+
+# Deployments metadata
+deployments <- readr::read_csv("data/deployments.csv", show_col_types = FALSE) %>%
+  mutate(
+    deploy_start_local = ymd_hms(Deployed_time, tz = local_tz, quiet = TRUE),
+    recover_end_local  = ymd_hms(Recovered_time, tz = local_tz, quiet = TRUE),
+    deploy_start = with_tz(deploy_start_local, tzone = utc_tz),
+    recover_end  = with_tz(recover_end_local,  tzone = utc_tz)
+  ) %>%
+  select(deployment_id, wind_meter_name, view = view_id, deploy_start, recover_end) %>%
+  filter(!deployment_id %in% excluded_deployments)
+
+# Only keep deployments that have abundance data and a valid wind meter present in wind_all
+valid_wm <- unique(wind_raw$wind_meter_name)
+deps <- deployments %>%
+  semi_join(abund_raw %>% distinct(deployment_id), by = "deployment_id") %>%
+  filter(!is.na(wind_meter_name), wind_meter_name %in% valid_wm)
+
+deps %>% select(deployment_id, wind_meter_name, view, deploy_start, recover_end) %>% head(10)
+```
+
+## Helpers: Windowing and Aggregation
+
+```{r}
+#| label: helpers
+
+# Build a regular sequence of endpoints for an interval inside [start, end]
+seq_endpoints <- function(start, end, by) {
+  if (is.na(start) || is.na(end) || end <= start) return(as.POSIXct(character(), tz = utc_tz))
+  # align to the interval boundary starting from start
+  starts_aligned <- floor_date(start, unit = by)
+  ends_aligned   <- ceiling_date(end, unit = by)
+  seq(from = starts_aligned + as.period(by) , to = ends_aligned, by = by) %>%
+    # ensure within original [start, end]
+    keep(~ .x <= end)
+}
+
+# Convert an interval in minutes to a lubridate-friendly unit string
+# Avoids "minute > 60" by switching to hours/days where appropriate
+normalize_unit <- function(interval_minutes) {
+  if (interval_minutes %% 1440 == 0) {
+    d <- interval_minutes / 1440
+    if (d == 1) "day" else paste(d, "days")
+  } else if (interval_minutes %% 60 == 0) {
+    h <- interval_minutes / 60
+    if (h == 1) "hour" else paste(h, "hours")
+  } else {
+    paste(interval_minutes, "mins")
+  }
+}
+
+# Count minutes-above-threshold in a (t0, t1] window.
+# Assumes wind logged approx every minute; treats each row as ~1 minute.
+minutes_above <- function(df, t0, t1, var, thresh) {
+  if (nrow(df) == 0) return(NA_real_)
+  w <- df %>% filter(timestamp > t0, timestamp <= t1)
+  if (nrow(w) == 0) return(0)
+  sum(dplyr::coalesce(w[[var]] > thresh, FALSE))
+}
+
+# Temperature average in window
+avg_temp <- function(df, t0, t1) {
+  if (nrow(df) == 0) return(NA_real_)
+  v <- df %>% filter(timestamp > t0, timestamp <= t1) %>% pull(temperature)
+  if (length(v) == 0) return(NA_real_)
+  mean(v, na.rm = TRUE)
+}
+
+# Sunlight exposure proportion for the last observation up to t1 (within the window if available)
+last_sun_prop <- function(df, t0, t1) {
+  if (nrow(df) == 0) return(NA_real_)
+  obs <- df %>% filter(timestamp <= t1, timestamp > t0) %>% arrange(timestamp)
+  if (nrow(obs) == 0) {
+    # fallback: last seen before t1
+    obs <- df %>% filter(timestamp <= t1) %>% arrange(timestamp)
+  }
+  if (nrow(obs) == 0) return(NA_real_)
+  tail(obs$sunlight_exposure_prop, 1)
+}
+
+# Abundance at t1 from last observation up to t1; lag uses previous interval endpoint
+last_abundance <- function(df, t0, t1) {
+  if (nrow(df) == 0) return(NA_real_)
+  obs <- df %>% filter(timestamp <= t1) %>% arrange(timestamp)
+  if (nrow(obs) == 0) return(NA_real_)
+  tail(obs$total_butterflies, 1)
+}
+
+# Build a modeling dataset for a single deployment and interval (in minutes)
+build_dep_interval <- function(dep_row, interval_minutes) {
+  dep_id <- dep_row$deployment_id
+  wm     <- dep_row$wind_meter_name
+  view   <- dep_row$view
+  start  <- dep_row$deploy_start
+  end    <- dep_row$recover_end
+  by_str <- normalize_unit(interval_minutes)
+
+  # slice data for this deployment
+  a <- abund_raw %>% filter(deployment_id == dep_id)
+  t <- temp_raw  %>% filter(deployment_id == dep_id)
+  w <- wind_raw  %>% filter(wind_meter_name == wm)
+
+  if (nrow(a) == 0) return(tibble())
+
+  ends <- seq_endpoints(start, end, by = by_str)
+  if (length(ends) < 2) return(tibble())
+
+  tibble(
+    t_end = ends,
+    t_start = t_end - minutes(interval_minutes)
+  ) %>%
+    mutate(
+      abundance_index_t = purrr::map2_dbl(t_start, t_end, ~ last_abundance(a, .x, .y)),
+      abundance_index_t_minus_1 = dplyr::lag(abundance_index_t, 1),
+      sustained_minutes_above_2ms = purrr::map2_dbl(t_start, t_end, ~ minutes_above(w, .x, .y, "speed", 2)),
+      gust_minutes_above_2ms      = purrr::map2_dbl(t_start, t_end, ~ minutes_above(w, .x, .y, "gust",  2)),
+      ambient_temp                = purrr::map2_dbl(t_start, t_end, ~ avg_temp(t, .x, .y)),
+      sunlight_exposure_prop      = purrr::map2_dbl(t_start, t_end, ~ last_sun_prop(a, .x, .y)),
+      deployment_id = dep_id,
+      view = as.factor(view),
+      interval_minutes = interval_minutes
+    ) %>%
+    filter(!is.na(abundance_index_t), !is.na(abundance_index_t_minus_1))
+}
+
+# Build data for many deployments and a chosen interval
+build_interval_data <- function(interval_minutes) {
+  purrr::map_dfr(seq_len(nrow(deps)), function(i) build_dep_interval(deps[i, ], interval_minutes))
+}
+```
+
+## Build Datasets per Interval
+
+```{r}
+#| label: build-datasets
+intervals <- c(30, 60, 120, 240, 1440)  # 30m, 1h, 2h, 4h, 1d
+
+ds_list <- purrr::map(intervals, build_interval_data)
+names(ds_list) <- paste0(intervals, "min")
+
+purrr::map_int(ds_list, nrow)
+```
+
+## Fit GLMMs (NB)
+
+```{r}
+#| label: fit-models
+
+fit_h1_models <- function(dat) {
+  # ensure factors
+  dat <- dat %>% mutate(view = factor(view))
+
+  # Formulas (sustained and gust variants)
+  f_sust <- abundance_index_t ~ abundance_index_t_minus_1 + sustained_minutes_above_2ms + sunlight_exposure_prop * ambient_temp + (1 | view)
+  f_gust <- abundance_index_t ~ abundance_index_t_minus_1 + gust_minutes_above_2ms      + sunlight_exposure_prop * ambient_temp + (1 | view)
+
+  models <- list()
+
+  if (has_glmmTMB) {
+    models$sustained <- glmmTMB::glmmTMB(f_sust, family = glmmTMB::nbinom2(), data = dat)
+    models$gust      <- glmmTMB::glmmTMB(f_gust, family = glmmTMB::nbinom2(), data = dat)
+  } else if (has_lme4) {
+    # Fallback to lme4 negative binomial; uses theta estimation via glmer.nb
+    models$sustained <- lme4::glmer.nb(f_sust, data = dat)
+    models$gust      <- lme4::glmer.nb(f_gust, data = dat)
+  } else {
+    stop("Neither glmmTMB nor lme4 available. Please install one of them.")
+  }
+
+  models
+}
+
+mods <- purrr::map(ds_list, fit_h1_models)
+```
+
+## Results: Key Coefficients
+
+```{r}
+#| label: summarize-models
+
+extract_key <- function(model, term) {
+  sm <- summary(model)
+  # Get coefficients table with consistent column names preserved
+  if (inherits(model, "glmmTMB")) {
+    cf <- as.data.frame(sm$coefficients$cond, check.names = FALSE)
+  } else {
+    cf <- as.data.frame(sm$coefficients, check.names = FALSE)
+  }
+  cf <- tibble::rownames_to_column(cf, var = "term")
+
+  row <- dplyr::filter(cf, .data$term == !!term)
+  if (nrow(row) == 0) {
+    return(tibble(
+      term = term,
+      Estimate = NA_real_,
+      `Std. Error` = NA_real_,
+      `z value` = NA_real_,
+      `Pr(>|z|)` = NA_real_
+    ))
+  }
+
+  dplyr::select(row, term, Estimate, `Std. Error`, `z value`, `Pr(>|z|)`)
+}
+
+pull_terms <- function(ms, interval_label) {
+  bind_rows(
+    extract_key(ms$sustained, "sustained_minutes_above_2ms"),
+    extract_key(ms$gust,      "gust_minutes_above_2ms")
+  ) %>% mutate(interval = interval_label)
+}
+
+key_tbl <- purrr::imap_dfr(mods, pull_terms)
+key_tbl %>% select(interval, term, Estimate, `Std. Error`, `z value`, `Pr(>|z|)`) %>%
+  arrange(term, interval)
+```
+
+## Diagnostics
+
+```{r}
+#| label: diagnostics
+#| message: true
+
+has_performance <- requireNamespace("performance", quietly = TRUE)
+has_see         <- requireNamespace("see", quietly = TRUE)
+has_DHARMa      <- requireNamespace("DHARMa", quietly = TRUE)
+
+plot_diagnostics <- function(model, title_prefix) {
+  cat("\n\n=== ", title_prefix, " ===\n")
+
+  if (has_performance) {
+    cat("\nperformance::check_model — comprehensive diagnostics\n")
+    print(performance::check_model(model))
+  } else {
+    message("Install 'performance' (and optionally 'see') for multi-plot diagnostics: install.packages(c('performance','see'))")
+  }
+
+  if (has_DHARMa) {
+    cat("\nDHARMa — simulation-based residual diagnostics\n")
+    sim <- DHARMa::simulateResiduals(model, plot = FALSE)
+    plot(sim)
+    DHARMa::testDispersion(sim)
+    DHARMa::testZeroInflation(sim)
+    DHARMa::testUniformity(sim)
+  } else {
+    message("Install 'DHARMa' for simulation-based residual checks: install.packages('DHARMa')")
+  }
+}
+
+# Generate diagnostics for all intervals and both model variants
+purrr::iwalk(mods, function(ms, label) {
+  plot_diagnostics(ms$sustained, paste0("Diagnostics — Sustained @ ", label))
+  plot_diagnostics(ms$gust,      paste0("Diagnostics — Gust @ ", label))
+})
+```
+
+## Notes
+
+-   Negative binomial family uses `nbinom2` (via `glmmTMB`) when available; otherwise falls back to `lme4::glmer.nb` which estimates theta.
+-   Autocorrelation control is implemented with `abundance_index_t_minus_1`.
+-   `sustained_minutes_above_2ms` and `gust_minutes_above_2ms` count rows in `wind_all.csv` above 2 m/s within each window; this approximates minutes assuming \~1-minute logging.
+-   `sunlight_exposure_prop` is taken as the last observation’s proportion in each window to match the abundance snapshot; `ambient_temp` is the window mean from `temperature_data_2023.csv`.
+-   Random intercepts are by `view` (from `deployments.csv:view_id`).
+
+```{r}
+#| label: session-info
+sessionInfo()
+```
