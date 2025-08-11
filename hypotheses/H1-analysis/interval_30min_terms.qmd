@@ -1,11 +1,11 @@
 ---
-title: "30-min Interval: Term Build-Up"
+title: "30-min Interval: Term Build-Up (Prep Script)"
 format:
   html:
     toc: true
     number-sections: false
 execute:
-  echo: true
+  echo: false
   warning: false
   message: false
 editor: visual
@@ -21,19 +21,17 @@ library(glmmTMB)
 library(performance)
 library(broom.mixed)
 library(DHARMa)
+library(here)
 
-# Data paths (adjust if needed)
-path_abund <- "data/butterfly_abundance_index.csv"
-path_deps <- "data/deployments.csv"
-path_wind <- "data/wind_all.csv"
-path_temp <- "data/temperature_data_2023.csv"
+# Data paths (project-root relative)
+path_abund <- here::here("data", "butterfly_abundance_index.csv")
+path_deps  <- here::here("data", "deployments.csv")
+path_wind  <- here::here("data", "wind_all.csv")
+path_temp  <- here::here("data", "temperature_data_2023.csv")
 
 # Toggle: should we drop intervals where t-1 == 0 and t == 0?
 drop_empty_zero_intervals <- TRUE
 
-# Ensure export dirs exist when rendering
-invisible(dir.create("results", showWarnings = FALSE))
-invisible(dir.create("diagnostics", showWarnings = FALSE))
 ```
 
 ## Step 1 — Load Abundance Index
@@ -48,11 +46,13 @@ abund <- readr::read_csv(path_abund, show_col_types = FALSE) %>%
     ) %>%
     arrange(deployment_id, timestamp)
 
-# Quick glance
-abund %>%
+# Quick glance (suppressed from output)
+invisible(
+  abund %>%
     group_by(deployment_id) %>%
     summarise(n = n(), first = min(timestamp), last = max(timestamp)) %>%
     arrange(deployment_id)
+)
 ```
 
 ```{r}
@@ -68,13 +68,15 @@ abund_steps <- abund %>%
     ungroup()
 
 # Summarize the distribution of dt_min
-abund_steps %>%
+invisible(
+  abund_steps %>%
     filter(!is.na(dt_min)) %>%
     count(deployment_id, dt_min) %>%
     arrange(deployment_id, dt_min) %>%
     group_by(deployment_id) %>%
     mutate(prop = n / sum(n)) %>%
     ungroup()
+)
 ```
 
 ## Step 2 — Restrict to 30-min Consecutive Pairs
@@ -98,9 +100,11 @@ cat(sprintf("Removed %d 30-min pairs due to NA abundance at t or t-1.\n", na_pai
 stopifnot(all(!is.na(abund_30$abundance_index_t_minus_1)))
 stopifnot(all(abs(abund_30$dt_min - 30) < 1e-6))
 
-abund_30 %>%
+invisible(
+  abund_30 %>%
     select(deployment_id, timestamp, abundance_index_t_minus_1, abundance_index_t) %>%
     head(10)
+)
 ```
 
 ## Step 3 — Sunlight Exposure Proportion
@@ -117,10 +121,12 @@ abund_30 <- abund_30 %>%
         )
     )
 
-abund_30 %>% summarise(
-    n = n(),
-    with_sun = sum(!is.na(sunlight_exposure_prop)),
-    mean_sun = mean(sunlight_exposure_prop, na.rm = TRUE)
+invisible(
+  abund_30 %>% summarise(
+      n = n(),
+      with_sun = sum(!is.na(sunlight_exposure_prop)),
+      mean_sun = mean(sunlight_exposure_prop, na.rm = TRUE)
+  )
 )
 ```
 
@@ -156,32 +162,38 @@ temp_tbl <- purrr::map2_dfr(abund_30$deployment_id, abund_30$timestamp, compute_
 abund_30 <- dplyr::bind_cols(abund_30, temp_tbl) %>%
     mutate(ambient_temp = ambient_temp_mean)
 
-abund_30 %>% summarise(
-    n = n(),
-    temp_rows_mean = mean(temp_rows_in_window, na.rm = TRUE),
-    temp_available = sum(!is.na(ambient_temp)),
-    mean_temp = mean(ambient_temp, na.rm = TRUE)
+invisible(
+  abund_30 %>% summarise(
+      n = n(),
+      temp_rows_mean = mean(temp_rows_in_window, na.rm = TRUE),
+      temp_available = sum(!is.na(ambient_temp)),
+      mean_temp = mean(ambient_temp, na.rm = TRUE)
+  )
 )
 ```
 
-## Step 5 — Map Deployments to Wind Meters
+## Step 5 — Map Deployments to Wind Meters (filter labeled complete)
 
 ```{r}
 #| label: map-wind-meter
 deps <- readr::read_csv(path_deps, show_col_types = FALSE) %>%
-    select(deployment_id, wind_meter_name, view_id, camera_name) %>%
     mutate(
-        wind_meter_name = na_if(wind_meter_name, "NA"),
-        view = as.character(view_id)
-    )
+        wind_meter_name = na_if(wind_meter_name, "NA")
+    ) %>%
+    # Only keep deployments with completed labels
+    filter(label_status == "Complete") %>%
+    # Make sure view_id will not be treated as numeric later
+    mutate(view_id = as.character(view_id)) %>%
+    select(deployment_id, wind_meter_name, view_id, camera_name, labeler)
 
-# view is set to view_id as requested.
+# Join and restrict to only the completed, labeled deployments
+abund_30 <- abund_30 %>% inner_join(deps, by = "deployment_id")
 
-abund_30 <- abund_30 %>% left_join(deps, by = "deployment_id")
-
-abund_30 %>%
-    count(deployment_id, wind_meter_name) %>%
-    arrange(deployment_id)
+invisible(
+  abund_30 %>%
+      count(deployment_id, wind_meter_name) %>%
+      arrange(deployment_id)
+)
 ```
 
 ## Step 6 — Wind Threshold Minutes per 30-min Interval
@@ -217,9 +229,11 @@ thr_tbl <- purrr::pmap_dfr(list(abund_30$wind_meter_name, abund_30$timestamp), c
 
 abund_30 <- bind_cols(abund_30, thr_tbl)
 
-abund_30 %>%
-    select(deployment_id, timestamp, wind_rows_in_window, sustained_minutes_above_2ms, gust_minutes_above_2ms) %>%
-    head(10)
+invisible(
+  abund_30 %>%
+      select(deployment_id, timestamp, wind_rows_in_window, sustained_minutes_above_2ms, gust_minutes_above_2ms) %>%
+      head(10)
+)
 ```
 
 ## Step 7 — Optional: Drop Empty Intervals (0→0)
@@ -234,21 +248,23 @@ empty_summary <- abund_30 %>% summarise(
     zero_zero_prop = mean(empty_zero_interval, na.rm = TRUE)
 )
 
-empty_summary
+invisible(empty_summary)
 
 if (isTRUE(drop_empty_zero_intervals)) {
     abund_30 <- abund_30 %>% filter(!empty_zero_interval)
 }
 ```
 
-## Output Preview (No Modeling Yet)
+## Save Prepared Dataset
 
 ```{r}
-#| label: preview-output
-abund_30 %>%
+#| label: save-prepared
+# Compose final, analysis-ready dataset
+prepared <- abund_30 %>%
     transmute(
         deployment_id,
-        view,
+        view_id,                     # character (ensures non-numeric)
+        view_id_factor = factor(view_id),
         timestamp,
         abundance_index_t_minus_1,
         abundance_index_t,
@@ -256,8 +272,19 @@ abund_30 %>%
         sustained_minutes_above_2ms,
         gust_minutes_above_2ms,
         sunlight_exposure_prop,
-        ambient_temp
-    ) %>%
-    head(20)
-```
+        ambient_temp,
+        labeler
+    )
 
+# Write both RDS (preserves factor) and CSV (view_id as character)
+out_rds <- here::here("results", "H1_interval_30min_terms_prepared.rds")
+out_csv <- here::here("results", "H1_interval_30min_terms_prepared.csv")
+# Ensure results dir exists
+dir.create(dirname(out_rds), recursive = TRUE, showWarnings = FALSE)
+readr::write_rds(prepared, out_rds)
+readr::write_csv(prepared %>% mutate(view_id = as.character(view_id)), out_csv)
+
+cat("Prepared datasets written:\n",
+    " - ", out_rds, "\n",
+    " - ", out_csv, "\n", sep = "")
+```
