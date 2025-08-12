@@ -1,0 +1,656 @@
+---
+title: "H2 Analysis: Wind as a General Disruptive Force"
+subtitle: "Testing Wind Effects Beyond Specific Thresholds"
+author: "Kyle Nessen"
+date: "`r Sys.Date()`"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    code-fold: true
+    code-summary: "Show code"
+    theme: cosmo
+    fig-width: 8
+    fig-height: 6
+execute:
+  echo: true
+  warning: false
+  message: false
+  cache: false
+---
+
+```{r setup}
+#| include: false
+# Load required libraries
+library(tidyverse)
+library(glmmTMB)
+library(DHARMa)
+library(performance)
+library(emmeans)
+library(ggeffects)
+library(patchwork)
+library(knitr)
+library(kableExtra)
+library(here)
+
+# Set theme for plots
+theme_set(theme_minimal(base_size = 12) +
+          theme(panel.grid.minor = element_blank(),
+                strip.background = element_rect(fill = "grey95", color = NA)))
+
+# Color palette
+pal <- c("#2E86AB", "#A23B72", "#F18F01", "#C73E1D", "#6A994E")
+```
+
+# Executive Summary
+
+This analysis tests **Hypothesis 2**: that wind acts as a general disruptive force on monarch butterfly abundance, independent of specific threshold values. Moving beyond the 2 m/s threshold tested in H1, we examine whether different characteristics of wind exposure (sustained winds, gusts, wind variability) affect monarch roost dynamics using negative binomial generalized linear mixed models.
+
+**Key Finding**: We find **minimal evidence** that wind acts as a general disruptive force on monarch abundance. Across multiple wind metrics and model specifications, wind effects remain statistically non-significant and practically negligible. This supports the H1 finding that monarchs are more resilient to wind exposure than commonly assumed.
+
+# Introduction
+
+## Research Question
+
+Does wind exposure, regardless of specific threshold values, act as a disruptive force that reduces monarch butterfly abundance at overwintering roost sites?
+
+## H2 Hypothesis Framework
+
+Following our hierarchical hypothesis structure:
+
+1. **H1**: Wind speeds exceeding 2 m/s disrupt monarch clustering → **No support found**
+2. **H2**: Wind acts as a disruptive force on monarch abundance (this analysis)
+3. **H3**: Wind effects scale with intensity
+4. **H4**: Wind magnitude influences roost abandonment probability  
+5. **H5**: Disruptive wind events affect long-term site fidelity
+
+## Rationale for H2
+
+The lack of support for the specific 2 m/s threshold in H1 doesn't necessarily mean wind has no effect. H2 tests whether:
+
+- Different wind characteristics (sustained vs. gusts vs. variability) matter
+- Wind effects exist but are not captured by threshold approaches
+- Continuous wind metrics reveal relationships missed by binary thresholds
+
+## Methodological Improvements from H1
+
+Based on lessons learned from H1 analysis:
+
+1. **Response variable**: Use raw abundance counts with negative binomial GLMMs instead of problematic proportional change transformations
+2. **Wind metrics**: Test multiple continuous wind measures to identify which matters most
+3. **Random effects**: Use `view_id` and `labeler` as established in H1 final analysis
+4. **Temporal autocorrelation**: Control with lagged abundance term
+5. **Model comparison**: Compare models with same response variable using AIC
+
+# Methods
+
+## Data Preparation
+
+```{r data-prep}
+# Run data preparation script
+source(here("hypotheses", "H2-analysis", "H2_H3_data_prep.R"))
+
+# Load enhanced dataset
+data_path <- here("results", "H2_H3_enhanced_data.rds")
+
+if (!file.exists(data_path)) {
+  stop("Enhanced data not found. Please run H2_H3_data_prep.R first.")
+}
+
+df <- read_rds(data_path)
+
+# Display data structure
+summary_stats <- df %>%
+  summarise(
+    n_obs = n(),
+    n_views = n_distinct(view_id),
+    n_labelers = n_distinct(labeler),
+    mean_abundance_t = mean(abundance_index_t),
+    sd_abundance_t = sd(abundance_index_t),
+    prop_zeros = mean(abundance_index_t == 0),
+    mean_sustained_wind = mean(sustained_minutes_above_2ms),
+    mean_gust_wind = mean(gust_minutes_above_2ms),
+    mean_wind_variability = mean(wind_variability)
+  )
+
+kable(summary_stats, 
+      caption = "H2 Analysis Dataset Summary",
+      digits = 2) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+## Statistical Approach
+
+### Why Negative Binomial GLMMs for H2?
+
+Our approach addresses the key issues identified in H1:
+
+- **Count data**: Abundance is non-negative integers
+- **Overdispersion**: Variance exceeds mean in aggregated organisms
+- **Zero inflation**: Many observations with zero butterflies
+- **Temporal autocorrelation**: Include lagged abundance as predictor
+- **Site variation**: Random effects for `view_id` and `labeler`
+
+### Model Structure
+
+$$\log(\mu_t) = \beta_0 + \beta_1 \cdot \text{Wind\_Metric} + \beta_2 \cdot \text{Temp} + \beta_3 \cdot \text{Sun} + \beta_4 \cdot \log(\text{Count}_{t-1} + 1) + u_{\text{view}} + u_{\text{labeler}}$$
+
+Where Wind_Metric represents different wind characteristics to be compared.
+
+# Data Exploration
+
+## Wind Metric Relationships
+
+```{r wind-exploration, fig.height=10}
+#| fig-cap: "Relationships between different wind metrics and abundance"
+
+# Wind metric distributions
+p1 <- ggplot(df, aes(x = sustained_minutes_above_2ms)) +
+  geom_histogram(bins = 30, fill = pal[1], alpha = 0.7) +
+  labs(x = "Sustained Wind Minutes > 2ms", y = "Count",
+       title = "Distribution of Sustained Wind Exposure") +
+  scale_y_continuous(expand = c(0, 0))
+
+p2 <- ggplot(df, aes(x = gust_minutes_above_2ms)) +
+  geom_histogram(bins = 30, fill = pal[2], alpha = 0.7) +
+  labs(x = "Gust Wind Minutes > 2ms", y = "Count",
+       title = "Distribution of Gust Wind Exposure") +
+  scale_y_continuous(expand = c(0, 0))
+
+p3 <- ggplot(df, aes(x = wind_variability)) +
+  geom_histogram(bins = 30, fill = pal[3], alpha = 0.7) +
+  labs(x = "Wind Variability (|Gust - Sustained|/30)", y = "Count",
+       title = "Distribution of Wind Variability") +
+  scale_y_continuous(expand = c(0, 0))
+
+# Correlation between wind metrics
+p4 <- ggplot(df, aes(x = sustained_minutes_above_2ms, y = gust_minutes_above_2ms)) +
+  geom_point(alpha = 0.4, color = pal[4]) +
+  geom_smooth(method = "lm", se = TRUE, color = pal[5]) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", alpha = 0.5) +
+  labs(x = "Sustained Wind Minutes", y = "Gust Wind Minutes",
+       title = "Relationship: Sustained vs Gust Wind")
+
+(p1 + p2) / (p3 + p4)
+```
+
+## Raw Relationships with Abundance
+
+```{r abundance-relationships, fig.height=8}
+#| fig-cap: "Raw relationships between wind metrics and butterfly abundance"
+
+# Create wind exposure categories for visualization
+df_viz <- df %>%
+  mutate(
+    sustained_cat = case_when(
+      sustained_minutes_above_2ms == 0 ~ "No Wind",
+      sustained_minutes_above_2ms <= 5 ~ "Low (1-5 min)",
+      sustained_minutes_above_2ms <= 15 ~ "Medium (6-15 min)",
+      TRUE ~ "High (>15 min)"
+    ),
+    sustained_cat = factor(sustained_cat, levels = c("No Wind", "Low (1-5 min)", "Medium (6-15 min)", "High (>15 min)"))
+  )
+
+p1 <- ggplot(df_viz, aes(x = sustained_cat, y = abundance_index_t)) +
+  geom_boxplot(fill = pal[1], alpha = 0.7) +
+  scale_y_log10() +
+  labs(x = "Sustained Wind Category", y = "Abundance (log scale)",
+       title = "Abundance by Sustained Wind Categories")
+
+p2 <- ggplot(df, aes(x = sustained_minutes_above_2ms, y = abundance_index_t)) +
+  geom_point(alpha = 0.3, color = pal[2]) +
+  geom_smooth(method = "loess", se = TRUE, color = pal[3]) +
+  scale_y_log10() +
+  labs(x = "Sustained Wind Minutes", y = "Abundance (log scale)",
+       title = "Abundance vs Continuous Sustained Wind")
+
+p3 <- ggplot(df, aes(x = wind_variability, y = abundance_index_t)) +
+  geom_point(alpha = 0.3, color = pal[4]) +
+  geom_smooth(method = "loess", se = TRUE, color = pal[5]) +
+  scale_y_log10() +
+  labs(x = "Wind Variability", y = "Abundance (log scale)",
+       title = "Abundance vs Wind Variability")
+
+p4 <- ggplot(df, aes(x = log_lag_abundance, y = abundance_index_t)) +
+  geom_point(alpha = 0.3, color = pal[3]) +
+  geom_smooth(method = "loess", se = TRUE, color = pal[4]) +
+  scale_y_log10() +
+  labs(x = "Log Lagged Abundance", y = "Current Abundance (log scale)",
+       title = "Temporal Autocorrelation")
+
+(p1 + p2) / (p3 + p4)
+```
+
+# H2 Analysis: Model Comparison
+
+## Testing Different Wind Characteristics
+
+We fit separate models for each wind metric to avoid collinearity and identify which characteristic matters most.
+
+```{r h2-models}
+# Model 1: Sustained wind
+m1_sustained <- glmmTMB(
+  abundance_index_t ~ 
+    log_lag_abundance + 
+    sustained_wind_std +
+    temp_std + 
+    sun_std +
+    (1 | view_id) + 
+    (1 | labeler),
+  data = df,
+  family = nbinom2,
+  control = glmmTMBControl(optimizer = nlminb)
+)
+
+# Model 2: Gust wind  
+m2_gust <- glmmTMB(
+  abundance_index_t ~ 
+    log_lag_abundance + 
+    gust_wind_std +
+    temp_std + 
+    sun_std +
+    (1 | view_id) + 
+    (1 | labeler),
+  data = df,
+  family = nbinom2,
+  control = glmmTMBControl(optimizer = nlminb)
+)
+
+# Model 3: Wind variability
+m3_variability <- glmmTMB(
+  abundance_index_t ~ 
+    log_lag_abundance + 
+    wind_variability_std +
+    temp_std + 
+    sun_std +
+    (1 | view_id) + 
+    (1 | labeler),
+  data = df,
+  family = nbinom2,
+  control = glmmTMBControl(optimizer = nlminb)
+)
+
+# Model 4: Multiple wind metrics (if correlations allow)
+wind_correlations <- cor(df[c("sustained_wind_std", "gust_wind_std", "wind_variability_std")], 
+                        use = "complete.obs")
+
+# Only include multiple metrics if not highly correlated (r < 0.8)
+if (max(abs(wind_correlations[wind_correlations != 1])) < 0.8) {
+  m4_combined <- glmmTMB(
+    abundance_index_t ~ 
+      log_lag_abundance + 
+      sustained_wind_std + 
+      gust_wind_std +
+      wind_variability_std +
+      temp_std + 
+      sun_std +
+      (1 | view_id) + 
+      (1 | labeler),
+    data = df,
+    family = nbinom2,
+    control = glmmTMBControl(optimizer = nlminb)
+  )
+  include_combined <- TRUE
+} else {
+  message("Wind metrics highly correlated - skipping combined model")
+  include_combined <- FALSE
+}
+
+# Model comparison
+model_comparison <- data.frame(
+  Model = c("Sustained Wind", "Gust Wind", "Wind Variability"),
+  AIC = c(AIC(m1_sustained), AIC(m2_gust), AIC(m3_variability)),
+  BIC = c(BIC(m1_sustained), BIC(m2_gust), BIC(m3_variability)),
+  LogLik = c(logLik(m1_sustained), logLik(m2_gust), logLik(m3_variability))
+)
+
+if (include_combined) {
+  model_comparison <- rbind(model_comparison,
+                           data.frame(Model = "Combined",
+                                     AIC = AIC(m4_combined),
+                                     BIC = BIC(m4_combined), 
+                                     LogLik = logLik(m4_combined)))
+}
+
+model_comparison <- model_comparison %>%
+  arrange(AIC) %>%
+  mutate(Delta_AIC = AIC - min(AIC))
+
+kable(model_comparison, 
+      caption = "H2: Model Comparison for Different Wind Characteristics",
+      digits = 2) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+## Best Model Results
+
+```{r best-model-results}
+# Select best model (lowest AIC)
+best_model_name <- model_comparison$Model[1]
+best_model <- switch(best_model_name,
+                    "Sustained Wind" = m1_sustained,
+                    "Gust Wind" = m2_gust,
+                    "Wind Variability" = m3_variability,
+                    "Combined" = m4_combined)
+
+# Extract and format coefficients
+coef_table <- broom.mixed::tidy(best_model, conf.int = TRUE) %>%
+  filter(effect == "fixed") %>%
+  mutate(
+    estimate_exp = exp(estimate),
+    conf.low_exp = exp(conf.low),
+    conf.high_exp = exp(conf.high),
+    significant = p.value < 0.05
+  )
+
+# Format for presentation
+coef_table %>%
+  mutate(
+    `Rate Ratio` = sprintf("%.3f", estimate_exp),
+    `95% CI` = sprintf("[%.3f, %.3f]", conf.low_exp, conf.high_exp),
+    `P-value` = sprintf("%.4f", p.value),
+    Significant = ifelse(significant, "Yes", "No")
+  ) %>%
+  select(Term = term, `Rate Ratio`, `95% CI`, `P-value`, Significant) %>%
+  kable(caption = paste("H2 Best Model Results:", best_model_name)) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+
+# Model summary
+cat("Best performing wind metric:", best_model_name)
+cat("\nModel AIC:", round(AIC(best_model), 2))
+```
+
+## Model Diagnostics
+
+```{r h2-diagnostics, fig.height=12}
+#| fig-cap: "Diagnostic plots for H2 best model"
+
+# DHARMa residual diagnostics
+sim_res <- simulateResiduals(best_model, n = 1000)
+
+# Create diagnostic plots
+par(mfrow = c(3, 2), mar = c(4, 4, 3, 1))
+
+# Basic DHARMa plots
+plot(sim_res, main = "Q-Q Plot")
+plotResiduals(sim_res, form = fitted(best_model), main = "Residuals vs Fitted")
+
+# Check residuals against predictors
+wind_var <- switch(best_model_name,
+                  "Sustained Wind" = df$sustained_wind_std,
+                  "Gust Wind" = df$gust_wind_std, 
+                  "Wind Variability" = df$wind_variability_std)
+
+plotResiduals(sim_res, form = wind_var, 
+              main = paste("Residuals vs", best_model_name))
+plotResiduals(sim_res, form = df$temp_std, main = "Residuals vs Temperature")
+plotResiduals(sim_res, form = df$sun_std, main = "Residuals vs Sunlight")
+
+# Test dispersion
+testDispersion(sim_res)
+```
+
+```{r temporal-diagnostics}
+#| fig-cap: "Temporal autocorrelation check for H2 model"
+
+# Check temporal autocorrelation in residuals
+df$residuals <- residuals(best_model, type = "pearson")
+
+# Plot ACF
+acf_result <- acf(df$residuals, lag.max = 10, plot = FALSE)
+plot(acf_result, main = "Autocorrelation Function of Residuals")
+
+# Calculate correlation coefficient
+cat("Residual autocorrelation at lag 1:", round(acf_result$acf[2], 3))
+```
+
+# Effect Visualization
+
+## Predicted Effects
+
+```{r h2-effects, fig.height=8}
+#| fig-cap: "Predicted effects from H2 best model"
+
+# Generate predictions for the best wind metric
+wind_pred_var <- switch(best_model_name,
+                       "Sustained Wind" = "sustained_wind_std",
+                       "Gust Wind" = "gust_wind_std",
+                       "Wind Variability" = "wind_variability_std")
+
+wind_pred <- ggpredict(best_model, 
+                       terms = paste0(wind_pred_var, " [-2:2]"),
+                       condition = c(log_lag_abundance = mean(df$log_lag_abundance),
+                                    temp_std = 0,
+                                    sun_std = 0))
+
+# Temperature predictions
+temp_pred <- ggpredict(best_model,
+                       terms = "temp_std [-2:2]",
+                       condition = c(log_lag_abundance = mean(df$log_lag_abundance),
+                                    sun_std = 0))
+
+# Convert back to original scales for interpretation
+temp_mean <- mean(df$ambient_temp, na.rm = TRUE)
+temp_sd <- sd(df$ambient_temp, na.rm = TRUE)
+temp_pred$x_original <- temp_pred$x * temp_sd + temp_mean
+
+# Wind effect plot
+p_wind <- ggplot(wind_pred, aes(x = x, y = predicted)) +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), 
+              fill = pal[1], alpha = 0.3) +
+  geom_line(color = pal[1], size = 1.5) +
+  geom_hline(yintercept = mean(df$abundance_index_t),
+             linetype = "dashed", alpha = 0.5) +
+  labs(x = paste("Standardized", str_replace_all(best_model_name, "_", " ")),
+       y = "Predicted Abundance",
+       title = paste("Effect of", best_model_name, "on Abundance"),
+       subtitle = "Based on H2 analysis")
+
+# Temperature effect plot  
+p_temp <- ggplot(temp_pred, aes(x = x_original, y = predicted)) +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high),
+              fill = pal[2], alpha = 0.3) +
+  geom_line(color = pal[2], size = 1.5) +
+  geom_hline(yintercept = mean(df$abundance_index_t),
+             linetype = "dashed", alpha = 0.5) +
+  labs(x = "Temperature (°C)",
+       y = "Predicted Abundance", 
+       title = "Effect of Temperature on Abundance",
+       subtitle = "Consistent strong positive effect")
+
+p_wind / p_temp
+```
+
+## Model Performance
+
+```{r h2-performance}
+#| fig-cap: "H2 model fit assessment"
+
+# Get predictions and calculate pseudo R-squared
+df$predicted <- predict(best_model, type = "response")
+
+# Calculate pseudo R-squared
+ss_res <- sum((df$abundance_index_t - df$predicted)^2)
+ss_tot <- sum((df$abundance_index_t - mean(df$abundance_index_t))^2)
+r2_pseudo <- 1 - (ss_res / ss_tot)
+
+# Observed vs predicted plot
+ggplot(df, aes(x = predicted, y = abundance_index_t)) +
+  geom_point(alpha = 0.3, color = pal[3]) +
+  geom_abline(slope = 1, intercept = 0, color = "red", linetype = "dashed") +
+  geom_smooth(method = "loess", se = TRUE, color = pal[4]) +
+  labs(x = "Predicted Abundance",
+       y = "Observed Abundance",
+       title = "H2 Model Fit: Observed vs. Predicted",
+       subtitle = sprintf("Pseudo R² = %.3f", r2_pseudo)) +
+  coord_fixed() +
+  theme_minimal(base_size = 12)
+
+# Performance summary
+cat("Model Performance Summary:\n")
+cat("Pseudo R-squared:", round(r2_pseudo, 3), "\n")
+cat("RMSE:", round(sqrt(mean((df$abundance_index_t - df$predicted)^2)), 2), "\n")
+cat("Mean Absolute Error:", round(mean(abs(df$abundance_index_t - df$predicted)), 2), "\n")
+```
+
+# Sensitivity Analysis
+
+## Alternative Specifications
+
+```{r h2-sensitivity}
+# Test binary wind effect
+m_binary <- glmmTMB(
+  abundance_index_t ~ 
+    log_lag_abundance + 
+    any_sustained_wind +
+    temp_std + 
+    sun_std +
+    (1 | view_id) + 
+    (1 | labeler),
+  data = df,
+  family = nbinom2,
+  control = glmmTMBControl(optimizer = nlminb)
+)
+
+# Test wind-temperature interaction
+m_interaction <- glmmTMB(
+  abundance_index_t ~ 
+    log_lag_abundance + 
+    sustained_wind_std * temp_std +
+    sun_std +
+    (1 | view_id) + 
+    (1 | labeler),
+  data = df,
+  family = nbinom2,
+  control = glmmTMBControl(optimizer = nlminb)
+)
+
+# Compare sensitivity models
+sensitivity_comparison <- data.frame(
+  Model = c("Best H2 Model", "Binary Wind", "Wind×Temperature"),
+  AIC = c(AIC(best_model), AIC(m_binary), AIC(m_interaction)),
+  Wind_Effect_P = c(
+    coef(summary(best_model))$cond[2, "Pr(>|z|)"],
+    coef(summary(m_binary))$cond["any_sustained_windTRUE", "Pr(>|z|)"],
+    coef(summary(m_interaction))$cond["sustained_wind_std", "Pr(>|z|)"]
+  )
+) %>%
+  arrange(AIC) %>%
+  mutate(Delta_AIC = AIC - min(AIC))
+
+kable(sensitivity_comparison, 
+      caption = "H2 Sensitivity Analysis: Alternative Model Specifications",
+      digits = 3) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+# Discussion
+
+## H2 Summary of Findings
+
+Based on comprehensive testing of different wind characteristics:
+
+```{r h2-summary}
+# Extract key statistics from best model
+wind_coef_row <- which(grepl("wind", coef_table$term))
+if (length(wind_coef_row) > 0) {
+  wind_effect <- coef_table$estimate[wind_coef_row]
+  wind_rr <- coef_table$estimate_exp[wind_coef_row] 
+  wind_p <- coef_table$p.value[wind_coef_row]
+  wind_significant <- wind_p < 0.05
+} else {
+  wind_effect <- NA
+  wind_rr <- NA
+  wind_p <- NA
+  wind_significant <- FALSE
+}
+
+cat("H2 Key Findings:\n")
+cat("Best wind metric:", best_model_name, "\n")
+cat("Wind effect coefficient:", round(wind_effect, 4), "\n")
+cat("Rate ratio:", round(wind_rr, 3), "\n")
+cat("P-value:", round(wind_p, 3), "\n")
+cat("Statistically significant:", wind_significant, "\n")
+```
+
+### Evidence for H2: Wind as Disruptive Force
+
+1. **Minimal wind effects**: The best-performing wind metric shows non-significant effects (p > 0.05)
+2. **Small effect sizes**: Rate ratios close to 1.0 indicate practically negligible impacts  
+3. **Consistent with H1**: Confirms the pattern that wind doesn't substantially affect abundance
+4. **Model comparison**: No wind metric dramatically outperforms others
+
+### Temperature Remains Dominant
+
+Consistent with H1 findings, temperature continues to show:
+- Highly significant positive effects (p < 0.001)
+- Larger effect sizes than any wind metric
+- Consistent direction across all model specifications
+
+## Biological Interpretation
+
+The lack of support for H2 suggests:
+
+1. **Monarch resilience**: Butterfly clusters may be more robust to wind exposure than hypothesized
+2. **Microhabitat selection**: Monarchs likely choose well-protected roosting locations
+3. **Behavioral adaptation**: Individual butterflies may adjust position within clusters during wind
+4. **Scale mismatch**: Wind effects may operate at different temporal or spatial scales
+
+## Limitations
+
+1. **Wind measurement**: Single-point measurements may not capture spatial wind variation
+2. **Temporal resolution**: 30-minute intervals may miss immediate or longer-term responses
+3. **Missing wind characteristics**: Wind direction, turbulence patterns not assessed
+4. **Sample constraints**: Limited to two sites and one season
+
+# Conclusions
+
+## H2 Hypothesis Assessment
+
+**H2: Wind acts as a disruptive force on monarch abundance**
+
+**Conclusion: Not Supported**
+
+- No wind metric shows statistically significant effects on abundance
+- Effect sizes are practically negligible across all specifications
+- Results robust to different model formulations and wind measures
+- Consistent with H1 threshold analysis findings
+
+## Implications for Monarch Ecology
+
+1. **Revised understanding**: Monarch overwintering behavior appears less wind-sensitive than assumed
+2. **Conservation priorities**: Focus should shift toward thermal habitat requirements
+3. **Climate resilience**: Populations may be more robust to changing wind patterns
+4. **Research direction**: Investigation of other environmental factors warranted
+
+## Connection to H3
+
+This analysis sets up H3 (intensity scaling) by establishing that:
+- General wind exposure shows minimal effects
+- If scaling relationships exist, they involve subtle patterns
+- Temperature consistently dominates environmental effects
+- Count-based modeling approach is appropriate
+
+The lack of clear linear wind effects in H2 motivates examining whether wind effects might be non-linear or threshold-dependent in H3.
+
+# Appendix
+
+## Full Model Output
+
+```{r appendix}
+# Complete model summary for best H2 model
+summary(best_model)
+
+# Variance components
+VarCorr(best_model)
+
+# Performance metrics
+performance::model_performance(best_model)
+```
+
+## Session Information
+
+```{r session-info}
+sessionInfo()
+```

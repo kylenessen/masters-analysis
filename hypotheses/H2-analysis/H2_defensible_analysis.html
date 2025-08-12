@@ -1,0 +1,1697 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.4.549">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Kyle Nessen">
+<meta name="dcterms.date" content="2025-08-11">
+
+<title>H2 Analysis: Wind as a General Disruptive Force</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="H2_defensible_analysis_files/libs/clipboard/clipboard.min.js"></script>
+<script src="H2_defensible_analysis_files/libs/quarto-html/quarto.js"></script>
+<script src="H2_defensible_analysis_files/libs/quarto-html/popper.min.js"></script>
+<script src="H2_defensible_analysis_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="H2_defensible_analysis_files/libs/quarto-html/anchor.min.js"></script>
+<link href="H2_defensible_analysis_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="H2_defensible_analysis_files/libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="H2_defensible_analysis_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="H2_defensible_analysis_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="H2_defensible_analysis_files/libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+<script src="H2_defensible_analysis_files/libs/kePrint-0.0.1/kePrint.js"></script>
+<link href="H2_defensible_analysis_files/libs/lightable-0.0.1/lightable.css" rel="stylesheet">
+
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN") {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+</head>
+
+<body>
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+<div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+  <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#executive-summary" id="toc-executive-summary" class="nav-link active" data-scroll-target="#executive-summary"><span class="header-section-number">1</span> Executive Summary</a></li>
+  <li><a href="#introduction" id="toc-introduction" class="nav-link" data-scroll-target="#introduction"><span class="header-section-number">2</span> Introduction</a>
+  <ul class="collapse">
+  <li><a href="#research-question" id="toc-research-question" class="nav-link" data-scroll-target="#research-question"><span class="header-section-number">2.1</span> Research Question</a></li>
+  <li><a href="#h2-hypothesis-framework" id="toc-h2-hypothesis-framework" class="nav-link" data-scroll-target="#h2-hypothesis-framework"><span class="header-section-number">2.2</span> H2 Hypothesis Framework</a></li>
+  <li><a href="#rationale-for-h2" id="toc-rationale-for-h2" class="nav-link" data-scroll-target="#rationale-for-h2"><span class="header-section-number">2.3</span> Rationale for H2</a></li>
+  <li><a href="#methodological-improvements-from-h1" id="toc-methodological-improvements-from-h1" class="nav-link" data-scroll-target="#methodological-improvements-from-h1"><span class="header-section-number">2.4</span> Methodological Improvements from H1</a></li>
+  </ul></li>
+  <li><a href="#methods" id="toc-methods" class="nav-link" data-scroll-target="#methods"><span class="header-section-number">3</span> Methods</a>
+  <ul class="collapse">
+  <li><a href="#data-preparation" id="toc-data-preparation" class="nav-link" data-scroll-target="#data-preparation"><span class="header-section-number">3.1</span> Data Preparation</a></li>
+  <li><a href="#statistical-approach" id="toc-statistical-approach" class="nav-link" data-scroll-target="#statistical-approach"><span class="header-section-number">3.2</span> Statistical Approach</a>
+  <ul class="collapse">
+  <li><a href="#why-negative-binomial-glmms-for-h2" id="toc-why-negative-binomial-glmms-for-h2" class="nav-link" data-scroll-target="#why-negative-binomial-glmms-for-h2"><span class="header-section-number">3.2.1</span> Why Negative Binomial GLMMs for H2?</a></li>
+  <li><a href="#model-structure" id="toc-model-structure" class="nav-link" data-scroll-target="#model-structure"><span class="header-section-number">3.2.2</span> Model Structure</a></li>
+  </ul></li>
+  </ul></li>
+  <li><a href="#data-exploration" id="toc-data-exploration" class="nav-link" data-scroll-target="#data-exploration"><span class="header-section-number">4</span> Data Exploration</a>
+  <ul class="collapse">
+  <li><a href="#wind-metric-relationships" id="toc-wind-metric-relationships" class="nav-link" data-scroll-target="#wind-metric-relationships"><span class="header-section-number">4.1</span> Wind Metric Relationships</a></li>
+  <li><a href="#raw-relationships-with-abundance" id="toc-raw-relationships-with-abundance" class="nav-link" data-scroll-target="#raw-relationships-with-abundance"><span class="header-section-number">4.2</span> Raw Relationships with Abundance</a></li>
+  </ul></li>
+  <li><a href="#h2-analysis-model-comparison" id="toc-h2-analysis-model-comparison" class="nav-link" data-scroll-target="#h2-analysis-model-comparison"><span class="header-section-number">5</span> H2 Analysis: Model Comparison</a>
+  <ul class="collapse">
+  <li><a href="#testing-different-wind-characteristics" id="toc-testing-different-wind-characteristics" class="nav-link" data-scroll-target="#testing-different-wind-characteristics"><span class="header-section-number">5.1</span> Testing Different Wind Characteristics</a></li>
+  <li><a href="#best-model-results" id="toc-best-model-results" class="nav-link" data-scroll-target="#best-model-results"><span class="header-section-number">5.2</span> Best Model Results</a></li>
+  <li><a href="#model-diagnostics" id="toc-model-diagnostics" class="nav-link" data-scroll-target="#model-diagnostics"><span class="header-section-number">5.3</span> Model Diagnostics</a></li>
+  </ul></li>
+  <li><a href="#effect-visualization" id="toc-effect-visualization" class="nav-link" data-scroll-target="#effect-visualization"><span class="header-section-number">6</span> Effect Visualization</a>
+  <ul class="collapse">
+  <li><a href="#predicted-effects" id="toc-predicted-effects" class="nav-link" data-scroll-target="#predicted-effects"><span class="header-section-number">6.1</span> Predicted Effects</a></li>
+  <li><a href="#model-performance" id="toc-model-performance" class="nav-link" data-scroll-target="#model-performance"><span class="header-section-number">6.2</span> Model Performance</a></li>
+  </ul></li>
+  <li><a href="#sensitivity-analysis" id="toc-sensitivity-analysis" class="nav-link" data-scroll-target="#sensitivity-analysis"><span class="header-section-number">7</span> Sensitivity Analysis</a>
+  <ul class="collapse">
+  <li><a href="#alternative-specifications" id="toc-alternative-specifications" class="nav-link" data-scroll-target="#alternative-specifications"><span class="header-section-number">7.1</span> Alternative Specifications</a></li>
+  </ul></li>
+  <li><a href="#discussion" id="toc-discussion" class="nav-link" data-scroll-target="#discussion"><span class="header-section-number">8</span> Discussion</a>
+  <ul class="collapse">
+  <li><a href="#h2-summary-of-findings" id="toc-h2-summary-of-findings" class="nav-link" data-scroll-target="#h2-summary-of-findings"><span class="header-section-number">8.1</span> H2 Summary of Findings</a>
+  <ul class="collapse">
+  <li><a href="#evidence-for-h2-wind-as-disruptive-force" id="toc-evidence-for-h2-wind-as-disruptive-force" class="nav-link" data-scroll-target="#evidence-for-h2-wind-as-disruptive-force"><span class="header-section-number">8.1.1</span> Evidence for H2: Wind as Disruptive Force</a></li>
+  <li><a href="#temperature-remains-dominant" id="toc-temperature-remains-dominant" class="nav-link" data-scroll-target="#temperature-remains-dominant"><span class="header-section-number">8.1.2</span> Temperature Remains Dominant</a></li>
+  </ul></li>
+  <li><a href="#biological-interpretation" id="toc-biological-interpretation" class="nav-link" data-scroll-target="#biological-interpretation"><span class="header-section-number">8.2</span> Biological Interpretation</a></li>
+  <li><a href="#limitations" id="toc-limitations" class="nav-link" data-scroll-target="#limitations"><span class="header-section-number">8.3</span> Limitations</a></li>
+  </ul></li>
+  <li><a href="#conclusions" id="toc-conclusions" class="nav-link" data-scroll-target="#conclusions"><span class="header-section-number">9</span> Conclusions</a>
+  <ul class="collapse">
+  <li><a href="#h2-hypothesis-assessment" id="toc-h2-hypothesis-assessment" class="nav-link" data-scroll-target="#h2-hypothesis-assessment"><span class="header-section-number">9.1</span> H2 Hypothesis Assessment</a></li>
+  <li><a href="#implications-for-monarch-ecology" id="toc-implications-for-monarch-ecology" class="nav-link" data-scroll-target="#implications-for-monarch-ecology"><span class="header-section-number">9.2</span> Implications for Monarch Ecology</a></li>
+  <li><a href="#connection-to-h3" id="toc-connection-to-h3" class="nav-link" data-scroll-target="#connection-to-h3"><span class="header-section-number">9.3</span> Connection to H3</a></li>
+  </ul></li>
+  <li><a href="#appendix" id="toc-appendix" class="nav-link" data-scroll-target="#appendix"><span class="header-section-number">10</span> Appendix</a>
+  <ul class="collapse">
+  <li><a href="#full-model-output" id="toc-full-model-output" class="nav-link" data-scroll-target="#full-model-output"><span class="header-section-number">10.1</span> Full Model Output</a></li>
+  <li><a href="#session-information" id="toc-session-information" class="nav-link" data-scroll-target="#session-information"><span class="header-section-number">10.2</span> Session Information</a></li>
+  </ul></li>
+  </ul>
+</nav>
+</div>
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">H2 Analysis: Wind as a General Disruptive Force</h1>
+<p class="subtitle lead">Testing Wind Effects Beyond Specific Thresholds</p>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Kyle Nessen </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">August 11, 2025</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="executive-summary" class="level1" data-number="1">
+<h1 data-number="1"><span class="header-section-number">1</span> Executive Summary</h1>
+<p>This analysis tests <strong>Hypothesis 2</strong>: that wind acts as a general disruptive force on monarch butterfly abundance, independent of specific threshold values. Moving beyond the 2 m/s threshold tested in H1, we examine whether different characteristics of wind exposure (sustained winds, gusts, wind variability) affect monarch roost dynamics using negative binomial generalized linear mixed models.</p>
+<p><strong>Key Finding</strong>: We find <strong>minimal evidence</strong> that wind acts as a general disruptive force on monarch abundance. Across multiple wind metrics and model specifications, wind effects remain statistically non-significant and practically negligible. This supports the H1 finding that monarchs are more resilient to wind exposure than commonly assumed.</p>
+</section>
+<section id="introduction" class="level1" data-number="2">
+<h1 data-number="2"><span class="header-section-number">2</span> Introduction</h1>
+<section id="research-question" class="level2" data-number="2.1">
+<h2 data-number="2.1" class="anchored" data-anchor-id="research-question"><span class="header-section-number">2.1</span> Research Question</h2>
+<p>Does wind exposure, regardless of specific threshold values, act as a disruptive force that reduces monarch butterfly abundance at overwintering roost sites?</p>
+</section>
+<section id="h2-hypothesis-framework" class="level2" data-number="2.2">
+<h2 data-number="2.2" class="anchored" data-anchor-id="h2-hypothesis-framework"><span class="header-section-number">2.2</span> H2 Hypothesis Framework</h2>
+<p>Following our hierarchical hypothesis structure:</p>
+<ol type="1">
+<li><strong>H1</strong>: Wind speeds exceeding 2 m/s disrupt monarch clustering → <strong>No support found</strong></li>
+<li><strong>H2</strong>: Wind acts as a disruptive force on monarch abundance (this analysis)</li>
+<li><strong>H3</strong>: Wind effects scale with intensity</li>
+<li><strong>H4</strong>: Wind magnitude influences roost abandonment probability<br>
+</li>
+<li><strong>H5</strong>: Disruptive wind events affect long-term site fidelity</li>
+</ol>
+</section>
+<section id="rationale-for-h2" class="level2" data-number="2.3">
+<h2 data-number="2.3" class="anchored" data-anchor-id="rationale-for-h2"><span class="header-section-number">2.3</span> Rationale for H2</h2>
+<p>The lack of support for the specific 2 m/s threshold in H1 doesn’t necessarily mean wind has no effect. H2 tests whether:</p>
+<ul>
+<li>Different wind characteristics (sustained vs.&nbsp;gusts vs.&nbsp;variability) matter</li>
+<li>Wind effects exist but are not captured by threshold approaches</li>
+<li>Continuous wind metrics reveal relationships missed by binary thresholds</li>
+</ul>
+</section>
+<section id="methodological-improvements-from-h1" class="level2" data-number="2.4">
+<h2 data-number="2.4" class="anchored" data-anchor-id="methodological-improvements-from-h1"><span class="header-section-number">2.4</span> Methodological Improvements from H1</h2>
+<p>Based on lessons learned from H1 analysis:</p>
+<ol type="1">
+<li><strong>Response variable</strong>: Use raw abundance counts with negative binomial GLMMs instead of problematic proportional change transformations</li>
+<li><strong>Wind metrics</strong>: Test multiple continuous wind measures to identify which matters most</li>
+<li><strong>Random effects</strong>: Use <code>view_id</code> and <code>labeler</code> as established in H1 final analysis</li>
+<li><strong>Temporal autocorrelation</strong>: Control with lagged abundance term</li>
+<li><strong>Model comparison</strong>: Compare models with same response variable using AIC</li>
+</ol>
+</section>
+</section>
+<section id="methods" class="level1" data-number="3">
+<h1 data-number="3"><span class="header-section-number">3</span> Methods</h1>
+<section id="data-preparation" class="level2" data-number="3.1">
+<h2 data-number="3.1" class="anchored" data-anchor-id="data-preparation"><span class="header-section-number">3.1</span> Data Preparation</h2>
+<div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Run data preparation script</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">source</span>(<span class="fu">here</span>(<span class="st">"hypotheses"</span>, <span class="st">"H2-analysis"</span>, <span class="st">"H2_H3_data_prep.R"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 6 × 4
+  view_id n_obs mean_abundance mean_wind
+  &lt;chr&gt;   &lt;int&gt;          &lt;dbl&gt;     &lt;dbl&gt;
+1 1          58           27.8       6.5
+2 14         10          412.        0  
+3 16          9           44.7       9.7
+4 2         773           85.7       0.3
+5 4         763           86.2       2.7
+6 5          35           78.8       0.8</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 4 × 3
+  labeler n_obs mean_abundance
+  &lt;chr&gt;   &lt;int&gt;          &lt;dbl&gt;
+1 Emery     368          105. 
+2 Kevin     405           68.6
+3 Skyler    483          120. 
+4 Vincent   392           42.3</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>                            sustained_minutes_above_2ms gust_minutes_above_2ms
+sustained_minutes_above_2ms                       1.000                  0.857
+gust_minutes_above_2ms                            0.857                  1.000
+wind_variability                                  0.258                  0.719
+                            wind_variability
+sustained_minutes_above_2ms            0.258
+gust_minutes_above_2ms                 0.719
+wind_variability                       1.000</code></pre>
+</div>
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Load enhanced dataset</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>data_path <span class="ot">&lt;-</span> <span class="fu">here</span>(<span class="st">"results"</span>, <span class="st">"H2_H3_enhanced_data.rds"</span>)</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (<span class="sc">!</span><span class="fu">file.exists</span>(data_path)) {</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">stop</span>(<span class="st">"Enhanced data not found. Please run H2_H3_data_prep.R first."</span>)</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>df <span class="ot">&lt;-</span> <span class="fu">read_rds</span>(data_path)</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Display data structure</span></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>summary_stats <span class="ot">&lt;-</span> df <span class="sc">%&gt;%</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>    <span class="at">n_obs =</span> <span class="fu">n</span>(),</span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">n_views =</span> <span class="fu">n_distinct</span>(view_id),</span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">n_labelers =</span> <span class="fu">n_distinct</span>(labeler),</span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>    <span class="at">mean_abundance_t =</span> <span class="fu">mean</span>(abundance_index_t),</span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>    <span class="at">sd_abundance_t =</span> <span class="fu">sd</span>(abundance_index_t),</span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>    <span class="at">prop_zeros =</span> <span class="fu">mean</span>(abundance_index_t <span class="sc">==</span> <span class="dv">0</span>),</span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>    <span class="at">mean_sustained_wind =</span> <span class="fu">mean</span>(sustained_minutes_above_2ms),</span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>    <span class="at">mean_gust_wind =</span> <span class="fu">mean</span>(gust_minutes_above_2ms),</span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>    <span class="at">mean_wind_variability =</span> <span class="fu">mean</span>(wind_variability)</span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a><span class="fu">kable</span>(summary_stats, </span>
+<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a>      <span class="at">caption =</span> <span class="st">"H2 Analysis Dataset Summary"</span>,</span>
+<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a>      <span class="at">digits =</span> <span class="dv">2</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a>  <span class="fu">kable_styling</span>(<span class="at">bootstrap_options =</span> <span class="fu">c</span>(<span class="st">"striped"</span>, <span class="st">"hover"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output-display">
+<table class="table table-striped table-hover table-sm small" data-quarto-postprocess="true">
+<caption>H2 Analysis Dataset Summary</caption>
+<thead>
+<tr class="header">
+<th style="text-align: right;" data-quarto-table-cell-role="th">n_obs</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">n_views</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">n_labelers</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">mean_abundance_t</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">sd_abundance_t</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">prop_zeros</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">mean_sustained_wind</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">mean_gust_wind</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">mean_wind_variability</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">1648</td>
+<td style="text-align: right;">6</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">85.5</td>
+<td style="text-align: right;">103.75</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">1.69</td>
+<td style="text-align: right;">3.35</td>
+<td style="text-align: right;">0.06</td>
+</tr>
+</tbody>
+</table>
+
+
+</div>
+</div>
+</section>
+<section id="statistical-approach" class="level2" data-number="3.2">
+<h2 data-number="3.2" class="anchored" data-anchor-id="statistical-approach"><span class="header-section-number">3.2</span> Statistical Approach</h2>
+<section id="why-negative-binomial-glmms-for-h2" class="level3" data-number="3.2.1">
+<h3 data-number="3.2.1" class="anchored" data-anchor-id="why-negative-binomial-glmms-for-h2"><span class="header-section-number">3.2.1</span> Why Negative Binomial GLMMs for H2?</h3>
+<p>Our approach addresses the key issues identified in H1:</p>
+<ul>
+<li><strong>Count data</strong>: Abundance is non-negative integers</li>
+<li><strong>Overdispersion</strong>: Variance exceeds mean in aggregated organisms</li>
+<li><strong>Zero inflation</strong>: Many observations with zero butterflies</li>
+<li><strong>Temporal autocorrelation</strong>: Include lagged abundance as predictor</li>
+<li><strong>Site variation</strong>: Random effects for <code>view_id</code> and <code>labeler</code></li>
+</ul>
+</section>
+<section id="model-structure" class="level3" data-number="3.2.2">
+<h3 data-number="3.2.2" class="anchored" data-anchor-id="model-structure"><span class="header-section-number">3.2.2</span> Model Structure</h3>
+<p><span class="math display">\[\log(\mu_t) = \beta_0 + \beta_1 \cdot \text{Wind\_Metric} + \beta_2 \cdot \text{Temp} + \beta_3 \cdot \text{Sun} + \beta_4 \cdot \log(\text{Count}_{t-1} + 1) + u_{\text{view}} + u_{\text{labeler}}\]</span></p>
+<p>Where Wind_Metric represents different wind characteristics to be compared.</p>
+</section>
+</section>
+</section>
+<section id="data-exploration" class="level1" data-number="4">
+<h1 data-number="4"><span class="header-section-number">4</span> Data Exploration</h1>
+<section id="wind-metric-relationships" class="level2" data-number="4.1">
+<h2 data-number="4.1" class="anchored" data-anchor-id="wind-metric-relationships"><span class="header-section-number">4.1</span> Wind Metric Relationships</h2>
+<div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Wind metric distributions</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>p1 <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(df, <span class="fu">aes</span>(<span class="at">x =</span> sustained_minutes_above_2ms)) <span class="sc">+</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_histogram</span>(<span class="at">bins =</span> <span class="dv">30</span>, <span class="at">fill =</span> pal[<span class="dv">1</span>], <span class="at">alpha =</span> <span class="fl">0.7</span>) <span class="sc">+</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Sustained Wind Minutes &gt; 2ms"</span>, <span class="at">y =</span> <span class="st">"Count"</span>,</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"Distribution of Sustained Wind Exposure"</span>) <span class="sc">+</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(<span class="at">expand =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">0</span>))</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>p2 <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(df, <span class="fu">aes</span>(<span class="at">x =</span> gust_minutes_above_2ms)) <span class="sc">+</span></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_histogram</span>(<span class="at">bins =</span> <span class="dv">30</span>, <span class="at">fill =</span> pal[<span class="dv">2</span>], <span class="at">alpha =</span> <span class="fl">0.7</span>) <span class="sc">+</span></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Gust Wind Minutes &gt; 2ms"</span>, <span class="at">y =</span> <span class="st">"Count"</span>,</span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"Distribution of Gust Wind Exposure"</span>) <span class="sc">+</span></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(<span class="at">expand =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">0</span>))</span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>p3 <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(df, <span class="fu">aes</span>(<span class="at">x =</span> wind_variability)) <span class="sc">+</span></span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_histogram</span>(<span class="at">bins =</span> <span class="dv">30</span>, <span class="at">fill =</span> pal[<span class="dv">3</span>], <span class="at">alpha =</span> <span class="fl">0.7</span>) <span class="sc">+</span></span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Wind Variability (|Gust - Sustained|/30)"</span>, <span class="at">y =</span> <span class="st">"Count"</span>,</span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"Distribution of Wind Variability"</span>) <span class="sc">+</span></span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_continuous</span>(<span class="at">expand =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">0</span>))</span>
+<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a><span class="co"># Correlation between wind metrics</span></span>
+<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a>p4 <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(df, <span class="fu">aes</span>(<span class="at">x =</span> sustained_minutes_above_2ms, <span class="at">y =</span> gust_minutes_above_2ms)) <span class="sc">+</span></span>
+<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">alpha =</span> <span class="fl">0.4</span>, <span class="at">color =</span> pal[<span class="dv">4</span>]) <span class="sc">+</span></span>
+<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_smooth</span>(<span class="at">method =</span> <span class="st">"lm"</span>, <span class="at">se =</span> <span class="cn">TRUE</span>, <span class="at">color =</span> pal[<span class="dv">5</span>]) <span class="sc">+</span></span>
+<span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_abline</span>(<span class="at">slope =</span> <span class="dv">1</span>, <span class="at">intercept =</span> <span class="dv">0</span>, <span class="at">linetype =</span> <span class="st">"dashed"</span>, <span class="at">alpha =</span> <span class="fl">0.5</span>) <span class="sc">+</span></span>
+<span id="cb6-25"><a href="#cb6-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Sustained Wind Minutes"</span>, <span class="at">y =</span> <span class="st">"Gust Wind Minutes"</span>,</span>
+<span id="cb6-26"><a href="#cb6-26" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"Relationship: Sustained vs Gust Wind"</span>)</span>
+<span id="cb6-27"><a href="#cb6-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-28"><a href="#cb6-28" aria-hidden="true" tabindex="-1"></a>(p1 <span class="sc">+</span> p2) <span class="sc">/</span> (p3 <span class="sc">+</span> p4)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="H2_defensible_analysis_files/figure-html/wind-exploration-1.png" class="img-fluid figure-img" width="768"></p>
+<figcaption>Relationships between different wind metrics and abundance</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="raw-relationships-with-abundance" class="level2" data-number="4.2">
+<h2 data-number="4.2" class="anchored" data-anchor-id="raw-relationships-with-abundance"><span class="header-section-number">4.2</span> Raw Relationships with Abundance</h2>
+<div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Create wind exposure categories for visualization</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>df_viz <span class="ot">&lt;-</span> df <span class="sc">%&gt;%</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">sustained_cat =</span> <span class="fu">case_when</span>(</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>      sustained_minutes_above_2ms <span class="sc">==</span> <span class="dv">0</span> <span class="sc">~</span> <span class="st">"No Wind"</span>,</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>      sustained_minutes_above_2ms <span class="sc">&lt;=</span> <span class="dv">5</span> <span class="sc">~</span> <span class="st">"Low (1-5 min)"</span>,</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>      sustained_minutes_above_2ms <span class="sc">&lt;=</span> <span class="dv">15</span> <span class="sc">~</span> <span class="st">"Medium (6-15 min)"</span>,</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>      <span class="cn">TRUE</span> <span class="sc">~</span> <span class="st">"High (&gt;15 min)"</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>    ),</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">sustained_cat =</span> <span class="fu">factor</span>(sustained_cat, <span class="at">levels =</span> <span class="fu">c</span>(<span class="st">"No Wind"</span>, <span class="st">"Low (1-5 min)"</span>, <span class="st">"Medium (6-15 min)"</span>, <span class="st">"High (&gt;15 min)"</span>))</span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>p1 <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(df_viz, <span class="fu">aes</span>(<span class="at">x =</span> sustained_cat, <span class="at">y =</span> abundance_index_t)) <span class="sc">+</span></span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_boxplot</span>(<span class="at">fill =</span> pal[<span class="dv">1</span>], <span class="at">alpha =</span> <span class="fl">0.7</span>) <span class="sc">+</span></span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_log10</span>() <span class="sc">+</span></span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Sustained Wind Category"</span>, <span class="at">y =</span> <span class="st">"Abundance (log scale)"</span>,</span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"Abundance by Sustained Wind Categories"</span>)</span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>p2 <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(df, <span class="fu">aes</span>(<span class="at">x =</span> sustained_minutes_above_2ms, <span class="at">y =</span> abundance_index_t)) <span class="sc">+</span></span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">alpha =</span> <span class="fl">0.3</span>, <span class="at">color =</span> pal[<span class="dv">2</span>]) <span class="sc">+</span></span>
+<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_smooth</span>(<span class="at">method =</span> <span class="st">"loess"</span>, <span class="at">se =</span> <span class="cn">TRUE</span>, <span class="at">color =</span> pal[<span class="dv">3</span>]) <span class="sc">+</span></span>
+<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_log10</span>() <span class="sc">+</span></span>
+<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Sustained Wind Minutes"</span>, <span class="at">y =</span> <span class="st">"Abundance (log scale)"</span>,</span>
+<span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"Abundance vs Continuous Sustained Wind"</span>)</span>
+<span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a>p3 <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(df, <span class="fu">aes</span>(<span class="at">x =</span> wind_variability, <span class="at">y =</span> abundance_index_t)) <span class="sc">+</span></span>
+<span id="cb7-27"><a href="#cb7-27" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">alpha =</span> <span class="fl">0.3</span>, <span class="at">color =</span> pal[<span class="dv">4</span>]) <span class="sc">+</span></span>
+<span id="cb7-28"><a href="#cb7-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_smooth</span>(<span class="at">method =</span> <span class="st">"loess"</span>, <span class="at">se =</span> <span class="cn">TRUE</span>, <span class="at">color =</span> pal[<span class="dv">5</span>]) <span class="sc">+</span></span>
+<span id="cb7-29"><a href="#cb7-29" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_log10</span>() <span class="sc">+</span></span>
+<span id="cb7-30"><a href="#cb7-30" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Wind Variability"</span>, <span class="at">y =</span> <span class="st">"Abundance (log scale)"</span>,</span>
+<span id="cb7-31"><a href="#cb7-31" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"Abundance vs Wind Variability"</span>)</span>
+<span id="cb7-32"><a href="#cb7-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-33"><a href="#cb7-33" aria-hidden="true" tabindex="-1"></a>p4 <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(df, <span class="fu">aes</span>(<span class="at">x =</span> log_lag_abundance, <span class="at">y =</span> abundance_index_t)) <span class="sc">+</span></span>
+<span id="cb7-34"><a href="#cb7-34" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">alpha =</span> <span class="fl">0.3</span>, <span class="at">color =</span> pal[<span class="dv">3</span>]) <span class="sc">+</span></span>
+<span id="cb7-35"><a href="#cb7-35" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_smooth</span>(<span class="at">method =</span> <span class="st">"loess"</span>, <span class="at">se =</span> <span class="cn">TRUE</span>, <span class="at">color =</span> pal[<span class="dv">4</span>]) <span class="sc">+</span></span>
+<span id="cb7-36"><a href="#cb7-36" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_y_log10</span>() <span class="sc">+</span></span>
+<span id="cb7-37"><a href="#cb7-37" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Log Lagged Abundance"</span>, <span class="at">y =</span> <span class="st">"Current Abundance (log scale)"</span>,</span>
+<span id="cb7-38"><a href="#cb7-38" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"Temporal Autocorrelation"</span>)</span>
+<span id="cb7-39"><a href="#cb7-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-40"><a href="#cb7-40" aria-hidden="true" tabindex="-1"></a>(p1 <span class="sc">+</span> p2) <span class="sc">/</span> (p3 <span class="sc">+</span> p4)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="H2_defensible_analysis_files/figure-html/abundance-relationships-1.png" class="img-fluid figure-img" width="768"></p>
+<figcaption>Raw relationships between wind metrics and butterfly abundance</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="h2-analysis-model-comparison" class="level1" data-number="5">
+<h1 data-number="5"><span class="header-section-number">5</span> H2 Analysis: Model Comparison</h1>
+<section id="testing-different-wind-characteristics" class="level2" data-number="5.1">
+<h2 data-number="5.1" class="anchored" data-anchor-id="testing-different-wind-characteristics"><span class="header-section-number">5.1</span> Testing Different Wind Characteristics</h2>
+<p>We fit separate models for each wind metric to avoid collinearity and identify which characteristic matters most.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Model 1: Sustained wind</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>m1_sustained <span class="ot">&lt;-</span> <span class="fu">glmmTMB</span>(</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  abundance_index_t <span class="sc">~</span> </span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>    log_lag_abundance <span class="sc">+</span> </span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>    sustained_wind_std <span class="sc">+</span></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>    temp_std <span class="sc">+</span> </span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>    sun_std <span class="sc">+</span></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>    (<span class="dv">1</span> <span class="sc">|</span> view_id) <span class="sc">+</span> </span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>    (<span class="dv">1</span> <span class="sc">|</span> labeler),</span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> df,</span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">family =</span> nbinom2,</span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">control =</span> <span class="fu">glmmTMBControl</span>(<span class="at">optimizer =</span> nlminb)</span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a><span class="co"># Model 2: Gust wind  </span></span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>m2_gust <span class="ot">&lt;-</span> <span class="fu">glmmTMB</span>(</span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>  abundance_index_t <span class="sc">~</span> </span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>    log_lag_abundance <span class="sc">+</span> </span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a>    gust_wind_std <span class="sc">+</span></span>
+<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a>    temp_std <span class="sc">+</span> </span>
+<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a>    sun_std <span class="sc">+</span></span>
+<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a>    (<span class="dv">1</span> <span class="sc">|</span> view_id) <span class="sc">+</span> </span>
+<span id="cb8-23"><a href="#cb8-23" aria-hidden="true" tabindex="-1"></a>    (<span class="dv">1</span> <span class="sc">|</span> labeler),</span>
+<span id="cb8-24"><a href="#cb8-24" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> df,</span>
+<span id="cb8-25"><a href="#cb8-25" aria-hidden="true" tabindex="-1"></a>  <span class="at">family =</span> nbinom2,</span>
+<span id="cb8-26"><a href="#cb8-26" aria-hidden="true" tabindex="-1"></a>  <span class="at">control =</span> <span class="fu">glmmTMBControl</span>(<span class="at">optimizer =</span> nlminb)</span>
+<span id="cb8-27"><a href="#cb8-27" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb8-28"><a href="#cb8-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-29"><a href="#cb8-29" aria-hidden="true" tabindex="-1"></a><span class="co"># Model 3: Wind variability</span></span>
+<span id="cb8-30"><a href="#cb8-30" aria-hidden="true" tabindex="-1"></a>m3_variability <span class="ot">&lt;-</span> <span class="fu">glmmTMB</span>(</span>
+<span id="cb8-31"><a href="#cb8-31" aria-hidden="true" tabindex="-1"></a>  abundance_index_t <span class="sc">~</span> </span>
+<span id="cb8-32"><a href="#cb8-32" aria-hidden="true" tabindex="-1"></a>    log_lag_abundance <span class="sc">+</span> </span>
+<span id="cb8-33"><a href="#cb8-33" aria-hidden="true" tabindex="-1"></a>    wind_variability_std <span class="sc">+</span></span>
+<span id="cb8-34"><a href="#cb8-34" aria-hidden="true" tabindex="-1"></a>    temp_std <span class="sc">+</span> </span>
+<span id="cb8-35"><a href="#cb8-35" aria-hidden="true" tabindex="-1"></a>    sun_std <span class="sc">+</span></span>
+<span id="cb8-36"><a href="#cb8-36" aria-hidden="true" tabindex="-1"></a>    (<span class="dv">1</span> <span class="sc">|</span> view_id) <span class="sc">+</span> </span>
+<span id="cb8-37"><a href="#cb8-37" aria-hidden="true" tabindex="-1"></a>    (<span class="dv">1</span> <span class="sc">|</span> labeler),</span>
+<span id="cb8-38"><a href="#cb8-38" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> df,</span>
+<span id="cb8-39"><a href="#cb8-39" aria-hidden="true" tabindex="-1"></a>  <span class="at">family =</span> nbinom2,</span>
+<span id="cb8-40"><a href="#cb8-40" aria-hidden="true" tabindex="-1"></a>  <span class="at">control =</span> <span class="fu">glmmTMBControl</span>(<span class="at">optimizer =</span> nlminb)</span>
+<span id="cb8-41"><a href="#cb8-41" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb8-42"><a href="#cb8-42" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-43"><a href="#cb8-43" aria-hidden="true" tabindex="-1"></a><span class="co"># Model 4: Multiple wind metrics (if correlations allow)</span></span>
+<span id="cb8-44"><a href="#cb8-44" aria-hidden="true" tabindex="-1"></a>wind_correlations <span class="ot">&lt;-</span> <span class="fu">cor</span>(df[<span class="fu">c</span>(<span class="st">"sustained_wind_std"</span>, <span class="st">"gust_wind_std"</span>, <span class="st">"wind_variability_std"</span>)], </span>
+<span id="cb8-45"><a href="#cb8-45" aria-hidden="true" tabindex="-1"></a>                        <span class="at">use =</span> <span class="st">"complete.obs"</span>)</span>
+<span id="cb8-46"><a href="#cb8-46" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-47"><a href="#cb8-47" aria-hidden="true" tabindex="-1"></a><span class="co"># Only include multiple metrics if not highly correlated (r &lt; 0.8)</span></span>
+<span id="cb8-48"><a href="#cb8-48" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (<span class="fu">max</span>(<span class="fu">abs</span>(wind_correlations[wind_correlations <span class="sc">!=</span> <span class="dv">1</span>])) <span class="sc">&lt;</span> <span class="fl">0.8</span>) {</span>
+<span id="cb8-49"><a href="#cb8-49" aria-hidden="true" tabindex="-1"></a>  m4_combined <span class="ot">&lt;-</span> <span class="fu">glmmTMB</span>(</span>
+<span id="cb8-50"><a href="#cb8-50" aria-hidden="true" tabindex="-1"></a>    abundance_index_t <span class="sc">~</span> </span>
+<span id="cb8-51"><a href="#cb8-51" aria-hidden="true" tabindex="-1"></a>      log_lag_abundance <span class="sc">+</span> </span>
+<span id="cb8-52"><a href="#cb8-52" aria-hidden="true" tabindex="-1"></a>      sustained_wind_std <span class="sc">+</span> </span>
+<span id="cb8-53"><a href="#cb8-53" aria-hidden="true" tabindex="-1"></a>      gust_wind_std <span class="sc">+</span></span>
+<span id="cb8-54"><a href="#cb8-54" aria-hidden="true" tabindex="-1"></a>      wind_variability_std <span class="sc">+</span></span>
+<span id="cb8-55"><a href="#cb8-55" aria-hidden="true" tabindex="-1"></a>      temp_std <span class="sc">+</span> </span>
+<span id="cb8-56"><a href="#cb8-56" aria-hidden="true" tabindex="-1"></a>      sun_std <span class="sc">+</span></span>
+<span id="cb8-57"><a href="#cb8-57" aria-hidden="true" tabindex="-1"></a>      (<span class="dv">1</span> <span class="sc">|</span> view_id) <span class="sc">+</span> </span>
+<span id="cb8-58"><a href="#cb8-58" aria-hidden="true" tabindex="-1"></a>      (<span class="dv">1</span> <span class="sc">|</span> labeler),</span>
+<span id="cb8-59"><a href="#cb8-59" aria-hidden="true" tabindex="-1"></a>    <span class="at">data =</span> df,</span>
+<span id="cb8-60"><a href="#cb8-60" aria-hidden="true" tabindex="-1"></a>    <span class="at">family =</span> nbinom2,</span>
+<span id="cb8-61"><a href="#cb8-61" aria-hidden="true" tabindex="-1"></a>    <span class="at">control =</span> <span class="fu">glmmTMBControl</span>(<span class="at">optimizer =</span> nlminb)</span>
+<span id="cb8-62"><a href="#cb8-62" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb8-63"><a href="#cb8-63" aria-hidden="true" tabindex="-1"></a>  include_combined <span class="ot">&lt;-</span> <span class="cn">TRUE</span></span>
+<span id="cb8-64"><a href="#cb8-64" aria-hidden="true" tabindex="-1"></a>} <span class="cf">else</span> {</span>
+<span id="cb8-65"><a href="#cb8-65" aria-hidden="true" tabindex="-1"></a>  <span class="fu">message</span>(<span class="st">"Wind metrics highly correlated - skipping combined model"</span>)</span>
+<span id="cb8-66"><a href="#cb8-66" aria-hidden="true" tabindex="-1"></a>  include_combined <span class="ot">&lt;-</span> <span class="cn">FALSE</span></span>
+<span id="cb8-67"><a href="#cb8-67" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb8-68"><a href="#cb8-68" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-69"><a href="#cb8-69" aria-hidden="true" tabindex="-1"></a><span class="co"># Model comparison</span></span>
+<span id="cb8-70"><a href="#cb8-70" aria-hidden="true" tabindex="-1"></a>model_comparison <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb8-71"><a href="#cb8-71" aria-hidden="true" tabindex="-1"></a>  <span class="at">Model =</span> <span class="fu">c</span>(<span class="st">"Sustained Wind"</span>, <span class="st">"Gust Wind"</span>, <span class="st">"Wind Variability"</span>),</span>
+<span id="cb8-72"><a href="#cb8-72" aria-hidden="true" tabindex="-1"></a>  <span class="at">AIC =</span> <span class="fu">c</span>(<span class="fu">AIC</span>(m1_sustained), <span class="fu">AIC</span>(m2_gust), <span class="fu">AIC</span>(m3_variability)),</span>
+<span id="cb8-73"><a href="#cb8-73" aria-hidden="true" tabindex="-1"></a>  <span class="at">BIC =</span> <span class="fu">c</span>(<span class="fu">BIC</span>(m1_sustained), <span class="fu">BIC</span>(m2_gust), <span class="fu">BIC</span>(m3_variability)),</span>
+<span id="cb8-74"><a href="#cb8-74" aria-hidden="true" tabindex="-1"></a>  <span class="at">LogLik =</span> <span class="fu">c</span>(<span class="fu">logLik</span>(m1_sustained), <span class="fu">logLik</span>(m2_gust), <span class="fu">logLik</span>(m3_variability))</span>
+<span id="cb8-75"><a href="#cb8-75" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb8-76"><a href="#cb8-76" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-77"><a href="#cb8-77" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (include_combined) {</span>
+<span id="cb8-78"><a href="#cb8-78" aria-hidden="true" tabindex="-1"></a>  model_comparison <span class="ot">&lt;-</span> <span class="fu">rbind</span>(model_comparison,</span>
+<span id="cb8-79"><a href="#cb8-79" aria-hidden="true" tabindex="-1"></a>                           <span class="fu">data.frame</span>(<span class="at">Model =</span> <span class="st">"Combined"</span>,</span>
+<span id="cb8-80"><a href="#cb8-80" aria-hidden="true" tabindex="-1"></a>                                     <span class="at">AIC =</span> <span class="fu">AIC</span>(m4_combined),</span>
+<span id="cb8-81"><a href="#cb8-81" aria-hidden="true" tabindex="-1"></a>                                     <span class="at">BIC =</span> <span class="fu">BIC</span>(m4_combined), </span>
+<span id="cb8-82"><a href="#cb8-82" aria-hidden="true" tabindex="-1"></a>                                     <span class="at">LogLik =</span> <span class="fu">logLik</span>(m4_combined)))</span>
+<span id="cb8-83"><a href="#cb8-83" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb8-84"><a href="#cb8-84" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-85"><a href="#cb8-85" aria-hidden="true" tabindex="-1"></a>model_comparison <span class="ot">&lt;-</span> model_comparison <span class="sc">%&gt;%</span></span>
+<span id="cb8-86"><a href="#cb8-86" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(AIC) <span class="sc">%&gt;%</span></span>
+<span id="cb8-87"><a href="#cb8-87" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">Delta_AIC =</span> AIC <span class="sc">-</span> <span class="fu">min</span>(AIC))</span>
+<span id="cb8-88"><a href="#cb8-88" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-89"><a href="#cb8-89" aria-hidden="true" tabindex="-1"></a><span class="fu">kable</span>(model_comparison, </span>
+<span id="cb8-90"><a href="#cb8-90" aria-hidden="true" tabindex="-1"></a>      <span class="at">caption =</span> <span class="st">"H2: Model Comparison for Different Wind Characteristics"</span>,</span>
+<span id="cb8-91"><a href="#cb8-91" aria-hidden="true" tabindex="-1"></a>      <span class="at">digits =</span> <span class="dv">2</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb8-92"><a href="#cb8-92" aria-hidden="true" tabindex="-1"></a>  <span class="fu">kable_styling</span>(<span class="at">bootstrap_options =</span> <span class="fu">c</span>(<span class="st">"striped"</span>, <span class="st">"hover"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output-display">
+<table class="table table-striped table-hover table-sm small" data-quarto-postprocess="true">
+<caption>H2: Model Comparison for Different Wind Characteristics</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;" data-quarto-table-cell-role="th">Model</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">AIC</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">BIC</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">LogLik</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">Delta_AIC</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Wind Variability</td>
+<td style="text-align: right;">13951.09</td>
+<td style="text-align: right;">13994.35</td>
+<td style="text-align: right;">-6967.55</td>
+<td style="text-align: right;">0.00</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Sustained Wind</td>
+<td style="text-align: right;">13952.40</td>
+<td style="text-align: right;">13995.66</td>
+<td style="text-align: right;">-6968.20</td>
+<td style="text-align: right;">1.31</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Gust Wind</td>
+<td style="text-align: right;">13952.47</td>
+<td style="text-align: right;">13995.73</td>
+<td style="text-align: right;">-6968.24</td>
+<td style="text-align: right;">1.38</td>
+</tr>
+</tbody>
+</table>
+
+
+</div>
+</div>
+</section>
+<section id="best-model-results" class="level2" data-number="5.2">
+<h2 data-number="5.2" class="anchored" data-anchor-id="best-model-results"><span class="header-section-number">5.2</span> Best Model Results</h2>
+<div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Select best model (lowest AIC)</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>best_model_name <span class="ot">&lt;-</span> model_comparison<span class="sc">$</span>Model[<span class="dv">1</span>]</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>best_model <span class="ot">&lt;-</span> <span class="cf">switch</span>(best_model_name,</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>                    <span class="st">"Sustained Wind"</span> <span class="ot">=</span> m1_sustained,</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>                    <span class="st">"Gust Wind"</span> <span class="ot">=</span> m2_gust,</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>                    <span class="st">"Wind Variability"</span> <span class="ot">=</span> m3_variability,</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>                    <span class="st">"Combined"</span> <span class="ot">=</span> m4_combined)</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Extract and format coefficients</span></span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>coef_table <span class="ot">&lt;-</span> broom.mixed<span class="sc">::</span><span class="fu">tidy</span>(best_model, <span class="at">conf.int =</span> <span class="cn">TRUE</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(effect <span class="sc">==</span> <span class="st">"fixed"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>    <span class="at">estimate_exp =</span> <span class="fu">exp</span>(estimate),</span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">conf.low_exp =</span> <span class="fu">exp</span>(conf.low),</span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">conf.high_exp =</span> <span class="fu">exp</span>(conf.high),</span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a>    <span class="at">significant =</span> p.value <span class="sc">&lt;</span> <span class="fl">0.05</span></span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a><span class="co"># Format for presentation</span></span>
+<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a>coef_table <span class="sc">%&gt;%</span></span>
+<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">Rate Ratio</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">sprintf</span>(<span class="st">"%.3f"</span>, estimate_exp),</span>
+<span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">95% CI</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">sprintf</span>(<span class="st">"[%.3f, %.3f]"</span>, conf.low_exp, conf.high_exp),</span>
+<span id="cb9-24"><a href="#cb9-24" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">P-value</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">sprintf</span>(<span class="st">"%.4f"</span>, p.value),</span>
+<span id="cb9-25"><a href="#cb9-25" aria-hidden="true" tabindex="-1"></a>    <span class="at">Significant =</span> <span class="fu">ifelse</span>(significant, <span class="st">"Yes"</span>, <span class="st">"No"</span>)</span>
+<span id="cb9-26"><a href="#cb9-26" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb9-27"><a href="#cb9-27" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="at">Term =</span> term, <span class="st">`</span><span class="at">Rate Ratio</span><span class="st">`</span>, <span class="st">`</span><span class="at">95% CI</span><span class="st">`</span>, <span class="st">`</span><span class="at">P-value</span><span class="st">`</span>, Significant) <span class="sc">%&gt;%</span></span>
+<span id="cb9-28"><a href="#cb9-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">kable</span>(<span class="at">caption =</span> <span class="fu">paste</span>(<span class="st">"H2 Best Model Results:"</span>, best_model_name)) <span class="sc">%&gt;%</span></span>
+<span id="cb9-29"><a href="#cb9-29" aria-hidden="true" tabindex="-1"></a>  <span class="fu">kable_styling</span>(<span class="at">bootstrap_options =</span> <span class="fu">c</span>(<span class="st">"striped"</span>, <span class="st">"hover"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output-display">
+<table class="table table-striped table-hover table-sm small" data-quarto-postprocess="true">
+<caption>H2 Best Model Results: Wind Variability</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;" data-quarto-table-cell-role="th">Term</th>
+<th style="text-align: left;" data-quarto-table-cell-role="th">Rate Ratio</th>
+<th style="text-align: left;" data-quarto-table-cell-role="th">95% CI</th>
+<th style="text-align: left;" data-quarto-table-cell-role="th">P-value</th>
+<th style="text-align: left;" data-quarto-table-cell-role="th">Significant</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">(Intercept)</td>
+<td style="text-align: left;">1.195</td>
+<td style="text-align: left;">[1.056, 1.352]</td>
+<td style="text-align: left;">0.0047</td>
+<td style="text-align: left;">Yes</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">log_lag_abundance</td>
+<td style="text-align: left;">2.603</td>
+<td style="text-align: left;">[2.556, 2.651]</td>
+<td style="text-align: left;">0.0000</td>
+<td style="text-align: left;">Yes</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">wind_variability_std</td>
+<td style="text-align: left;">0.985</td>
+<td style="text-align: left;">[0.962, 1.009]</td>
+<td style="text-align: left;">0.2192</td>
+<td style="text-align: left;">No</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">temp_std</td>
+<td style="text-align: left;">1.072</td>
+<td style="text-align: left;">[1.046, 1.100]</td>
+<td style="text-align: left;">0.0000</td>
+<td style="text-align: left;">Yes</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">sun_std</td>
+<td style="text-align: left;">0.937</td>
+<td style="text-align: left;">[0.913, 0.963]</td>
+<td style="text-align: left;">0.0000</td>
+<td style="text-align: left;">Yes</td>
+</tr>
+</tbody>
+</table>
+
+
+</div>
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Model summary</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Best performing wind metric:"</span>, best_model_name)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Best performing wind metric: Wind Variability</code></pre>
+</div>
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"</span><span class="sc">\n</span><span class="st">Model AIC:"</span>, <span class="fu">round</span>(<span class="fu">AIC</span>(best_model), <span class="dv">2</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Model AIC: 13951.09</code></pre>
+</div>
+</div>
+</section>
+<section id="model-diagnostics" class="level2" data-number="5.3">
+<h2 data-number="5.3" class="anchored" data-anchor-id="model-diagnostics"><span class="header-section-number">5.3</span> Model Diagnostics</h2>
+<div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="co"># DHARMa residual diagnostics</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>sim_res <span class="ot">&lt;-</span> <span class="fu">simulateResiduals</span>(best_model, <span class="at">n =</span> <span class="dv">1000</span>)</span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Create diagnostic plots</span></span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a><span class="fu">par</span>(<span class="at">mfrow =</span> <span class="fu">c</span>(<span class="dv">3</span>, <span class="dv">2</span>), <span class="at">mar =</span> <span class="fu">c</span>(<span class="dv">4</span>, <span class="dv">4</span>, <span class="dv">3</span>, <span class="dv">1</span>))</span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Basic DHARMa plots</span></span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(sim_res, <span class="at">main =</span> <span class="st">"Q-Q Plot"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="H2_defensible_analysis_files/figure-html/h2-diagnostics-1.png" class="img-fluid figure-img" width="768"></p>
+<figcaption>Diagnostic plots for H2 best model</figcaption>
+</figure>
+</div>
+</div>
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plotResiduals</span>(sim_res, <span class="at">form =</span> <span class="fu">fitted</span>(best_model), <span class="at">main =</span> <span class="st">"Residuals vs Fitted"</span>)</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Check residuals against predictors</span></span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>wind_var <span class="ot">&lt;-</span> <span class="cf">switch</span>(best_model_name,</span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>                  <span class="st">"Sustained Wind"</span> <span class="ot">=</span> df<span class="sc">$</span>sustained_wind_std,</span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>                  <span class="st">"Gust Wind"</span> <span class="ot">=</span> df<span class="sc">$</span>gust_wind_std, </span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a>                  <span class="st">"Wind Variability"</span> <span class="ot">=</span> df<span class="sc">$</span>wind_variability_std)</span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a><span class="fu">plotResiduals</span>(sim_res, <span class="at">form =</span> wind_var, </span>
+<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a>              <span class="at">main =</span> <span class="fu">paste</span>(<span class="st">"Residuals vs"</span>, best_model_name))</span>
+<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a><span class="fu">plotResiduals</span>(sim_res, <span class="at">form =</span> df<span class="sc">$</span>temp_std, <span class="at">main =</span> <span class="st">"Residuals vs Temperature"</span>)</span>
+<span id="cb15-12"><a href="#cb15-12" aria-hidden="true" tabindex="-1"></a><span class="fu">plotResiduals</span>(sim_res, <span class="at">form =</span> df<span class="sc">$</span>sun_std, <span class="at">main =</span> <span class="st">"Residuals vs Sunlight"</span>)</span>
+<span id="cb15-13"><a href="#cb15-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-14"><a href="#cb15-14" aria-hidden="true" tabindex="-1"></a><span class="co"># Test dispersion</span></span>
+<span id="cb15-15"><a href="#cb15-15" aria-hidden="true" tabindex="-1"></a><span class="fu">testDispersion</span>(sim_res)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+    DHARMa nonparametric dispersion test via sd of residuals fitted vs.
+    simulated
+
+data:  simulationOutput
+dispersion = 0.55774, p-value &lt; 2.2e-16
+alternative hypothesis: two.sided</code></pre>
+</div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="H2_defensible_analysis_files/figure-html/h2-diagnostics-2.png" class="img-fluid figure-img" width="768"></p>
+<figcaption>Diagnostic plots for H2 best model</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Check temporal autocorrelation in residuals</span></span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>df<span class="sc">$</span>residuals <span class="ot">&lt;-</span> <span class="fu">residuals</span>(best_model, <span class="at">type =</span> <span class="st">"pearson"</span>)</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Plot ACF</span></span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>acf_result <span class="ot">&lt;-</span> <span class="fu">acf</span>(df<span class="sc">$</span>residuals, <span class="at">lag.max =</span> <span class="dv">10</span>, <span class="at">plot =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(acf_result, <span class="at">main =</span> <span class="st">"Autocorrelation Function of Residuals"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="H2_defensible_analysis_files/figure-html/temporal-diagnostics-1.png" class="img-fluid figure-img" width="768"></p>
+<figcaption>Temporal autocorrelation check for H2 model</figcaption>
+</figure>
+</div>
+</div>
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Calculate correlation coefficient</span></span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Residual autocorrelation at lag 1:"</span>, <span class="fu">round</span>(acf_result<span class="sc">$</span>acf[<span class="dv">2</span>], <span class="dv">3</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Residual autocorrelation at lag 1: -0.074</code></pre>
+</div>
+</div>
+</section>
+</section>
+<section id="effect-visualization" class="level1" data-number="6">
+<h1 data-number="6"><span class="header-section-number">6</span> Effect Visualization</h1>
+<section id="predicted-effects" class="level2" data-number="6.1">
+<h2 data-number="6.1" class="anchored" data-anchor-id="predicted-effects"><span class="header-section-number">6.1</span> Predicted Effects</h2>
+<div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Generate predictions for the best wind metric</span></span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>wind_pred_var <span class="ot">&lt;-</span> <span class="cf">switch</span>(best_model_name,</span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>                       <span class="st">"Sustained Wind"</span> <span class="ot">=</span> <span class="st">"sustained_wind_std"</span>,</span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>                       <span class="st">"Gust Wind"</span> <span class="ot">=</span> <span class="st">"gust_wind_std"</span>,</span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a>                       <span class="st">"Wind Variability"</span> <span class="ot">=</span> <span class="st">"wind_variability_std"</span>)</span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a>wind_pred <span class="ot">&lt;-</span> <span class="fu">ggpredict</span>(best_model, </span>
+<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a>                       <span class="at">terms =</span> <span class="fu">paste0</span>(wind_pred_var, <span class="st">" [-2:2]"</span>),</span>
+<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a>                       <span class="at">condition =</span> <span class="fu">c</span>(<span class="at">log_lag_abundance =</span> <span class="fu">mean</span>(df<span class="sc">$</span>log_lag_abundance),</span>
+<span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a>                                    <span class="at">temp_std =</span> <span class="dv">0</span>,</span>
+<span id="cb20-11"><a href="#cb20-11" aria-hidden="true" tabindex="-1"></a>                                    <span class="at">sun_std =</span> <span class="dv">0</span>))</span>
+<span id="cb20-12"><a href="#cb20-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-13"><a href="#cb20-13" aria-hidden="true" tabindex="-1"></a><span class="co"># Temperature predictions</span></span>
+<span id="cb20-14"><a href="#cb20-14" aria-hidden="true" tabindex="-1"></a>temp_pred <span class="ot">&lt;-</span> <span class="fu">ggpredict</span>(best_model,</span>
+<span id="cb20-15"><a href="#cb20-15" aria-hidden="true" tabindex="-1"></a>                       <span class="at">terms =</span> <span class="st">"temp_std [-2:2]"</span>,</span>
+<span id="cb20-16"><a href="#cb20-16" aria-hidden="true" tabindex="-1"></a>                       <span class="at">condition =</span> <span class="fu">c</span>(<span class="at">log_lag_abundance =</span> <span class="fu">mean</span>(df<span class="sc">$</span>log_lag_abundance),</span>
+<span id="cb20-17"><a href="#cb20-17" aria-hidden="true" tabindex="-1"></a>                                    <span class="at">sun_std =</span> <span class="dv">0</span>))</span>
+<span id="cb20-18"><a href="#cb20-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-19"><a href="#cb20-19" aria-hidden="true" tabindex="-1"></a><span class="co"># Convert back to original scales for interpretation</span></span>
+<span id="cb20-20"><a href="#cb20-20" aria-hidden="true" tabindex="-1"></a>temp_mean <span class="ot">&lt;-</span> <span class="fu">mean</span>(df<span class="sc">$</span>ambient_temp, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb20-21"><a href="#cb20-21" aria-hidden="true" tabindex="-1"></a>temp_sd <span class="ot">&lt;-</span> <span class="fu">sd</span>(df<span class="sc">$</span>ambient_temp, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb20-22"><a href="#cb20-22" aria-hidden="true" tabindex="-1"></a>temp_pred<span class="sc">$</span>x_original <span class="ot">&lt;-</span> temp_pred<span class="sc">$</span>x <span class="sc">*</span> temp_sd <span class="sc">+</span> temp_mean</span>
+<span id="cb20-23"><a href="#cb20-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-24"><a href="#cb20-24" aria-hidden="true" tabindex="-1"></a><span class="co"># Wind effect plot</span></span>
+<span id="cb20-25"><a href="#cb20-25" aria-hidden="true" tabindex="-1"></a>p_wind <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(wind_pred, <span class="fu">aes</span>(<span class="at">x =</span> x, <span class="at">y =</span> predicted)) <span class="sc">+</span></span>
+<span id="cb20-26"><a href="#cb20-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_ribbon</span>(<span class="fu">aes</span>(<span class="at">ymin =</span> conf.low, <span class="at">ymax =</span> conf.high), </span>
+<span id="cb20-27"><a href="#cb20-27" aria-hidden="true" tabindex="-1"></a>              <span class="at">fill =</span> pal[<span class="dv">1</span>], <span class="at">alpha =</span> <span class="fl">0.3</span>) <span class="sc">+</span></span>
+<span id="cb20-28"><a href="#cb20-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">color =</span> pal[<span class="dv">1</span>], <span class="at">size =</span> <span class="fl">1.5</span>) <span class="sc">+</span></span>
+<span id="cb20-29"><a href="#cb20-29" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> <span class="fu">mean</span>(df<span class="sc">$</span>abundance_index_t),</span>
+<span id="cb20-30"><a href="#cb20-30" aria-hidden="true" tabindex="-1"></a>             <span class="at">linetype =</span> <span class="st">"dashed"</span>, <span class="at">alpha =</span> <span class="fl">0.5</span>) <span class="sc">+</span></span>
+<span id="cb20-31"><a href="#cb20-31" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="fu">paste</span>(<span class="st">"Standardized"</span>, <span class="fu">str_replace_all</span>(best_model_name, <span class="st">"_"</span>, <span class="st">" "</span>)),</span>
+<span id="cb20-32"><a href="#cb20-32" aria-hidden="true" tabindex="-1"></a>       <span class="at">y =</span> <span class="st">"Predicted Abundance"</span>,</span>
+<span id="cb20-33"><a href="#cb20-33" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="fu">paste</span>(<span class="st">"Effect of"</span>, best_model_name, <span class="st">"on Abundance"</span>),</span>
+<span id="cb20-34"><a href="#cb20-34" aria-hidden="true" tabindex="-1"></a>       <span class="at">subtitle =</span> <span class="st">"Based on H2 analysis"</span>)</span>
+<span id="cb20-35"><a href="#cb20-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-36"><a href="#cb20-36" aria-hidden="true" tabindex="-1"></a><span class="co"># Temperature effect plot  </span></span>
+<span id="cb20-37"><a href="#cb20-37" aria-hidden="true" tabindex="-1"></a>p_temp <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(temp_pred, <span class="fu">aes</span>(<span class="at">x =</span> x_original, <span class="at">y =</span> predicted)) <span class="sc">+</span></span>
+<span id="cb20-38"><a href="#cb20-38" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_ribbon</span>(<span class="fu">aes</span>(<span class="at">ymin =</span> conf.low, <span class="at">ymax =</span> conf.high),</span>
+<span id="cb20-39"><a href="#cb20-39" aria-hidden="true" tabindex="-1"></a>              <span class="at">fill =</span> pal[<span class="dv">2</span>], <span class="at">alpha =</span> <span class="fl">0.3</span>) <span class="sc">+</span></span>
+<span id="cb20-40"><a href="#cb20-40" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">color =</span> pal[<span class="dv">2</span>], <span class="at">size =</span> <span class="fl">1.5</span>) <span class="sc">+</span></span>
+<span id="cb20-41"><a href="#cb20-41" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> <span class="fu">mean</span>(df<span class="sc">$</span>abundance_index_t),</span>
+<span id="cb20-42"><a href="#cb20-42" aria-hidden="true" tabindex="-1"></a>             <span class="at">linetype =</span> <span class="st">"dashed"</span>, <span class="at">alpha =</span> <span class="fl">0.5</span>) <span class="sc">+</span></span>
+<span id="cb20-43"><a href="#cb20-43" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Temperature (°C)"</span>,</span>
+<span id="cb20-44"><a href="#cb20-44" aria-hidden="true" tabindex="-1"></a>       <span class="at">y =</span> <span class="st">"Predicted Abundance"</span>, </span>
+<span id="cb20-45"><a href="#cb20-45" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"Effect of Temperature on Abundance"</span>,</span>
+<span id="cb20-46"><a href="#cb20-46" aria-hidden="true" tabindex="-1"></a>       <span class="at">subtitle =</span> <span class="st">"Consistent strong positive effect"</span>)</span>
+<span id="cb20-47"><a href="#cb20-47" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-48"><a href="#cb20-48" aria-hidden="true" tabindex="-1"></a>p_wind <span class="sc">/</span> p_temp</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="H2_defensible_analysis_files/figure-html/h2-effects-1.png" class="img-fluid figure-img" width="768"></p>
+<figcaption>Predicted effects from H2 best model</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="model-performance" class="level2" data-number="6.2">
+<h2 data-number="6.2" class="anchored" data-anchor-id="model-performance"><span class="header-section-number">6.2</span> Model Performance</h2>
+<div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Get predictions and calculate pseudo R-squared</span></span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>df<span class="sc">$</span>predicted <span class="ot">&lt;-</span> <span class="fu">predict</span>(best_model, <span class="at">type =</span> <span class="st">"response"</span>)</span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Calculate pseudo R-squared</span></span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a>ss_res <span class="ot">&lt;-</span> <span class="fu">sum</span>((df<span class="sc">$</span>abundance_index_t <span class="sc">-</span> df<span class="sc">$</span>predicted)<span class="sc">^</span><span class="dv">2</span>)</span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a>ss_tot <span class="ot">&lt;-</span> <span class="fu">sum</span>((df<span class="sc">$</span>abundance_index_t <span class="sc">-</span> <span class="fu">mean</span>(df<span class="sc">$</span>abundance_index_t))<span class="sc">^</span><span class="dv">2</span>)</span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a>r2_pseudo <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">-</span> (ss_res <span class="sc">/</span> ss_tot)</span>
+<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-9"><a href="#cb21-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Observed vs predicted plot</span></span>
+<span id="cb21-10"><a href="#cb21-10" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(df, <span class="fu">aes</span>(<span class="at">x =</span> predicted, <span class="at">y =</span> abundance_index_t)) <span class="sc">+</span></span>
+<span id="cb21-11"><a href="#cb21-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">alpha =</span> <span class="fl">0.3</span>, <span class="at">color =</span> pal[<span class="dv">3</span>]) <span class="sc">+</span></span>
+<span id="cb21-12"><a href="#cb21-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_abline</span>(<span class="at">slope =</span> <span class="dv">1</span>, <span class="at">intercept =</span> <span class="dv">0</span>, <span class="at">color =</span> <span class="st">"red"</span>, <span class="at">linetype =</span> <span class="st">"dashed"</span>) <span class="sc">+</span></span>
+<span id="cb21-13"><a href="#cb21-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_smooth</span>(<span class="at">method =</span> <span class="st">"loess"</span>, <span class="at">se =</span> <span class="cn">TRUE</span>, <span class="at">color =</span> pal[<span class="dv">4</span>]) <span class="sc">+</span></span>
+<span id="cb21-14"><a href="#cb21-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Predicted Abundance"</span>,</span>
+<span id="cb21-15"><a href="#cb21-15" aria-hidden="true" tabindex="-1"></a>       <span class="at">y =</span> <span class="st">"Observed Abundance"</span>,</span>
+<span id="cb21-16"><a href="#cb21-16" aria-hidden="true" tabindex="-1"></a>       <span class="at">title =</span> <span class="st">"H2 Model Fit: Observed vs. Predicted"</span>,</span>
+<span id="cb21-17"><a href="#cb21-17" aria-hidden="true" tabindex="-1"></a>       <span class="at">subtitle =</span> <span class="fu">sprintf</span>(<span class="st">"Pseudo R² = %.3f"</span>, r2_pseudo)) <span class="sc">+</span></span>
+<span id="cb21-18"><a href="#cb21-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">coord_fixed</span>() <span class="sc">+</span></span>
+<span id="cb21-19"><a href="#cb21-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>(<span class="at">base_size =</span> <span class="dv">12</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="H2_defensible_analysis_files/figure-html/h2-performance-1.png" class="img-fluid figure-img" width="768"></p>
+<figcaption>H2 model fit assessment</figcaption>
+</figure>
+</div>
+</div>
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Performance summary</span></span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Model Performance Summary:</span><span class="sc">\n</span><span class="st">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Model Performance Summary:</code></pre>
+</div>
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="sourceCode cell-code" id="cb24"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Pseudo R-squared:"</span>, <span class="fu">round</span>(r2_pseudo, <span class="dv">3</span>), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Pseudo R-squared: 0.847 </code></pre>
+</div>
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"RMSE:"</span>, <span class="fu">round</span>(<span class="fu">sqrt</span>(<span class="fu">mean</span>((df<span class="sc">$</span>abundance_index_t <span class="sc">-</span> df<span class="sc">$</span>predicted)<span class="sc">^</span><span class="dv">2</span>)), <span class="dv">2</span>), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>RMSE: 40.53 </code></pre>
+</div>
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Mean Absolute Error:"</span>, <span class="fu">round</span>(<span class="fu">mean</span>(<span class="fu">abs</span>(df<span class="sc">$</span>abundance_index_t <span class="sc">-</span> df<span class="sc">$</span>predicted)), <span class="dv">2</span>), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Mean Absolute Error: 17.86 </code></pre>
+</div>
+</div>
+</section>
+</section>
+<section id="sensitivity-analysis" class="level1" data-number="7">
+<h1 data-number="7"><span class="header-section-number">7</span> Sensitivity Analysis</h1>
+<section id="alternative-specifications" class="level2" data-number="7.1">
+<h2 data-number="7.1" class="anchored" data-anchor-id="alternative-specifications"><span class="header-section-number">7.1</span> Alternative Specifications</h2>
+<div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="sourceCode cell-code" id="cb30"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Test binary wind effect</span></span>
+<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a>m_binary <span class="ot">&lt;-</span> <span class="fu">glmmTMB</span>(</span>
+<span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a>  abundance_index_t <span class="sc">~</span> </span>
+<span id="cb30-4"><a href="#cb30-4" aria-hidden="true" tabindex="-1"></a>    log_lag_abundance <span class="sc">+</span> </span>
+<span id="cb30-5"><a href="#cb30-5" aria-hidden="true" tabindex="-1"></a>    any_sustained_wind <span class="sc">+</span></span>
+<span id="cb30-6"><a href="#cb30-6" aria-hidden="true" tabindex="-1"></a>    temp_std <span class="sc">+</span> </span>
+<span id="cb30-7"><a href="#cb30-7" aria-hidden="true" tabindex="-1"></a>    sun_std <span class="sc">+</span></span>
+<span id="cb30-8"><a href="#cb30-8" aria-hidden="true" tabindex="-1"></a>    (<span class="dv">1</span> <span class="sc">|</span> view_id) <span class="sc">+</span> </span>
+<span id="cb30-9"><a href="#cb30-9" aria-hidden="true" tabindex="-1"></a>    (<span class="dv">1</span> <span class="sc">|</span> labeler),</span>
+<span id="cb30-10"><a href="#cb30-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> df,</span>
+<span id="cb30-11"><a href="#cb30-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">family =</span> nbinom2,</span>
+<span id="cb30-12"><a href="#cb30-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">control =</span> <span class="fu">glmmTMBControl</span>(<span class="at">optimizer =</span> nlminb)</span>
+<span id="cb30-13"><a href="#cb30-13" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb30-14"><a href="#cb30-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-15"><a href="#cb30-15" aria-hidden="true" tabindex="-1"></a><span class="co"># Test wind-temperature interaction</span></span>
+<span id="cb30-16"><a href="#cb30-16" aria-hidden="true" tabindex="-1"></a>m_interaction <span class="ot">&lt;-</span> <span class="fu">glmmTMB</span>(</span>
+<span id="cb30-17"><a href="#cb30-17" aria-hidden="true" tabindex="-1"></a>  abundance_index_t <span class="sc">~</span> </span>
+<span id="cb30-18"><a href="#cb30-18" aria-hidden="true" tabindex="-1"></a>    log_lag_abundance <span class="sc">+</span> </span>
+<span id="cb30-19"><a href="#cb30-19" aria-hidden="true" tabindex="-1"></a>    sustained_wind_std <span class="sc">*</span> temp_std <span class="sc">+</span></span>
+<span id="cb30-20"><a href="#cb30-20" aria-hidden="true" tabindex="-1"></a>    sun_std <span class="sc">+</span></span>
+<span id="cb30-21"><a href="#cb30-21" aria-hidden="true" tabindex="-1"></a>    (<span class="dv">1</span> <span class="sc">|</span> view_id) <span class="sc">+</span> </span>
+<span id="cb30-22"><a href="#cb30-22" aria-hidden="true" tabindex="-1"></a>    (<span class="dv">1</span> <span class="sc">|</span> labeler),</span>
+<span id="cb30-23"><a href="#cb30-23" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> df,</span>
+<span id="cb30-24"><a href="#cb30-24" aria-hidden="true" tabindex="-1"></a>  <span class="at">family =</span> nbinom2,</span>
+<span id="cb30-25"><a href="#cb30-25" aria-hidden="true" tabindex="-1"></a>  <span class="at">control =</span> <span class="fu">glmmTMBControl</span>(<span class="at">optimizer =</span> nlminb)</span>
+<span id="cb30-26"><a href="#cb30-26" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb30-27"><a href="#cb30-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-28"><a href="#cb30-28" aria-hidden="true" tabindex="-1"></a><span class="co"># Compare sensitivity models</span></span>
+<span id="cb30-29"><a href="#cb30-29" aria-hidden="true" tabindex="-1"></a>sensitivity_comparison <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb30-30"><a href="#cb30-30" aria-hidden="true" tabindex="-1"></a>  <span class="at">Model =</span> <span class="fu">c</span>(<span class="st">"Best H2 Model"</span>, <span class="st">"Binary Wind"</span>, <span class="st">"Wind×Temperature"</span>),</span>
+<span id="cb30-31"><a href="#cb30-31" aria-hidden="true" tabindex="-1"></a>  <span class="at">AIC =</span> <span class="fu">c</span>(<span class="fu">AIC</span>(best_model), <span class="fu">AIC</span>(m_binary), <span class="fu">AIC</span>(m_interaction)),</span>
+<span id="cb30-32"><a href="#cb30-32" aria-hidden="true" tabindex="-1"></a>  <span class="at">Wind_Effect_P =</span> <span class="fu">c</span>(</span>
+<span id="cb30-33"><a href="#cb30-33" aria-hidden="true" tabindex="-1"></a>    <span class="fu">coef</span>(<span class="fu">summary</span>(best_model))<span class="sc">$</span>cond[<span class="dv">2</span>, <span class="st">"Pr(&gt;|z|)"</span>],</span>
+<span id="cb30-34"><a href="#cb30-34" aria-hidden="true" tabindex="-1"></a>    <span class="fu">coef</span>(<span class="fu">summary</span>(m_binary))<span class="sc">$</span>cond[<span class="st">"any_sustained_windTRUE"</span>, <span class="st">"Pr(&gt;|z|)"</span>],</span>
+<span id="cb30-35"><a href="#cb30-35" aria-hidden="true" tabindex="-1"></a>    <span class="fu">coef</span>(<span class="fu">summary</span>(m_interaction))<span class="sc">$</span>cond[<span class="st">"sustained_wind_std"</span>, <span class="st">"Pr(&gt;|z|)"</span>]</span>
+<span id="cb30-36"><a href="#cb30-36" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb30-37"><a href="#cb30-37" aria-hidden="true" tabindex="-1"></a>) <span class="sc">%&gt;%</span></span>
+<span id="cb30-38"><a href="#cb30-38" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(AIC) <span class="sc">%&gt;%</span></span>
+<span id="cb30-39"><a href="#cb30-39" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">Delta_AIC =</span> AIC <span class="sc">-</span> <span class="fu">min</span>(AIC))</span>
+<span id="cb30-40"><a href="#cb30-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-41"><a href="#cb30-41" aria-hidden="true" tabindex="-1"></a><span class="fu">kable</span>(sensitivity_comparison, </span>
+<span id="cb30-42"><a href="#cb30-42" aria-hidden="true" tabindex="-1"></a>      <span class="at">caption =</span> <span class="st">"H2 Sensitivity Analysis: Alternative Model Specifications"</span>,</span>
+<span id="cb30-43"><a href="#cb30-43" aria-hidden="true" tabindex="-1"></a>      <span class="at">digits =</span> <span class="dv">3</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb30-44"><a href="#cb30-44" aria-hidden="true" tabindex="-1"></a>  <span class="fu">kable_styling</span>(<span class="at">bootstrap_options =</span> <span class="fu">c</span>(<span class="st">"striped"</span>, <span class="st">"hover"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output-display">
+<table class="table table-striped table-hover table-sm small" data-quarto-postprocess="true">
+<caption>H2 Sensitivity Analysis: Alternative Model Specifications</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;" data-quarto-table-cell-role="th">Model</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">AIC</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">Wind_Effect_P</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">Delta_AIC</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Best H2 Model</td>
+<td style="text-align: right;">13951.09</td>
+<td style="text-align: right;">0.000</td>
+<td style="text-align: right;">0.000</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Binary Wind</td>
+<td style="text-align: right;">13951.47</td>
+<td style="text-align: right;">0.290</td>
+<td style="text-align: right;">0.380</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Wind×Temperature</td>
+<td style="text-align: right;">13954.30</td>
+<td style="text-align: right;">0.818</td>
+<td style="text-align: right;">3.205</td>
+</tr>
+</tbody>
+</table>
+
+
+</div>
+</div>
+</section>
+</section>
+<section id="discussion" class="level1" data-number="8">
+<h1 data-number="8"><span class="header-section-number">8</span> Discussion</h1>
+<section id="h2-summary-of-findings" class="level2" data-number="8.1">
+<h2 data-number="8.1" class="anchored" data-anchor-id="h2-summary-of-findings"><span class="header-section-number">8.1</span> H2 Summary of Findings</h2>
+<p>Based on comprehensive testing of different wind characteristics:</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="sourceCode cell-code" id="cb31"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Extract key statistics from best model</span></span>
+<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a>wind_coef_row <span class="ot">&lt;-</span> <span class="fu">which</span>(<span class="fu">grepl</span>(<span class="st">"wind"</span>, coef_table<span class="sc">$</span>term))</span>
+<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (<span class="fu">length</span>(wind_coef_row) <span class="sc">&gt;</span> <span class="dv">0</span>) {</span>
+<span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a>  wind_effect <span class="ot">&lt;-</span> coef_table<span class="sc">$</span>estimate[wind_coef_row]</span>
+<span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a>  wind_rr <span class="ot">&lt;-</span> coef_table<span class="sc">$</span>estimate_exp[wind_coef_row] </span>
+<span id="cb31-6"><a href="#cb31-6" aria-hidden="true" tabindex="-1"></a>  wind_p <span class="ot">&lt;-</span> coef_table<span class="sc">$</span>p.value[wind_coef_row]</span>
+<span id="cb31-7"><a href="#cb31-7" aria-hidden="true" tabindex="-1"></a>  wind_significant <span class="ot">&lt;-</span> wind_p <span class="sc">&lt;</span> <span class="fl">0.05</span></span>
+<span id="cb31-8"><a href="#cb31-8" aria-hidden="true" tabindex="-1"></a>} <span class="cf">else</span> {</span>
+<span id="cb31-9"><a href="#cb31-9" aria-hidden="true" tabindex="-1"></a>  wind_effect <span class="ot">&lt;-</span> <span class="cn">NA</span></span>
+<span id="cb31-10"><a href="#cb31-10" aria-hidden="true" tabindex="-1"></a>  wind_rr <span class="ot">&lt;-</span> <span class="cn">NA</span></span>
+<span id="cb31-11"><a href="#cb31-11" aria-hidden="true" tabindex="-1"></a>  wind_p <span class="ot">&lt;-</span> <span class="cn">NA</span></span>
+<span id="cb31-12"><a href="#cb31-12" aria-hidden="true" tabindex="-1"></a>  wind_significant <span class="ot">&lt;-</span> <span class="cn">FALSE</span></span>
+<span id="cb31-13"><a href="#cb31-13" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb31-14"><a href="#cb31-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-15"><a href="#cb31-15" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"H2 Key Findings:</span><span class="sc">\n</span><span class="st">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>H2 Key Findings:</code></pre>
+</div>
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="sourceCode cell-code" id="cb33"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Best wind metric:"</span>, best_model_name, <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Best wind metric: Wind Variability </code></pre>
+</div>
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="sourceCode cell-code" id="cb35"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Wind effect coefficient:"</span>, <span class="fu">round</span>(wind_effect, <span class="dv">4</span>), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Wind effect coefficient: -0.0151 </code></pre>
+</div>
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="sourceCode cell-code" id="cb37"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Rate ratio:"</span>, <span class="fu">round</span>(wind_rr, <span class="dv">3</span>), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Rate ratio: 0.985 </code></pre>
+</div>
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="sourceCode cell-code" id="cb39"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"P-value:"</span>, <span class="fu">round</span>(wind_p, <span class="dv">3</span>), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>P-value: 0.219 </code></pre>
+</div>
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="sourceCode cell-code" id="cb41"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Statistically significant:"</span>, wind_significant, <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Statistically significant: FALSE </code></pre>
+</div>
+</div>
+<section id="evidence-for-h2-wind-as-disruptive-force" class="level3" data-number="8.1.1">
+<h3 data-number="8.1.1" class="anchored" data-anchor-id="evidence-for-h2-wind-as-disruptive-force"><span class="header-section-number">8.1.1</span> Evidence for H2: Wind as Disruptive Force</h3>
+<ol type="1">
+<li><strong>Minimal wind effects</strong>: The best-performing wind metric shows non-significant effects (p &gt; 0.05)</li>
+<li><strong>Small effect sizes</strong>: Rate ratios close to 1.0 indicate practically negligible impacts<br>
+</li>
+<li><strong>Consistent with H1</strong>: Confirms the pattern that wind doesn’t substantially affect abundance</li>
+<li><strong>Model comparison</strong>: No wind metric dramatically outperforms others</li>
+</ol>
+</section>
+<section id="temperature-remains-dominant" class="level3" data-number="8.1.2">
+<h3 data-number="8.1.2" class="anchored" data-anchor-id="temperature-remains-dominant"><span class="header-section-number">8.1.2</span> Temperature Remains Dominant</h3>
+<p>Consistent with H1 findings, temperature continues to show: - Highly significant positive effects (p &lt; 0.001) - Larger effect sizes than any wind metric - Consistent direction across all model specifications</p>
+</section>
+</section>
+<section id="biological-interpretation" class="level2" data-number="8.2">
+<h2 data-number="8.2" class="anchored" data-anchor-id="biological-interpretation"><span class="header-section-number">8.2</span> Biological Interpretation</h2>
+<p>The lack of support for H2 suggests:</p>
+<ol type="1">
+<li><strong>Monarch resilience</strong>: Butterfly clusters may be more robust to wind exposure than hypothesized</li>
+<li><strong>Microhabitat selection</strong>: Monarchs likely choose well-protected roosting locations</li>
+<li><strong>Behavioral adaptation</strong>: Individual butterflies may adjust position within clusters during wind</li>
+<li><strong>Scale mismatch</strong>: Wind effects may operate at different temporal or spatial scales</li>
+</ol>
+</section>
+<section id="limitations" class="level2" data-number="8.3">
+<h2 data-number="8.3" class="anchored" data-anchor-id="limitations"><span class="header-section-number">8.3</span> Limitations</h2>
+<ol type="1">
+<li><strong>Wind measurement</strong>: Single-point measurements may not capture spatial wind variation</li>
+<li><strong>Temporal resolution</strong>: 30-minute intervals may miss immediate or longer-term responses</li>
+<li><strong>Missing wind characteristics</strong>: Wind direction, turbulence patterns not assessed</li>
+<li><strong>Sample constraints</strong>: Limited to two sites and one season</li>
+</ol>
+</section>
+</section>
+<section id="conclusions" class="level1" data-number="9">
+<h1 data-number="9"><span class="header-section-number">9</span> Conclusions</h1>
+<section id="h2-hypothesis-assessment" class="level2" data-number="9.1">
+<h2 data-number="9.1" class="anchored" data-anchor-id="h2-hypothesis-assessment"><span class="header-section-number">9.1</span> H2 Hypothesis Assessment</h2>
+<p><strong>H2: Wind acts as a disruptive force on monarch abundance</strong></p>
+<p><strong>Conclusion: Not Supported</strong></p>
+<ul>
+<li>No wind metric shows statistically significant effects on abundance</li>
+<li>Effect sizes are practically negligible across all specifications</li>
+<li>Results robust to different model formulations and wind measures</li>
+<li>Consistent with H1 threshold analysis findings</li>
+</ul>
+</section>
+<section id="implications-for-monarch-ecology" class="level2" data-number="9.2">
+<h2 data-number="9.2" class="anchored" data-anchor-id="implications-for-monarch-ecology"><span class="header-section-number">9.2</span> Implications for Monarch Ecology</h2>
+<ol type="1">
+<li><strong>Revised understanding</strong>: Monarch overwintering behavior appears less wind-sensitive than assumed</li>
+<li><strong>Conservation priorities</strong>: Focus should shift toward thermal habitat requirements</li>
+<li><strong>Climate resilience</strong>: Populations may be more robust to changing wind patterns</li>
+<li><strong>Research direction</strong>: Investigation of other environmental factors warranted</li>
+</ol>
+</section>
+<section id="connection-to-h3" class="level2" data-number="9.3">
+<h2 data-number="9.3" class="anchored" data-anchor-id="connection-to-h3"><span class="header-section-number">9.3</span> Connection to H3</h2>
+<p>This analysis sets up H3 (intensity scaling) by establishing that: - General wind exposure shows minimal effects - If scaling relationships exist, they involve subtle patterns - Temperature consistently dominates environmental effects - Count-based modeling approach is appropriate</p>
+<p>The lack of clear linear wind effects in H2 motivates examining whether wind effects might be non-linear or threshold-dependent in H3.</p>
+</section>
+</section>
+<section id="appendix" class="level1" data-number="10">
+<h1 data-number="10"><span class="header-section-number">10</span> Appendix</h1>
+<section id="full-model-output" class="level2" data-number="10.1">
+<h2 data-number="10.1" class="anchored" data-anchor-id="full-model-output"><span class="header-section-number">10.1</span> Full Model Output</h2>
+<div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="sourceCode cell-code" id="cb43"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb43-1"><a href="#cb43-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Complete model summary for best H2 model</span></span>
+<span id="cb43-2"><a href="#cb43-2" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(best_model)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code> Family: nbinom2  ( log )
+Formula:          
+abundance_index_t ~ log_lag_abundance + wind_variability_std +  
+    temp_std + sun_std + (1 | view_id) + (1 | labeler)
+Data: df
+
+     AIC      BIC   logLik deviance df.resid 
+ 13951.1  13994.3  -6967.5  13935.1     1640 
+
+Random effects:
+
+Conditional model:
+ Groups  Name        Variance Std.Dev.
+ view_id (Intercept) 0.007327 0.08560 
+ labeler (Intercept) 0.001526 0.03906 
+Number of obs: 1648, groups:  view_id, 6; labeler, 4
+
+Dispersion parameter for nbinom2 family (): 6.22 
+
+Conditional model:
+                      Estimate Std. Error z value Pr(&gt;|z|)    
+(Intercept)           0.178274   0.063083    2.83  0.00471 ** 
+log_lag_abundance     0.956673   0.009342  102.40  &lt; 2e-16 ***
+wind_variability_std -0.015086   0.012278   -1.23  0.21917    
+temp_std              0.069899   0.012820    5.45 4.97e-08 ***
+sun_std              -0.064546   0.013580   -4.75 2.00e-06 ***
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</code></pre>
+</div>
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="sourceCode cell-code" id="cb45"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb45-1"><a href="#cb45-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Variance components</span></span>
+<span id="cb45-2"><a href="#cb45-2" aria-hidden="true" tabindex="-1"></a><span class="fu">VarCorr</span>(best_model)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Conditional model:
+ Groups  Name        Std.Dev.
+ view_id (Intercept) 0.085597
+ labeler (Intercept) 0.039060</code></pre>
+</div>
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="sourceCode cell-code" id="cb47"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb47-1"><a href="#cb47-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Performance metrics</span></span>
+<span id="cb47-2"><a href="#cb47-2" aria-hidden="true" tabindex="-1"></a>performance<span class="sc">::</span><span class="fu">model_performance</span>(best_model)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code># Indices of model performance
+
+AIC       |      AICc |       BIC | R2 (cond.) | R2 (marg.) |   ICC |   RMSE
+----------------------------------------------------------------------------
+13951.090 | 13951.178 | 13994.349 |      0.934 |      0.930 | 0.054 | 40.535
+
+AIC       | Sigma | Score_log | Score_spherical
+-----------------------------------------------
+13951.090 | 6.216 |    -4.237 |           0.014</code></pre>
+</div>
+</div>
+</section>
+<section id="session-information" class="level2" data-number="10.2">
+<h2 data-number="10.2" class="anchored" data-anchor-id="session-information"><span class="header-section-number">10.2</span> Session Information</h2>
+<div class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="sourceCode cell-code" id="cb49"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb49-1"><a href="#cb49-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sessionInfo</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>R version 4.4.1 (2024-06-14)
+Platform: aarch64-apple-darwin20
+Running under: macOS 15.6
+
+Matrix products: default
+BLAS:   /Library/Frameworks/R.framework/Versions/4.4-arm64/Resources/lib/libRblas.0.dylib 
+LAPACK: /Library/Frameworks/R.framework/Versions/4.4-arm64/Resources/lib/libRlapack.dylib;  LAPACK version 3.12.0
+
+locale:
+[1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+
+time zone: America/Los_Angeles
+tzcode source: internal
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base     
+
+other attached packages:
+ [1] here_1.0.1         kableExtra_1.4.0   knitr_1.47         patchwork_1.3.1   
+ [5] ggeffects_2.3.0    emmeans_1.11.2     performance_0.12.3 DHARMa_0.4.7      
+ [9] glmmTMB_1.1.10     lubridate_1.9.3    forcats_1.0.0      stringr_1.5.1     
+[13] dplyr_1.1.4        purrr_1.0.2        readr_2.1.5        tidyr_1.3.1       
+[17] tibble_3.2.1       ggplot2_3.5.1      tidyverse_2.0.0   
+
+loaded via a namespace (and not attached):
+ [1] Rdpack_2.6.2        sandwich_3.1-1      rlang_1.1.4        
+ [4] magrittr_2.0.3      multcomp_1.4-26     furrr_0.3.1        
+ [7] compiler_4.4.1      mgcv_1.9-1          systemfonts_1.1.0  
+[10] vctrs_0.6.5         pkgconfig_2.0.3     fastmap_1.2.0      
+[13] backports_1.5.0     labeling_0.4.3      utf8_1.2.4         
+[16] promises_1.3.3      rmarkdown_2.27      tzdb_0.4.0         
+[19] haven_2.5.4         nloptr_2.1.1        xfun_0.45          
+[22] jsonlite_1.8.8      highr_0.11          later_1.4.2        
+[25] broom_1.0.6         parallel_4.4.1      R6_2.5.1           
+[28] gap.datasets_0.0.6  stringi_1.8.4       qgam_1.3.4         
+[31] parallelly_1.38.0   boot_1.3-30         numDeriv_2016.8-1.1
+[34] estimability_1.5.1  Rcpp_1.0.13         iterators_1.0.14   
+[37] zoo_1.8-12          httpuv_1.6.15       Matrix_1.7-0       
+[40] splines_4.4.1       timechange_0.3.0    tidyselect_1.2.1   
+[43] rstudioapi_0.16.0   yaml_2.3.8          doParallel_1.0.17  
+[46] TMB_1.9.15          codetools_0.2-20    listenv_0.9.1      
+[49] lattice_0.22-6      plyr_1.8.9          shiny_1.9.1        
+[52] withr_3.0.2         coda_0.19-4.1       evaluate_1.0.3     
+[55] future_1.34.0       survival_3.6-4      xml2_1.3.6         
+[58] pillar_1.9.0        gap_1.6             foreach_1.5.2      
+[61] reformulas_0.4.0    insight_1.3.1       generics_0.1.3     
+[64] rprojroot_2.0.4     hms_1.1.3           munsell_0.5.1      
+[67] scales_1.3.0        minqa_1.2.8         globals_0.16.3     
+[70] xtable_1.8-4        glue_1.7.0          tools_4.4.1        
+[73] lme4_1.1-35.5       mvtnorm_1.3-1       grid_4.4.1         
+[76] rbibutils_2.3       datawizard_1.2.0    colorspace_2.1-0   
+[79] nlme_3.1-164        cli_3.6.3           fansi_1.0.6        
+[82] viridisLite_0.4.2   svglite_2.1.3       gtable_0.3.6       
+[85] broom.mixed_0.2.9.5 digest_0.6.36       TH.data_1.1-2      
+[88] htmlwidgets_1.6.4   farver_2.1.2        htmltools_0.5.8.1  
+[91] lifecycle_1.0.4     mime_0.12           MASS_7.3-60.2      </code></pre>
+</div>
+</div>
+</section>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    text: function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+    const config = {
+      allowHTML: true,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start',
+    };
+    if (contentFn) {
+      config.content = contentFn;
+    }
+    if (onTriggerFn) {
+      config.onTrigger = onTriggerFn;
+    }
+    if (onUntriggerFn) {
+      config.onUntrigger = onUntriggerFn;
+    }
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      return note.innerHTML;
+    });
+  }
+  const xrefs = window.document.querySelectorAll('a.quarto-xref');
+  const processXRef = (id, note) => {
+    // Strip column container classes
+    const stripColumnClz = (el) => {
+      el.classList.remove("page-full", "page-columns");
+      if (el.children) {
+        for (const child of el.children) {
+          stripColumnClz(child);
+        }
+      }
+    }
+    stripColumnClz(note)
+    if (id === null || id.startsWith('sec-')) {
+      // Special case sections, only their first couple elements
+      const container = document.createElement("div");
+      if (note.children && note.children.length > 2) {
+        container.appendChild(note.children[0].cloneNode(true));
+        for (let i = 1; i < note.children.length; i++) {
+          const child = note.children[i];
+          if (child.tagName === "P" && child.innerText === "") {
+            continue;
+          } else {
+            container.appendChild(child.cloneNode(true));
+            break;
+          }
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(container);
+        }
+        return container.innerHTML
+      } else {
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        return note.innerHTML;
+      }
+    } else {
+      // Remove any anchor links if they are present
+      const anchorLink = note.querySelector('a.anchorjs-link');
+      if (anchorLink) {
+        anchorLink.remove();
+      }
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(note);
+      }
+      // TODO in 1.5, we should make sure this works without a callout special case
+      if (note.classList.contains("callout")) {
+        return note.outerHTML;
+      } else {
+        return note.innerHTML;
+      }
+    }
+  }
+  for (var i=0; i<xrefs.length; i++) {
+    const xref = xrefs[i];
+    tippyHover(xref, undefined, function(instance) {
+      instance.disable();
+      let url = xref.getAttribute('href');
+      let hash = undefined; 
+      if (url.startsWith('#')) {
+        hash = url;
+      } else {
+        try { hash = new URL(url).hash; } catch {}
+      }
+      if (hash) {
+        const id = hash.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note !== null) {
+          try {
+            const html = processXRef(id, note.cloneNode(true));
+            instance.setContent(html);
+          } finally {
+            instance.enable();
+            instance.show();
+          }
+        } else {
+          // See if we can fetch this
+          fetch(url.split('#')[0])
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.getElementById(id);
+            if (note !== null) {
+              const html = processXRef(id, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      } else {
+        // See if we can fetch a full url (with no hash to target)
+        // This is a special case and we should probably do some content thinning / targeting
+        fetch(url)
+        .then(res => res.text())
+        .then(html => {
+          const parser = new DOMParser();
+          const htmlDoc = parser.parseFromString(html, "text/html");
+          const note = htmlDoc.querySelector('main.content');
+          if (note !== null) {
+            // This should only happen for chapter cross references
+            // (since there is no id in the URL)
+            // remove the first header
+            if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+              note.children[0].remove();
+            }
+            const html = processXRef(null, note);
+            instance.setContent(html);
+          } 
+        }).finally(() => {
+          instance.enable();
+          instance.show();
+        });
+      }
+    }, function(instance) {
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            div.style.left = 0;
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+        // Handle positioning of the toggle
+    window.addEventListener(
+      "resize",
+      throttle(() => {
+        elRect = undefined;
+        if (selectedAnnoteEl) {
+          selectCodeLines(selectedAnnoteEl);
+        }
+      }, 10)
+    );
+    function throttle(fn, ms) {
+    let throttle = false;
+    let timer;
+      return (...args) => {
+        if(!throttle) { // first call gets through
+            fn.apply(this, args);
+            throttle = true;
+        } else { // all the others get throttled
+            if(timer) clearTimeout(timer); // cancel #2
+            timer = setTimeout(() => {
+              fn.apply(this, args);
+              timer = throttle = false;
+            }, ms);
+        }
+      };
+    }
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

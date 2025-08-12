@@ -4,6 +4,23 @@ subtitle: "A Defensible Test of the 2 m/s Disruption Threshold"
 author: "Kyle Nessen"
 date: "`r Sys.Date()`"
 format:
+  pdf: 
+    include-in-header: |
+      \usepackage{booktabs}
+      \usepackage{longtable}
+      \usepackage{array}
+      \usepackage{multirow}
+      \usepackage{colortbl}
+      \usepackage{wrapfig}
+      \usepackage{caption}
+      % optional: avoid ulem’s underlining side effects
+      \PassOptionsToPackage{normalem}{ulem}
+      \usepackage{ulem}
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    fig-width: 8
+    fig-height: 6
   html:
     toc: true
     toc-depth: 3
@@ -13,6 +30,7 @@ format:
     theme: cosmo
     fig-width: 8
     fig-height: 6
+    embed-resources: false
 execute:
   echo: true
   warning: false
@@ -36,11 +54,16 @@ library(here)
 
 # Set theme for plots
 theme_set(theme_minimal(base_size = 12) +
-          theme(panel.grid.minor = element_blank(),
-                strip.background = element_rect(fill = "grey95", color = NA)))
+    theme(
+        panel.grid.minor = element_blank(),
+        strip.background = element_rect(fill = "grey95", color = NA)
+    ))
 
 # Color palette
 pal <- c("#2E86AB", "#A23B72", "#F18F01", "#C73E1D", "#6A994E")
+
+# Simplified table options for PDF compatibility
+options(knitr.table.format = "latex")
 ```
 
 # Executive Summary
@@ -116,50 +139,50 @@ Where:
 data_path <- here("results", "H1_interval_30min_terms_prepared.rds")
 
 if (!file.exists(data_path)) {
-  stop("Prepared data not found. Please run interval_30min_terms.qmd first.")
+    stop("Prepared data not found. Please run interval_30min_terms.qmd first.")
 }
 
 df <- read_rds(data_path)
 
 # Add calculated wind metrics for continuous analysis
 df <- df %>%
-  mutate(
-    # Proportional change (for comparison to previous analyses)
-    prop_change = (abundance_index_t - abundance_index_t_minus_1) / 
-                  (abundance_index_t_minus_1 + 1),
-    
-    # Log-transformed lagged abundance (avoid log(0))
-    log_lag_abundance = log(abundance_index_t_minus_1 + 1),
-    
-    # Binary indicators for any wind above threshold
-    any_sustained_above_2ms = sustained_minutes_above_2ms > 0,
-    any_gust_above_2ms = gust_minutes_above_2ms > 0,
-    
-    # Standardized predictors for model stability
-    sustained_wind_std = scale(sustained_minutes_above_2ms)[,1],
-    gust_wind_std = scale(gust_minutes_above_2ms)[,1],
-    temp_std = scale(ambient_temp)[,1],
-    sun_std = scale(sunlight_exposure_prop)[,1]
-  )
+    mutate(
+        # Proportional change (for comparison to previous analyses)
+        prop_change = (abundance_index_t - abundance_index_t_minus_1) /
+            (abundance_index_t_minus_1 + 1),
+
+        # Log-transformed lagged abundance (avoid log(0))
+        log_lag_abundance = log(abundance_index_t_minus_1 + 1),
+
+        # Binary indicators for any wind above threshold
+        any_sustained_above_2ms = sustained_minutes_above_2ms > 0,
+        any_gust_above_2ms = gust_minutes_above_2ms > 0,
+
+        # Standardized predictors for model stability
+        sustained_wind_std = scale(sustained_minutes_above_2ms)[, 1],
+        gust_wind_std = scale(gust_minutes_above_2ms)[, 1],
+        temp_std = scale(ambient_temp)[, 1],
+        sun_std = scale(sunlight_exposure_prop)[, 1]
+    )
 
 # Summary statistics
 summary_stats <- df %>%
-  summarise(
-    n_obs = n(),
-    n_deployments = n_distinct(deployment_id),
-    n_views = n_distinct(view_id),
-    n_labelers = n_distinct(labeler),
-    mean_abundance_t = mean(abundance_index_t),
-    sd_abundance_t = sd(abundance_index_t),
-    prop_zeros = mean(abundance_index_t == 0),
-    mean_wind_mins = mean(sustained_minutes_above_2ms, na.rm = TRUE),
-    mean_temp = mean(ambient_temp, na.rm = TRUE)
-  )
+    summarise(
+        n_obs = n(),
+        n_deployments = n_distinct(deployment_id),
+        n_views = n_distinct(view_id),
+        n_labelers = n_distinct(labeler),
+        mean_abundance_t = mean(abundance_index_t),
+        sd_abundance_t = sd(abundance_index_t),
+        prop_zeros = mean(abundance_index_t == 0),
+        mean_wind_mins = mean(sustained_minutes_above_2ms, na.rm = TRUE),
+        mean_temp = mean(ambient_temp, na.rm = TRUE)
+    )
 
-kable(summary_stats, 
-      caption = "Dataset Summary Statistics",
-      digits = 2) %>%
-  kable_styling(bootstrap_options = c("striped", "hover"))
+kable(summary_stats,
+    caption = "Dataset Summary Statistics",
+    digits = 2
+)
 ```
 
 ## Data Structure Examination
@@ -168,32 +191,43 @@ kable(summary_stats,
 #| fig-cap: "Distribution of key variables in the dataset"
 
 p1 <- ggplot(df, aes(x = abundance_index_t)) +
-  geom_histogram(bins = 50, fill = pal[1], alpha = 0.7) +
-  scale_y_continuous(expand = c(0, 0)) +
-  labs(x = "Butterfly Abundance at Time t", y = "Count",
-       title = "Distribution of Abundance (zero-inflated, right-skewed)")
+    geom_histogram(bins = 50, fill = pal[1], alpha = 0.7) +
+    scale_y_continuous(expand = c(0, 0)) +
+    labs(
+        x = "Butterfly Abundance at Time t", y = "Count",
+        title = "Distribution of Abundance (zero-inflated, right-skewed)"
+    )
 
 p2 <- ggplot(df, aes(x = sustained_minutes_above_2ms)) +
-  geom_histogram(bins = 30, fill = pal[2], alpha = 0.7) +
-  scale_y_continuous(expand = c(0, 0)) +
-  labs(x = "Minutes of Sustained Wind > 2 m/s", y = "Count",
-       title = "Distribution of Wind Exposure")
+    geom_histogram(bins = 30, fill = pal[2], alpha = 0.7) +
+    scale_y_continuous(expand = c(0, 0)) +
+    labs(
+        x = "Minutes of Sustained Wind > 2 m/s", y = "Count",
+        title = "Distribution of Wind Exposure"
+    )
 
 p3 <- ggplot(df, aes(x = abundance_index_t_minus_1, y = abundance_index_t)) +
-  geom_point(alpha = 0.3, color = pal[3]) +
-  geom_smooth(method = "loess", se = TRUE, color = pal[4]) +
-  geom_abline(slope = 1, intercept = 0, linetype = "dashed", alpha = 0.5) +
-  labs(x = "Abundance at t-1", y = "Abundance at t",
-       title = "Temporal Autocorrelation (strong positive relationship)")
+    geom_point(alpha = 0.3, color = pal[3]) +
+    geom_smooth(method = "loess", se = TRUE, color = pal[4]) +
+    geom_abline(slope = 1, intercept = 0, linetype = "dashed", alpha = 0.5) +
+    labs(
+        x = "Abundance at t-1", y = "Abundance at t",
+        title = "Temporal Autocorrelation (strong positive relationship)"
+    )
 
 p4 <- ggplot(df, aes(x = factor(sustained_minutes_above_2ms > 0), y = prop_change)) +
-  geom_boxplot(fill = pal[5], alpha = 0.7) +
-  geom_hline(yintercept = 0, linetype = "dashed", alpha = 0.5) +
-  labs(x = "Wind Exposure (Any minutes > 2 m/s)", y = "Proportional Change",
-       title = "Raw Relationship: Wind vs. Change in Abundance") +
-  scale_x_discrete(labels = c("No Wind", "Wind Present"))
+    geom_boxplot(fill = pal[5], alpha = 0.7) +
+    geom_hline(yintercept = 0, linetype = "dashed", alpha = 0.5) +
+    labs(
+        x = "Wind Exposure (Any minutes > 2 m/s)", y = "Proportional Change",
+        title = "Raw Relationship: Wind vs. Change in Abundance"
+    ) +
+    scale_x_discrete(labels = c("No Wind", "Wind Present"))
 
-(p1 + p2) / (p3 + p4)
+p1
+p2
+p3
+p4
 ```
 
 # Primary Analysis: Testing the 2 m/s Threshold
@@ -205,21 +239,21 @@ This model directly tests Leong's (2016) hypothesis that winds above 2 m/s becom
 ```{r threshold-model}
 # Remove rows with missing predictors
 df_complete <- df %>%
-  filter(!is.na(ambient_temp) & !is.na(sunlight_exposure_prop))
+    filter(!is.na(ambient_temp) & !is.na(sunlight_exposure_prop))
 
 # Fit the threshold model
 m1_threshold <- glmmTMB(
-  abundance_index_t ~ 
-    log_lag_abundance +                    # Control for autocorrelation
-    sustained_minutes_above_2ms +          # Primary hypothesis: sustained wind
-    gust_minutes_above_2ms +                # Alternative: gust effects
-    temp_std +                              # Temperature control
-    sun_std +                               # Sunlight control
-    (1 | view_id) +                        # Random effect for location
-    (1 | labeler),                         # Random effect for observer
-  data = df_complete,
-  family = nbinom2,                        # Negative binomial with quadratic variance
-  control = glmmTMBControl(optimizer = nlminb)
+    abundance_index_t ~
+        log_lag_abundance + # Control for autocorrelation
+        sustained_minutes_above_2ms + # Primary hypothesis: sustained wind
+        gust_minutes_above_2ms + # Alternative: gust effects
+        temp_std + # Temperature control
+        sun_std + # Sunlight control
+        (1 | view_id) + # Random effect for location
+        (1 | labeler), # Random effect for observer
+    data = df_complete,
+    family = nbinom2, # Negative binomial with quadratic variance
+    control = glmmTMBControl(optimizer = nlminb)
 )
 
 # Model summary
@@ -231,44 +265,42 @@ summary(m1_threshold)
 ```{r threshold-results}
 # Extract and format coefficients
 coef_table <- broom.mixed::tidy(m1_threshold, conf.int = TRUE) %>%
-  filter(effect == "fixed") %>%
-  mutate(
-    estimate_exp = exp(estimate),
-    conf.low_exp = exp(conf.low),
-    conf.high_exp = exp(conf.high),
-    significant = p.value < 0.05
-  ) %>%
-  select(term, estimate, std.error, estimate_exp, conf.low_exp, conf.high_exp, p.value, significant)
+    filter(effect == "fixed") %>%
+    mutate(
+        estimate_exp = exp(estimate),
+        conf.low_exp = exp(conf.low),
+        conf.high_exp = exp(conf.high),
+        significant = p.value < 0.05
+    ) %>%
+    select(term, estimate, std.error, estimate_exp, conf.low_exp, conf.high_exp, p.value, significant)
 
 # Format for presentation
 coef_table %>%
-  mutate(
-    `Rate Ratio` = sprintf("%.3f", estimate_exp),
-    `95% CI` = sprintf("[%.3f, %.3f]", conf.low_exp, conf.high_exp),
-    `P-value` = sprintf("%.4f", p.value),
-    Significant = ifelse(significant, "Yes", "No")
-  ) %>%
-  select(Term = term, `Rate Ratio`, `95% CI`, `P-value`, Significant) %>%
-  kable(caption = "Model 1: Threshold Effects on Abundance (Exponentiated Coefficients)") %>%
-  kable_styling(bootstrap_options = c("striped", "hover")) %>%
-  row_spec(which(coef_table$term == "sustained_minutes_above_2ms"), bold = TRUE, color = "darkblue")
+    mutate(
+        `Rate Ratio` = sprintf("%.3f", estimate_exp),
+        `95% CI` = sprintf("[%.3f, %.3f]", conf.low_exp, conf.high_exp),
+        `P-value` = sprintf("%.4f", p.value),
+        Significant = ifelse(significant, "Yes", "No")
+    ) %>%
+    select(Term = term, `Rate Ratio`, `95% CI`, `P-value`, Significant) %>%
+    kable(caption = "Model 1: Threshold Effects on Abundance (Exponentiated Coefficients)")
 ```
 
 ### Interpretation of Key Coefficients
 
 ```{r interpret-coefs}
 # Extract wind coefficient safely
-wind_coef <- coef_table %>% 
-  filter(term == "sustained_minutes_above_2ms") %>% 
-  pull(estimate)
+wind_coef <- coef_table %>%
+    filter(term == "sustained_minutes_above_2ms") %>%
+    pull(estimate)
 
-wind_rr <- coef_table %>% 
-  filter(term == "sustained_minutes_above_2ms") %>% 
-  pull(estimate_exp)
+wind_rr <- coef_table %>%
+    filter(term == "sustained_minutes_above_2ms") %>%
+    pull(estimate_exp)
 
-wind_p <- coef_table %>% 
-  filter(term == "sustained_minutes_above_2ms") %>% 
-  pull(p.value)
+wind_p <- coef_table %>%
+    filter(term == "sustained_minutes_above_2ms") %>%
+    pull(p.value)
 
 # Calculate practical effect sizes
 effect_15min <- (1 - exp(15 * wind_coef)) * 100
@@ -287,12 +319,16 @@ effect_15min <- (1 - exp(15 * wind_coef)) * 100
 sim_res <- simulateResiduals(m1_threshold, n = 1000)
 
 # Create diagnostic plots
-par(mfrow = c(2, 2))
+# par(mfrow = c(2, 2))
 plot(sim_res, main = "Q-Q Plot")
-plotResiduals(sim_res, form = df_complete$sustained_minutes_above_2ms,
-              main = "Residuals vs. Wind Minutes")
-plotResiduals(sim_res, form = df_complete$ambient_temp,
-              main = "Residuals vs. Temperature")
+plotResiduals(sim_res,
+    form = df_complete$sustained_minutes_above_2ms,
+    main = "Residuals vs. Wind Minutes"
+)
+plotResiduals(sim_res,
+    form = df_complete$ambient_temp,
+    main = "Residuals vs. Temperature"
+)
 testDispersion(sim_res)
 ```
 
@@ -304,8 +340,10 @@ df_complete$residuals <- residuals(m1_threshold, type = "pearson")
 acf_result <- acf(df_complete$residuals, lag.max = 10, plot = FALSE)
 
 # Plot ACF
-plot(acf_result, main = "Autocorrelation Function of Residuals",
-     xlab = "Lag (30-min intervals)", ylab = "ACF")
+plot(acf_result,
+    main = "Autocorrelation Function of Residuals",
+    xlab = "Lag (30-min intervals)", ylab = "ACF"
+)
 ```
 
 # Secondary Analysis: Continuous Wind Metrics
@@ -318,59 +356,59 @@ plot(acf_result, main = "Autocorrelation Function of Residuals",
 
 # Create proxy continuous wind metrics from threshold data
 df_wind_metrics <- df_complete %>%
-  mutate(
-    # Use minutes above threshold as proxy for wind intensity
-    wind_intensity = sustained_minutes_above_2ms / 30,  # Proportion of time windy
-    gust_intensity = gust_minutes_above_2ms / 30,       # Proportion of time gusty
-    wind_variability = abs(gust_minutes_above_2ms - sustained_minutes_above_2ms) / 30
-  ) %>%
-  mutate(
-    # Standardize
-    wind_intensity_std = scale(wind_intensity)[,1],
-    gust_intensity_std = scale(gust_intensity)[,1],
-    wind_variability_std = scale(wind_variability)[,1]
-  )
+    mutate(
+        # Use minutes above threshold as proxy for wind intensity
+        wind_intensity = sustained_minutes_above_2ms / 30, # Proportion of time windy
+        gust_intensity = gust_minutes_above_2ms / 30, # Proportion of time gusty
+        wind_variability = abs(gust_minutes_above_2ms - sustained_minutes_above_2ms) / 30
+    ) %>%
+    mutate(
+        # Standardize
+        wind_intensity_std = scale(wind_intensity)[, 1],
+        gust_intensity_std = scale(gust_intensity)[, 1],
+        wind_variability_std = scale(wind_variability)[, 1]
+    )
 
 # Fit models with different wind metrics
 m2_sustained <- glmmTMB(
-  abundance_index_t ~ log_lag_abundance + wind_intensity_std + temp_std + sun_std +
-    (1 | view_id) + (1 | labeler),
-  data = df_wind_metrics, family = nbinom2
+    abundance_index_t ~ log_lag_abundance + wind_intensity_std + temp_std + sun_std +
+        (1 | view_id) + (1 | labeler),
+    data = df_wind_metrics, family = nbinom2
 )
 
 m2_gust <- glmmTMB(
-  abundance_index_t ~ log_lag_abundance + gust_intensity_std + temp_std + sun_std +
-    (1 | view_id) + (1 | labeler),
-  data = df_wind_metrics, family = nbinom2
+    abundance_index_t ~ log_lag_abundance + gust_intensity_std + temp_std + sun_std +
+        (1 | view_id) + (1 | labeler),
+    data = df_wind_metrics, family = nbinom2
 )
 
 m2_variability <- glmmTMB(
-  abundance_index_t ~ log_lag_abundance + wind_variability_std + temp_std + sun_std +
-    (1 | view_id) + (1 | labeler),
-  data = df_wind_metrics, family = nbinom2
+    abundance_index_t ~ log_lag_abundance + wind_variability_std + temp_std + sun_std +
+        (1 | view_id) + (1 | labeler),
+    data = df_wind_metrics, family = nbinom2
 )
 
 # Compare models
 model_comparison <- data.frame(
-  Model = c("Sustained Wind Proportion", "Gust Proportion", "Wind Variability"),
-  AIC = c(AIC(m2_sustained), AIC(m2_gust), AIC(m2_variability)),
-  Wind_Coef = c(
-    coef(summary(m2_sustained))$cond["wind_intensity_std", "Estimate"],
-    coef(summary(m2_gust))$cond["gust_intensity_std", "Estimate"],
-    coef(summary(m2_variability))$cond["wind_variability_std", "Estimate"]
-  ),
-  Wind_P = c(
-    coef(summary(m2_sustained))$cond["wind_intensity_std", "Pr(>|z|)"],
-    coef(summary(m2_gust))$cond["gust_intensity_std", "Pr(>|z|)"],
-    coef(summary(m2_variability))$cond["wind_variability_std", "Pr(>|z|)"]
-  )
+    Model = c("Sustained Wind Proportion", "Gust Proportion", "Wind Variability"),
+    AIC = c(AIC(m2_sustained), AIC(m2_gust), AIC(m2_variability)),
+    Wind_Coef = c(
+        coef(summary(m2_sustained))$cond["wind_intensity_std", "Estimate"],
+        coef(summary(m2_gust))$cond["gust_intensity_std", "Estimate"],
+        coef(summary(m2_variability))$cond["wind_variability_std", "Estimate"]
+    ),
+    Wind_P = c(
+        coef(summary(m2_sustained))$cond["wind_intensity_std", "Pr(>|z|)"],
+        coef(summary(m2_gust))$cond["gust_intensity_std", "Pr(>|z|)"],
+        coef(summary(m2_variability))$cond["wind_variability_std", "Pr(>|z|)"]
+    )
 ) %>%
-  arrange(AIC)
+    arrange(AIC)
 
-kable(model_comparison, 
-      caption = "Comparison of Different Wind Metrics (Standardized)",
-      digits = 3) %>%
-  kable_styling(bootstrap_options = c("striped", "hover"))
+kable(model_comparison,
+    caption = "Comparison of Different Wind Metrics (Standardized)",
+    digits = 3
+)
 ```
 
 # Visualization of Effects
@@ -381,18 +419,24 @@ kable(model_comparison,
 #| fig-cap: "Predicted effects of wind and temperature on butterfly abundance"
 
 # Generate predictions for wind effect
-wind_pred <- ggpredict(m1_threshold, 
-                        terms = "sustained_minutes_above_2ms [0:30]",
-                        condition = c(log_lag_abundance = mean(df_complete$log_lag_abundance),
-                                     temp_std = 0,
-                                     sun_std = 0))
+wind_pred <- ggpredict(m1_threshold,
+    terms = "sustained_minutes_above_2ms [0:30]",
+    condition = c(
+        log_lag_abundance = mean(df_complete$log_lag_abundance),
+        temp_std = 0,
+        sun_std = 0
+    )
+)
 
-# Generate predictions for temperature effect  
+# Generate predictions for temperature effect
 temp_pred <- ggpredict(m1_threshold,
-                        terms = "temp_std [-2:2]",
-                        condition = c(log_lag_abundance = mean(df_complete$log_lag_abundance),
-                                     sustained_minutes_above_2ms = 0,
-                                     sun_std = 0))
+    terms = "temp_std [-2:2]",
+    condition = c(
+        log_lag_abundance = mean(df_complete$log_lag_abundance),
+        sustained_minutes_above_2ms = 0,
+        sun_std = 0
+    )
+)
 
 # Convert standardized temperature back to original scale
 temp_mean <- mean(df_complete$ambient_temp, na.rm = TRUE)
@@ -401,32 +445,43 @@ temp_pred$x_original <- temp_pred$x * temp_sd + temp_mean
 
 # Plot wind effect
 p_wind <- ggplot(wind_pred, aes(x = x, y = predicted)) +
-  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), 
-              fill = pal[1], alpha = 0.3) +
-  geom_line(color = pal[1], size = 1.5) +
-  geom_hline(yintercept = mean(df_complete$abundance_index_t),
-             linetype = "dashed", alpha = 0.5) +
-  labs(x = "Minutes of Sustained Wind > 2 m/s",
-       y = "Predicted Abundance",
-       title = "Effect of Wind on Butterfly Abundance",
-       subtitle = "Negligible negative effect (p = 0.16)") +
-  theme_minimal(base_size = 12)
+    geom_ribbon(aes(ymin = conf.low, ymax = conf.high),
+        fill = pal[1], alpha = 0.3
+    ) +
+    geom_line(color = pal[1], size = 1.5) +
+    geom_hline(
+        yintercept = mean(df_complete$abundance_index_t),
+        linetype = "dashed", alpha = 0.5
+    ) +
+    labs(
+        x = "Minutes of Sustained Wind > 2 m/s",
+        y = "Predicted Abundance",
+        title = "Effect of Wind on Butterfly Abundance",
+        subtitle = "Negligible negative effect (p = 0.16)"
+    ) +
+    theme_minimal(base_size = 12)
 
 # Plot temperature effect
 p_temp <- ggplot(temp_pred, aes(x = x_original, y = predicted)) +
-  geom_ribbon(aes(ymin = conf.low, ymax = conf.high),
-              fill = pal[2], alpha = 0.3) +
-  geom_line(color = pal[2], size = 1.5) +
-  geom_hline(yintercept = mean(df_complete$abundance_index_t),
-             linetype = "dashed", alpha = 0.5) +
-  labs(x = "Temperature (°C)",
-       y = "Predicted Abundance", 
-       title = "Effect of Temperature on Butterfly Abundance",
-       subtitle = "Strong positive effect (p < 0.001)") +
-  theme_minimal(base_size = 12)
+    geom_ribbon(aes(ymin = conf.low, ymax = conf.high),
+        fill = pal[2], alpha = 0.3
+    ) +
+    geom_line(color = pal[2], size = 1.5) +
+    geom_hline(
+        yintercept = mean(df_complete$abundance_index_t),
+        linetype = "dashed", alpha = 0.5
+    ) +
+    labs(
+        x = "Temperature (°C)",
+        y = "Predicted Abundance",
+        title = "Effect of Temperature on Butterfly Abundance",
+        subtitle = "Strong positive effect (p < 0.001)"
+    ) +
+    theme_minimal(base_size = 12)
 
 # Combine plots
-p_wind / p_temp
+p_wind
+p_temp
 ```
 
 ## Observed vs. Predicted
@@ -444,15 +499,17 @@ r2 <- 1 - (ss_res / ss_tot)
 
 # Plot
 ggplot(df_complete, aes(x = predicted, y = abundance_index_t)) +
-  geom_point(alpha = 0.3, color = pal[3]) +
-  geom_abline(slope = 1, intercept = 0, color = "red", linetype = "dashed") +
-  geom_smooth(method = "loess", se = TRUE, color = pal[4]) +
-  labs(x = "Predicted Abundance",
-       y = "Observed Abundance",
-       title = "Model Fit: Observed vs. Predicted",
-       subtitle = sprintf("Pseudo R² = %.3f", r2)) +
-  coord_fixed() +
-  theme_minimal(base_size = 12)
+    geom_point(alpha = 0.3, color = pal[3]) +
+    geom_abline(slope = 1, intercept = 0, color = "red", linetype = "dashed") +
+    geom_smooth(method = "loess", se = TRUE, color = pal[4]) +
+    labs(
+        x = "Predicted Abundance",
+        y = "Observed Abundance",
+        title = "Model Fit: Observed vs. Predicted",
+        subtitle = sprintf("Pseudo R² = %.3f", r2)
+    ) +
+    coord_fixed() +
+    theme_minimal(base_size = 12)
 ```
 
 # Sensitivity Analysis
@@ -462,12 +519,12 @@ ggplot(df_complete, aes(x = predicted, y = abundance_index_t)) +
 ```{r sensitivity-thresholds}
 # Function to calculate minutes above threshold
 calc_threshold_minutes <- function(wind_data, threshold) {
-  wind_data %>%
-    group_by(deployment_id, interval) %>%
-    summarise(
-      minutes_above = sum(speed > threshold, na.rm = TRUE),
-      .groups = "drop"
-    )
+    wind_data %>%
+        group_by(deployment_id, interval) %>%
+        summarise(
+            minutes_above = sum(speed > threshold, na.rm = TRUE),
+            .groups = "drop"
+        )
 }
 
 # Test multiple thresholds
@@ -475,27 +532,27 @@ thresholds <- c(1.0, 1.5, 2.0, 2.5, 3.0)
 threshold_results <- list()
 
 for (thr in thresholds) {
-  # Create threshold variable
-  df_complete_temp <- df_complete %>%
-    mutate(
-      minutes_above_threshold = sustained_minutes_above_2ms * (2.0 / thr)  # Scale approximation
+    # Create threshold variable
+    df_complete_temp <- df_complete %>%
+        mutate(
+            minutes_above_threshold = sustained_minutes_above_2ms * (2.0 / thr) # Scale approximation
+        )
+
+    # Fit model
+    m_temp <- glmmTMB(
+        abundance_index_t ~ log_lag_abundance + minutes_above_threshold +
+            temp_std + sun_std + (1 | view_id) + (1 | labeler),
+        data = df_complete_temp,
+        family = nbinom2
     )
-  
-  # Fit model
-  m_temp <- glmmTMB(
-    abundance_index_t ~ log_lag_abundance + minutes_above_threshold + 
-      temp_std + sun_std + (1 | view_id) + (1 | labeler),
-    data = df_complete_temp,
-    family = nbinom2
-  )
-  
-  # Store results
-  threshold_results[[as.character(thr)]] <- data.frame(
-    threshold = thr,
-    coefficient = coef(summary(m_temp))$cond["minutes_above_threshold", "Estimate"],
-    se = coef(summary(m_temp))$cond["minutes_above_threshold", "Std. Error"],
-    p_value = coef(summary(m_temp))$cond["minutes_above_threshold", "Pr(>|z|)"]
-  )
+
+    # Store results
+    threshold_results[[as.character(thr)]] <- data.frame(
+        threshold = thr,
+        coefficient = coef(summary(m_temp))$cond["minutes_above_threshold", "Estimate"],
+        se = coef(summary(m_temp))$cond["minutes_above_threshold", "Std. Error"],
+        p_value = coef(summary(m_temp))$cond["minutes_above_threshold", "Pr(>|z|)"]
+    )
 }
 
 # Combine results
@@ -503,16 +560,19 @@ threshold_df <- bind_rows(threshold_results)
 
 # Plot threshold sensitivity
 ggplot(threshold_df, aes(x = threshold, y = coefficient)) +
-  geom_ribbon(aes(ymin = coefficient - 1.96*se, ymax = coefficient + 1.96*se),
-              fill = pal[5], alpha = 0.3) +
-  geom_line(color = pal[5], size = 1.5) +
-  geom_point(color = pal[5], size = 3) +
-  geom_hline(yintercept = 0, linetype = "dashed", alpha = 0.5) +
-  labs(x = "Wind Speed Threshold (m/s)",
-       y = "Coefficient (log scale)",
-       title = "Sensitivity Analysis: Alternative Wind Thresholds",
-       subtitle = "No threshold shows significant negative effects") +
-  theme_minimal(base_size = 12)
+    geom_ribbon(aes(ymin = coefficient - 1.96 * se, ymax = coefficient + 1.96 * se),
+        fill = pal[5], alpha = 0.3
+    ) +
+    geom_line(color = pal[5], size = 1.5) +
+    geom_point(color = pal[5], size = 3) +
+    geom_hline(yintercept = 0, linetype = "dashed", alpha = 0.5) +
+    labs(
+        x = "Wind Speed Threshold (m/s)",
+        y = "Coefficient (log scale)",
+        title = "Sensitivity Analysis: Alternative Wind Thresholds",
+        subtitle = "No threshold shows significant negative effects"
+    ) +
+    theme_minimal(base_size = 12)
 ```
 
 ## Site-Specific Effects
@@ -520,29 +580,31 @@ ggplot(threshold_df, aes(x = threshold, y = coefficient)) +
 ```{r site-effects}
 # Extract random effects
 ranef_view <- ranef(m1_threshold)$cond$view_id %>%
-  rownames_to_column("view_id") %>%
-  rename(effect = `(Intercept)`)
+    rownames_to_column("view_id") %>%
+    rename(effect = `(Intercept)`)
 
 # Count observations per view
 view_counts <- df_complete %>%
-  count(view_id, name = "n_obs")
+    count(view_id, name = "n_obs")
 
 # Combine
 ranef_view <- ranef_view %>%
-  left_join(view_counts, by = "view_id") %>%
-  arrange(effect)
+    left_join(view_counts, by = "view_id") %>%
+    arrange(effect)
 
 # Plot random effects
 ggplot(ranef_view, aes(x = reorder(view_id, effect), y = effect)) +
-  geom_point(aes(size = n_obs), color = pal[3]) +
-  geom_hline(yintercept = 0, linetype = "dashed", alpha = 0.5) +
-  coord_flip() +
-  labs(x = "View ID",
-       y = "Random Effect (log scale)",
-       size = "N Observations",
-       title = "Site-Specific Random Effects",
-       subtitle = "Minimal variation between camera locations") +
-  theme_minimal(base_size = 12)
+    geom_point(aes(size = n_obs), color = pal[3]) +
+    geom_hline(yintercept = 0, linetype = "dashed", alpha = 0.5) +
+    coord_flip() +
+    labs(
+        x = "View ID",
+        y = "Random Effect (log scale)",
+        size = "N Observations",
+        title = "Site-Specific Random Effects",
+        subtitle = "Minimal variation between camera locations"
+    ) +
+    theme_minimal(base_size = 12)
 ```
 
 # Robustness Checks
@@ -552,46 +614,48 @@ ggplot(ranef_view, aes(x = reorder(view_id, effect), y = effect)) +
 ```{r robustness}
 # Model with interaction between wind and temperature
 m_interaction <- glmmTMB(
-  abundance_index_t ~ log_lag_abundance + 
-    sustained_minutes_above_2ms * temp_std +
-    sun_std + (1 | view_id) + (1 | labeler),
-  data = df_complete,
-  family = nbinom2
+    abundance_index_t ~ log_lag_abundance +
+        sustained_minutes_above_2ms * temp_std +
+        sun_std + (1 | view_id) + (1 | labeler),
+    data = df_complete,
+    family = nbinom2
 )
 
 # Model with quadratic wind effect
 df_complete$wind_squared <- df_complete$sustained_minutes_above_2ms^2
 
 m_quadratic <- glmmTMB(
-  abundance_index_t ~ log_lag_abundance + 
-    sustained_minutes_above_2ms + wind_squared +
-    temp_std + sun_std + (1 | view_id) + (1 | labeler),
-  data = df_complete,
-  family = nbinom2
+    abundance_index_t ~ log_lag_abundance +
+        sustained_minutes_above_2ms + wind_squared +
+        temp_std + sun_std + (1 | view_id) + (1 | labeler),
+    data = df_complete,
+    family = nbinom2
 )
 
 # Zero-inflated model
 m_zi <- glmmTMB(
-  abundance_index_t ~ log_lag_abundance + sustained_minutes_above_2ms +
-    temp_std + sun_std + (1 | view_id) + (1 | labeler),
-  ziformula = ~ 1,
-  data = df_complete,
-  family = nbinom2
+    abundance_index_t ~ log_lag_abundance + sustained_minutes_above_2ms +
+        temp_std + sun_std + (1 | view_id) + (1 | labeler),
+    ziformula = ~1,
+    data = df_complete,
+    family = nbinom2
 )
 
 # Compare models
 model_comparison_robust <- data.frame(
-  Model = c("Base", "Interaction", "Quadratic", "Zero-Inflated"),
-  AIC = c(AIC(m1_threshold), AIC(m_interaction), AIC(m_quadratic), AIC(m_zi)),
-  df = c(df.residual(m1_threshold), df.residual(m_interaction), 
-         df.residual(m_quadratic), df.residual(m_zi))
+    Model = c("Base", "Interaction", "Quadratic", "Zero-Inflated"),
+    AIC = c(AIC(m1_threshold), AIC(m_interaction), AIC(m_quadratic), AIC(m_zi)),
+    df = c(
+        df.residual(m1_threshold), df.residual(m_interaction),
+        df.residual(m_quadratic), df.residual(m_zi)
+    )
 ) %>%
-  arrange(AIC)
+    arrange(AIC)
 
 kable(model_comparison_robust,
-      caption = "Robustness Check: Alternative Model Specifications",
-      digits = 1) %>%
-  kable_styling(bootstrap_options = c("striped", "hover"))
+    caption = "Robustness Check: Alternative Model Specifications",
+    digits = 1
+)
 ```
 
 # Discussion
