@@ -1,0 +1,136 @@
+\section{Materials and Methods}
+
+\subsection{Study Site}
+
+Site selection followed a systematic filtering process driven by project requirements and practical constraints. The study was supported by a federal grant that mandated research be conducted on federal lands. We selected Vandenberg Space Force Base (VSFB, 34.7398°N, 120.5725°W) in Santa Barbara County, California, based on several key advantages: mild winters with infrequent frost events, extensive historical plantings of blue gum eucalyptus (\textit{Eucalyptus globulus}) that have created suitable overwintering habitat throughout the installation, and restricted access that provided security for long-term equipment deployment. The base contains thirty documented monarch overwintering groves, with several sites consistently ranking within the top 10\% of population counts statewide over the past decade \autocite{xercesGuideWesternMonarch2025}. 
+
+Working with the base's monarch conservation coordinator, we initially screened twelve locations from the thirty sites based on their documented capacity to support monarch aggregations and provide year-round access. This collaboration leveraged local expertise from managing Western Monarch Thanksgiving Count activities for multiple years \autocite{xercesGuideWesternMonarch2025}. During the study period, ten of these sites were actively monitored. However, due to low monarch populations during the 2023-2024 season and no observed overwintering behavior in the 2024-2025 season, only two sites—Spring Canyon and UDMH—produced measurable butterfly clusters suitable for our analysis.
+
+Spring Canyon (34.6315°N, 120.6182°W) represents the most productive and historically reliable overwintering site on VSFB. Located in South Base within 300 meters of Space Launch Complex 4, this approximately 2.0-hectare site consists entirely of mature blue gum eucalyptus trees reaching heights of approximately 40 meters. An unnamed perennial creek runs through the center of the grove, creating a riparian corridor that supports heterogeneous canopy structure with variable tree spacing and diverse understory vegetation. Surf Road, an infrequently used paved access road, bisects both the perennial creek and forest canopy. 
+
+The UDMH site (34.6719°N, 120.5950°W), also located in South Base, comprises a 5.1-hectare eucalyptus grove planted in windrows adjacent to a waste treatment facility. The uniformly spaced trees maintain a largely clear understory with scattered low shrubs. Although only recently documented as an overwintering location in 2022, UDMH immediately emerged as a significant site, supporting over 6,000 monarchs during its initial count and ranking among the base's highest population sites.
+
+% [Figure here showing all thirteen groves, with different symbology for the various subsets]
+
+\subsection{Monitoring Strategy}
+
+Equipment deployment strategies differed between monitoring seasons to accommodate research objectives and field experience. During the 2023-2024 season, we employed two strategies: targeted deployments at sites with confirmed monarch presence, and anticipatory deployments at locations where monarchs were expected based on historical data but not currently observed. Targeted deployments concentrated at Spring Canyon and UDMH where active aggregations were documented throughout the season. Anticipatory deployments occurred at four overwintering sites—additional locations within Spring Canyon and UDMH, plus SLC-6 and Tangair. No monarchs were recorded at anticipatory deployment sites; consequently, these data are excluded from analysis.
+
+For the 2024-2025 season, we modified our approach to establish monitoring stations at ten sites before monarch arrival, based on historical occurrence records compiled by the base conservation coordinator. This expanded spatial coverage aimed to capture greater environmental variation across potential overwintering sites. However, the 2024-2025 season coincided with historically low monarch abundance throughout California \autocite{xerces_society_western_2025}, resulting in no observed clustering behavior at any monitored location on base. Consequently, our final dataset comprises two sites—Spring Canyon and UDMH—from the 2023-2024 season only.
+
+\subsection{Field Equipment}
+
+To observe changes in monarch abundance in response to strong wind events, we deployed remote monitoring equipment near butterfly clusters at overwintering sites. Field observations utilized 15-meter telescoping fiberglass poles (Max-Gain Systems, Inc., Marietta, GA) anchored at three points using ground anchors with guy lines securing both the top and base to create stable, freestanding structures. 
+
+Poles were positioned 4-17 meters from cluster locations. This range, determined through field testing, balanced image resolution requirements for our grid-based counting method against disturbance minimization. Closer positioning compromised field of view, while greater distances degraded butterfly visibility below classification thresholds. Pole placement considered ground stability for the 15-meter structures, infrastructure clearance requirements, and clear viewing angles. When deploying near active clusters, we approached from directions that minimized disturbance; no butterfly dispersal was observed during equipment deployment. 
+
+We monitored monarch abundance using modified trail cameras (GardePro E7 and E8, Shenzhen, China) configured for near-infrared imaging to enhance contrast between clustering butterflies and surrounding vegetation. Trail cameras were selected for their durability in extended field deployment, native time-lapse functionality, and modification potential. Near-infrared wavelength selection followed previous literature demonstrating effectiveness for butterfly population estimation \autocite{hristov_estimating_2019}. 
+
+Hardware modifications exploited the camera's internal filter-switching mechanism by engaging nighttime mode to access the clear glass filter position, then disconnecting power to prevent reversion to the infrared cut filter. Near-infrared pass filters (>850 nm) were mounted externally to restrict incoming light to NIR wavelengths. This configuration produced images where clustering butterflies appeared as dark masses against bright eucalyptus foliage reflectance in the near-infrared spectrum. Field validation confirmed sufficient contrast for visual distinction of monarch clusters from background vegetation, supporting our human-labeler analytical approach.
+
+Cameras were mounted atop poles using lightweight tie-down straps and positioned horizontally toward butterfly clusters at roosting height. The wireless live view feature enabled real-time preview and precise camera aiming during deployment. Cameras operated in time-lapse mode with motion detection disabled. 
+
+Sampling interval selection balanced temporal resolution, battery life, and data processing feasibility through empirical optimization and rigorous statistical validation. Initial deployments used 10-minute intervals to capture significant changes in butterfly abundance, which preliminary observations indicated occurred on hourly rather than minute scales, while maintaining approximately 6-week continuous operation. Post-deployment statistical analysis using mixed-effects models and information-theoretic approaches systematically compared multiple sampling intervals across deployments. We conducted sequential subsample analyses starting with full temporal resolution and progressively testing reduced frequencies. Information-theoretic model comparison using Akaike Information Criterion (AIC) demonstrated that 30-minute intervals provided optimal balance—losing less than 5\% of information compared to full temporal resolution (measured by root mean square error) while reducing image classification workload by 67\%. Variance comparison analysis and visual assessment of fitted trend lines confirmed that this interval preserved essential time-series patterns including diurnal activity cycles, weather-response dynamics, and multi-day population trends. Battery life constraints and field deployment logistics further supported this interval choice, enabling extended autonomous operation essential for capturing complete behavioral sequences during variable weather conditions.
+
+Wind monitoring equipment consisted of Rain Wise WindLog Wind Data Loggers (Rain Wise Inc., Trenton, Maine) installed at pole apices to measure wind at heights approximating butterfly roosting locations. These instruments recorded average wind speed and maximum wind gust at one-minute intervals—the highest frequency supported by the sensors. This recording interval enabled calculation of wind speed variance within each photographic sampling period, capturing gustiness lost with longer averaging periods. 
+
+To systematically organize our heterogeneous monitoring efforts, we defined discrete monitoring periods as deployment units. Each deployment represented a unique combination of monitoring location, camera configuration (including camera ID, mounting height, and viewing angle), associated wind measurements, and temporal coverage period. Since equipment was frequently reused across locations and time periods, this deployment-based structure provided standardized sampling units that accounted for variation in environmental conditions and equipment configurations while treating each deployment as independent for statistical analyses. This approach produced time-series images from each deployment for estimating monarch cluster abundance through systematic grid-based counting methods, enabling analysis of abundance patterns in relation to wind speed and other environmental variables.
+
+% [A tree with a measuring device and a diagram AI-generated content may be incorrect.]
+
+\subsection{Image Analysis}
+
+\subsubsection{Grid-based Counting Method}
+
+To quantify changes in monarch butterfly abundance from collected imagery, we developed a systematic grid-based counting protocol balancing accuracy with the practical constraints of analyzing tens of thousands of images. This approach addressed the challenge of estimating abundance in large aggregations where individual counts would be prohibitively time-consuming and emulated field researcher methods, including those used in the annual Thanksgiving Count \autocite{xercesProtocolsWesternMonarch2017}. We subdivided each image using a grid overlay system where human labelers assigned order-of-magnitude estimates per cell. Grid dimensions remained fixed throughout each deployment to ensure consistency. Custom software developed using the Electron framework in JavaScript facilitated this labeling effort.
+
+Grid cell size varied by deployment based on camera-to-cluster distance. Cell dimensions were optimized to ensure most occupied cells contained butterflies in the 10–99 count range, balancing classification efficiency with spatial resolution. This standardization minimized cells alternating between widely different order-of-magnitude categories across the time series.
+
+\subsubsection{Counting Protocol}
+
+Human labelers estimated butterfly abundance within each grid cell using four order-of-magnitude categories: 0 (no butterflies), 1–9 (single digits), 10–99 (dozens), and 100–999 (hundreds). Labelers trained using a comprehensive online guide with example images and detailed classification criteria (\url{https://kylenessen.github.io/monarch_trailcam_classifier/}). The protocol prioritized efficiency while maintaining consistency across observers.
+
+Because abundance estimates derived exclusively from two-dimensional photographic images, our classification protocol quantified only butterflies visible in the image plane without estimating three-dimensional cluster structure or depth. This approach intentionally excluded hidden individuals behind visible butterflies in overlapping aggregations, providing a conservative but consistent measure reflecting observable surface area rather than total volume. For cells containing partial butterflies at grid boundaries, labelers included these in counts unless double-counting would cause an adjacent cell to move to a higher category. When butterfly counts fluctuated between categories across the time series, we consistently applied the lower estimate to maintain conservative abundance estimates.
+
+In addition to estimating monarch abundance, labelers recorded whether cells received direct sunlight. Direct sunlight classification presented challenges because oversaturated conditions eliminated the contrast enabling butterfly detection in shaded areas. Labelers classified cells as receiving direct sunlight when branches or butterflies exhibited additional illumination clearly from direct rather than indirect light, even when individual butterflies became difficult to distinguish due to pixel oversaturation. This classification required careful attention to subtle shape recognition and contextual awareness about butterfly locations established from previous images in the time series. This measurement was recorded only for occupied cells and stored separately.
+
+Labelers received ongoing feedback throughout the classification process. All classifications underwent review for common errors including mislabeled cells, incorrect category assignments, and inconsistent counting criteria application. Direct communication of corrections to labelers ensured consistent protocol application.
+
+\subsubsection{Abundance Calculation}
+
+We calculated an abundance index for each frame by summing the products of cell counts and their assigned category values across all grid cells, employing conservative estimates using minimum values within each order-of-magnitude category:
+
+\begin{equation}
+\text{Abundance index} = \sum_{i} \rho_i \times C_i
+\end{equation}
+
+where $\rho_i$ represents the number of cells in category $i$, and $C_i$ represents the conservative estimate for that category. We used minimum category values ($C_1 = 1$ for category 1–9, $C_2 = 10$ for category 10–99, and $C_3 = 100$ for category 100–999) rather than midpoint or maximum values to ensure temporal analyses reflected genuine population shifts rather than estimation uncertainty.
+
+\subsection{Statistical Analysis}
+\label{sec:statistical-analysis}
+
+To test our five hierarchical hypotheses, we developed a sequential analytical framework using Generalized Linear Mixed-Effects Models (GLMMs). Our primary response variable for abundance is the `abundance_index` at time $t$. To properly model this count-based data and account for overdispersion, we use a negative binomial distribution. A key challenge in analyzing time-series data is temporal autocorrelation. We address this by including the abundance from the previous time step (`abundance_index_t_minus_1`) as a predictor variable. This robustly controls for autocorrelation by modeling the influence of environmental predictors on the change in abundance from one step to the next. All models include random intercepts for `view` to account for site-specific variation.
+
+\subsubsection{Hypothesis 1: The 2 m/s Disruptive Threshold}
+
+First, we conducted a direct test of Leong's (2016) hypothesis that wind becomes disruptive above a 2 m/s threshold. We created predictor variables representing the number of minutes that sustained and gust wind speeds exceeded the 2 m/s threshold within a sampling interval. A significant negative relationship for these variables would provide direct empirical support for this specific threshold.
+
+\begin{verbatim}
+% Load required library
+library(lme4)
+
+# Model to test sustained wind threshold
+model_sustained_threshold <- glmer(
+    abundance_index_t ~ abundance_index_t_minus_1 + 
+                        sustained_minutes_above_2ms + 
+                        sunlight_exposure_prop * ambient_temp +
+                        (1 | view),
+    family = "nbinom2",
+    data = monarch_data
+)
+\end{verbatim}
+
+\subsubsection{Hypothesis 2 & 3: Wind as a Disruptive Force and Scaling Intensity}
+
+Second, we tested the hypotheses that wind acts as a disruptive force and that its effects scale with intensity. We fit a series of GLMMs to test a suite of continuous wind metrics: mean wind speed (sustained wind), maximum wind speed (peak gusts), and wind speed variance (gustiness). These were tested in separate models to avoid collinearity. The model revealing the most significant relationship, determined using Akaike’s Information Criterion (AICc), was carried forward. This approach allows us to identify which characteristic of wind is the most influential predictor of monarch abundance.
+
+\begin{verbatim}
+# Example model for one wind metric (run separately for each)
+model_wind_intensity <- glmer(
+    abundance_index_t ~ abundance_index_t_minus_1 + 
+                        max_wind_speed + # or mean_wind_speed, etc.
+                        sunlight_exposure_prop * ambient_temp +
+                        (1 | view),
+    family = "nbinom2",
+    data = monarch_data
+)
+\end{verbatim}
+
+\subsubsection{Hypothesis 4: Wind and Roost Abandonment Probability}
+
+Third, to test if wind magnitude influences the probability of roost abandonment, we built a predictive model using a mixed-effects logistic regression. The response variable, `roost_abandoned`, was a binary indicator triggered when abundance dropped by more than 90\% between observations. This model uses the most influential continuous wind metric identified in the first step to predict the likelihood of an abandonment event.
+
+\begin{verbatim}
+# Model: Predictive Roost Abandonment
+abandonment_model <- glmer(
+    roost_abandoned ~ max_wind_speed + # or other best wind metric
+                      sunlight_exposure_prop * ambient_temp +
+                      (1 | view),
+    family = binomial, # Specifies logistic regression
+    data = monarch_data,
+    control = glmerControl(optimizer = "bobyqa")
+)
+\end{verbatim}
+
+\subsubsection{Hypothesis 5: Site Fidelity After Disturbance}
+
+Finally, we tested the hypothesis that disruptive wind events affect long-term site fidelity. We defined a "disruptive wind event" as any day where wind speeds exceeded 2.2 m/s for at least 30 consecutive minutes while monarchs were present. We then used a mixed-effects logistic regression to model the probability of site occupancy (`site_occupied`, a binary variable based on morning abundance counts) as a function of the number of days that had passed since the last disruptive event (`days_since_wind_event`). A sustained low probability of occupancy after an event would indicate a loss of site fidelity.
+
+\begin{verbatim}
+# Model: Site Fidelity Analysis
+site_fidelity_model <- glmer(
+    site_occupied ~ days_since_wind_event + (1 | view),
+    family = binomial,
+    data = post_event_data
+)
+\end{verbatim}
