@@ -1,0 +1,6 @@
+effect,component,term,estimate,std.error,statistic,p.value,conf.low,conf.high,significant
+fixed,cond,(Intercept),0.0219,0.0159,1.376613794852249,0.1686,-0.0093,0.0531,
+fixed,cond,sustained_wind_per10,0.0294,0.0215,1.367101720884764,0.1716,-0.0128,0.0716,
+fixed,cond,gust_wind_per10,-0.0226,0.0162,-1.399712571703456,0.1616,-0.0543,0.0091,
+fixed,cond,ambient_temp_c,0.0115,0.0018,6.351905462436263,0,0.008,0.0151,***
+fixed,cond,sunlight_c,-0.0319,0.0216,-1.4789413573051085,0.1392,-0.0742,0.0104,
