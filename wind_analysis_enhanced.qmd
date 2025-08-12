@@ -454,6 +454,51 @@ print("Three-way Interaction Model Summary:")
 summary(gam_three_way)
 ```
 
+# Model Diagnostics
+
+Here we will check the primary models for any issues to ensure their validity.
+
+## Diagnostics for `gam_enhanced_full`
+
+The `appraise()` function from the `gratia` package provides a set of standard diagnostic plots to check the model assumptions. We are looking for:
+1.  **Residuals vs. Fitted**: No obvious patterns, points should be randomly scattered.
+2.  **Q-Q Plot**: Points should fall along the diagonal line, indicating normally distributed residuals.
+3.  **Histogram of Residuals**: Should resemble a normal distribution.
+4.  **Response vs. Fitted**: Points should cluster around the y=x line.
+
+```{r diagnostics-enhanced-full, fig.cap="Diagnostic plots for the full enhanced GAM model."}
+# Appraise the model to check assumptions
+if(exists("gam_enhanced_full")) {
+  print(appraise(gam_enhanced_full))
+} else {
+  cat("Model 'gam_enhanced_full' not found.")
+}
+```
+
+## Diagnostics for `gam_three_way`
+
+We perform the same checks on the model that includes a three-way interaction term.
+
+```{r diagnostics-three-way, fig.cap="Diagnostic plots for the three-way interaction model."}
+# Appraise the three-way interaction model
+if(exists("gam_three_way")) {
+  print(appraise(gam_three_way))
+} else {
+  cat("Model 'gam_three_way' not found.")
+}
+```
+
+## Concurvity Check
+
+Concurvity is the GAM equivalent of multicollinearity. It occurs when some smooth terms in the model could be approximated by one or more other smooth terms. We check for it to ensure that model terms are not confounded. A value close to 1 indicates high concurvity. The "overall" measure indicates the worst-case concurvity for each term.
+
+```{r concurvity-check}
+# Check for concurvity
+if(exists("gam_enhanced_full")) {
+  concurvity(gam_enhanced_full)
+}
+```
+
 # Temperature-Stratified Models
 
 ```{r stratified-temperature-models}
@@ -519,6 +564,18 @@ stratified_effects <- map_dfr(names(stratified_models), function(temp_cat) {
 kable(stratified_effects, 
       caption = "Wind Effects by Temperature Category", 
       digits = 4)
+```
+
+## Diagnostics for Stratified Models
+
+We'll check the diagnostics for the 'Moderate' temperature model as an example. This category typically has the most data and represents the core of the dataset. The same checks should be applied to the other stratified models ('Cold', 'Warm') to ensure their validity as well.
+
+```{r diagnostics-stratified-moderate, fig.cap="Diagnostic plots for the model stratified by moderate temperatures."}
+if("Moderate" %in% names(stratified_models)) {
+  print(appraise(stratified_models[["Moderate"]]))
+} else {
+  cat("Moderate temperature model not available for diagnostics.")
+}
 ```
 
 # Site-Specific Analysis for Consistency
