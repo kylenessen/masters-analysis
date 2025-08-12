@@ -1,0 +1,537 @@
+---
+title: "Wind Effects on Monarch Abundance: Exploratory GAM Analysis"
+author: "Kyle Nessen"
+date: "`r Sys.Date()`"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    code-fold: true
+    fig-width: 10
+    fig-height: 8
+    self-contained: true
+editor: visual
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, 
+                      fig.width = 10, fig.height = 8)
+
+# Load required packages
+library(tidyverse)
+library(mgcv)      # GAM models
+library(gratia)    # GAM diagnostics and plotting
+library(lubridate) # Date handling
+library(knitr)
+library(patchwork) # Plot combinations
+library(performance) # Model diagnostics
+library(see)       # Enhanced performance plots  
+# library(data.table) # For efficient joins
+
+# Set theme for all plots
+theme_set(theme_minimal(base_size = 14))
+```
+
+# Data Loading and Preparation
+
+```{r load-data}
+# Load data files
+butterfly_data <- read_csv("data/butterfly_abundance_index.csv")
+wind_data <- read_csv("data/wind_all.csv")
+temperature_data <- read_csv("data/temperature_data_2023.csv")
+deployments <- read_csv("data/deployments.csv")
+
+# Inspect data structure
+glimpse(butterfly_data)
+glimpse(wind_data)
+glimpse(temperature_data)
+```
+
+```{r data-preparation}
+# Extract datetime from butterfly image filenames
+butterfly_data <- butterfly_data %>%
+  mutate(
+    # Extract timestamp from filename (format: SC1_20231117114001.JPG)
+    timestamp_str = str_extract(image_filename, "\\d{14}"),
+    datetime = ymd_hms(timestamp_str, truncated = 3),
+    date = as_date(datetime),
+    hour = hour(datetime)
+  )
+
+# Convert wind data datetime
+wind_data <- wind_data %>%
+  mutate(
+    datetime = ymd_hms(time),
+    date = as_date(datetime),
+    hour = hour(datetime),
+    minute = minute(datetime)
+  )
+
+# Temperature data preparation
+temperature_data <- temperature_data %>%
+  mutate(
+    datetime = ymd_hms(timestamp),
+    date = as_date(datetime),
+    hour = hour(datetime)
+  )
+
+# Filter for relevant deployments (those with monarchs present AND complete labeling)
+relevant_deployments <- deployments %>%
+  filter(monarchs_present == TRUE, 
+         label_status == "Complete") %>%
+  select(deployment_id, view_id, wind_meter_name, Deployed_time, Recovered_time)
+
+# Filter butterfly data to relevant deployments only
+butterfly_data <- butterfly_data %>%
+  inner_join(relevant_deployments, by = "deployment_id")
+
+print(paste("Number of butterfly observations:", nrow(butterfly_data)))
+print(paste("Number of unique deployments:", n_distinct(butterfly_data$deployment_id)))
+print(paste("Date range:", min(butterfly_data$date), "to", max(butterfly_data$date)))
+```
+
+```{r merge-data}
+# Simplified data merging approach
+print("Creating merged dataset with wind data...")
+
+# Since butterfly_data was already filtered to complete deployments with wind meters,
+# we need to be more efficient about the wind data join to avoid memory issues
+
+# First, let's filter wind data to only relevant time periods and meters
+relevant_wind_meters <- unique(butterfly_data$wind_meter_name)
+wind_filtered <- wind_data %>%
+  filter(wind_meter_name %in% relevant_wind_meters,
+         datetime >= min(butterfly_data$datetime) - minutes(60),
+         datetime <= max(butterfly_data$datetime) + minutes(60))
+
+print(paste("Filtered wind data to", nrow(wind_filtered), "observations"))
+
+# Now calculate wind summaries more efficiently
+wind_summaries <- butterfly_data %>%
+  rowwise() %>%
+  do({
+    current_obs <- .
+    current_wind <- wind_filtered %>%
+      filter(wind_meter_name == current_obs$wind_meter_name,
+             datetime >= current_obs$datetime - minutes(30),
+             datetime <= current_obs$datetime)
+    
+    if(nrow(current_wind) >= 5) {  # At least 5 observations
+      tibble(
+        deployment_id = current_obs$deployment_id,
+        datetime = current_obs$datetime,
+        image_filename = current_obs$image_filename,
+        mean_wind_speed = mean(current_wind$speed, na.rm = TRUE),
+        max_wind_speed = max(current_wind$speed, na.rm = TRUE),
+        max_gust_speed = max(current_wind$gust, na.rm = TRUE),
+        wind_variance = var(current_wind$speed, na.rm = TRUE),
+        minutes_above_2ms = sum(current_wind$speed > 2, na.rm = TRUE),
+        gust_minutes_above_2ms = sum(current_wind$gust > 2, na.rm = TRUE),
+        n_wind_obs = nrow(current_wind)
+      )
+    } else {
+      tibble(
+        deployment_id = current_obs$deployment_id,
+        datetime = current_obs$datetime,
+        image_filename = current_obs$image_filename,
+        mean_wind_speed = NA_real_,
+        max_wind_speed = NA_real_,
+        max_gust_speed = NA_real_,
+        wind_variance = NA_real_,
+        minutes_above_2ms = NA_real_,
+        gust_minutes_above_2ms = NA_real_,
+        n_wind_obs = 0
+      )
+    }
+  }) %>%
+  ungroup()
+
+print(paste("Wind summaries calculated for", nrow(wind_summaries), "observations"))
+
+# Join wind summaries back to butterfly data
+merged_data <- butterfly_data %>%
+  left_join(wind_summaries, by = c("deployment_id", "datetime", "image_filename"))
+
+# Add temperature data
+merged_data <- merged_data %>%
+  left_join(
+    temperature_data %>% 
+      select(deployment_id, timestamp, temperature) %>%
+      mutate(datetime = ymd_hms(timestamp)) %>%
+      select(-timestamp),
+    by = c("deployment_id", "datetime")
+  )
+
+# Add lagged abundance (previous observation)
+merged_data <- merged_data %>%
+  arrange(deployment_id, datetime) %>%
+  group_by(deployment_id) %>%
+  mutate(
+    abundance_lag1 = lag(total_butterflies, 1),
+    time_since_last = as.numeric(datetime - lag(datetime), units = "hours")
+  ) %>%
+  ungroup()
+
+# Calculate sunlight exposure proportion
+merged_data <- merged_data %>%
+  mutate(
+    sunlight_prop = ifelse(total_butterflies > 0, 
+                          butterflies_direct_sun / total_butterflies, 
+                          0)
+  )
+
+# Create final analysis dataset
+analysis_data <- merged_data %>%
+  filter(
+    !is.na(mean_wind_speed), 
+    !is.na(abundance_lag1),
+    !is.na(temperature),
+    n_wind_obs >= 5,  # At least 5 wind observations in 30-minute window
+    time_since_last <= 12  # Remove observations with gaps > 12 hours
+  ) %>%
+  mutate(
+    # Create time-based variables
+    hour_of_day = hour(datetime),
+    day_of_year = yday(datetime),
+    # Log-transform abundance for better model behavior
+    log_abundance = log(total_butterflies + 1),
+    log_abundance_lag1 = log(abundance_lag1 + 1),
+    # Create factor for view_id
+    view_id = factor(view_id)
+  )
+
+print(paste("Final analysis dataset:", nrow(analysis_data), "observations"))
+print(paste("Deployments in final dataset:", n_distinct(analysis_data$deployment_id)))
+print(paste("View IDs in final dataset:", n_distinct(analysis_data$view_id)))
+print(paste("Date range:", min(analysis_data$date), "to", max(analysis_data$date)))
+```
+
+# Exploratory Data Analysis
+
+```{r eda-summary}
+# Summary statistics
+analysis_data %>%
+  select(total_butterflies, mean_wind_speed, max_wind_speed, wind_variance, 
+         temperature, sunlight_prop) %>%
+  summary() %>%
+  kable(caption = "Summary Statistics of Key Variables")
+```
+
+```{r eda-plots}
+# Distribution plots
+p1 <- ggplot(analysis_data, aes(x = total_butterflies)) +
+  geom_histogram(bins = 50, alpha = 0.7) +
+  scale_x_log10() +
+  labs(title = "Distribution of Butterfly Abundance", 
+       x = "Total Butterflies (log scale)", y = "Count")
+
+p2 <- ggplot(analysis_data, aes(x = mean_wind_speed)) +
+  geom_histogram(bins = 30, alpha = 0.7) +
+  labs(title = "Distribution of Mean Wind Speed", 
+       x = "Mean Wind Speed (m/s)", y = "Count") +
+  geom_vline(xintercept = 2, color = "red", linetype = "dashed", alpha = 0.7)
+
+p3 <- ggplot(analysis_data, aes(x = temperature)) +
+  geom_histogram(bins = 30, alpha = 0.7) +
+  labs(title = "Distribution of Temperature", 
+       x = "Temperature (°C)", y = "Count")
+
+p4 <- ggplot(analysis_data, aes(x = sunlight_prop)) +
+  geom_histogram(bins = 30, alpha = 0.7) +
+  labs(title = "Distribution of Sunlight Exposure Proportion", 
+       x = "Proportion in Direct Sunlight", y = "Count")
+
+p1
+p2  
+p3
+p4
+```
+
+```{r wind-abundance-scatter}
+# Scatter plot of wind vs abundance
+ggplot(analysis_data, aes(x = mean_wind_speed, y = total_butterflies)) +
+  geom_point(alpha = 0.5, aes(color = factor(view_id))) +
+  scale_y_log10() +
+  geom_smooth(method = "gam", se = TRUE, color = "black") +
+  geom_vline(xintercept = 2, color = "red", linetype = "dashed", alpha = 0.7) +
+  labs(title = "Raw Relationship: Wind Speed vs Butterfly Abundance",
+       x = "Mean Wind Speed (m/s)", 
+       y = "Total Butterflies (log scale)",
+       color = "View ID") +
+  theme(legend.position = "bottom")
+```
+
+# GAM Analysis
+
+## Model 1: Basic GAM with Smooth Terms
+
+```{r gam-model1}
+# Fit GAM with smooth terms for wind variables
+# Using negative binomial family for count data with overdispersion
+gam1 <- gam(
+  total_butterflies ~ 
+    s(log_abundance_lag1, k = 10) +
+    s(mean_wind_speed, k = 10) +
+    s(temperature, k = 8) +
+    s(sunlight_prop, k = 6) +
+    s(hour_of_day, k = 8, bs = "cc") +  # Cyclic spline for hour of day
+    factor(view_id),
+  family = nb(),
+  data = analysis_data,
+  method = "REML"
+)
+
+summary(gam1)
+```
+
+## Model 2: GAM with Interaction Terms
+
+```{r gam-model2}
+# GAM with wind-temperature interaction
+gam2 <- gam(
+  total_butterflies ~ 
+    s(log_abundance_lag1, k = 10) +
+    s(mean_wind_speed, k = 10) +
+    s(temperature, k = 8) +
+    ti(mean_wind_speed, temperature, k = c(6, 6)) +  # Tensor interaction
+    s(sunlight_prop, k = 6) +
+    s(hour_of_day, k = 8, bs = "cc") +
+    factor(view_id),
+  family = nb(),
+  data = analysis_data,
+  method = "REML"
+)
+
+summary(gam2)
+```
+
+## Model 3: Alternative Wind Metrics
+
+```{r gam-model3}
+# Test different wind metrics
+gam3 <- gam(
+  total_butterflies ~ 
+    s(log_abundance_lag1, k = 10) +
+    s(max_wind_speed, k = 10) +  # Maximum wind instead of mean
+    s(wind_variance, k = 8) +    # Wind variability (gustiness)
+    s(temperature, k = 8) +
+    s(sunlight_prop, k = 6) +
+    s(hour_of_day, k = 8, bs = "cc") +
+    factor(view_id),
+  family = nb(),
+  data = analysis_data,
+  method = "REML"
+)
+
+summary(gam3)
+```
+
+# Model Comparison and Selection
+
+```{r model-comparison}
+# Compare models using AIC
+model_comparison <- data.frame(
+  Model = c("GAM1: Basic smooth terms", 
+            "GAM2: Wind-temperature interaction", 
+            "GAM3: Max wind + variance"),
+  AIC = c(AIC(gam1), AIC(gam2), AIC(gam3)),
+  Dev_Explained = c(
+    paste0(round(summary(gam1)$dev.expl * 100, 1), "%"),
+    paste0(round(summary(gam2)$dev.expl * 100, 1), "%"),
+    paste0(round(summary(gam3)$dev.expl * 100, 1), "%")
+  )
+)
+
+model_comparison %>%
+  arrange(AIC) %>%
+  kable(caption = "Model Comparison Results")
+
+# Select best model
+best_model <- list(gam1, gam2, gam3)[[which.min(c(AIC(gam1), AIC(gam2), AIC(gam3)))]]
+best_model_name <- c("GAM1", "GAM2", "GAM3")[which.min(c(AIC(gam1), AIC(gam2), AIC(gam3)))]
+
+print(paste("Best model:", best_model_name))
+```
+
+# Model Diagnostics
+
+```{r diagnostics-gam}
+# Comprehensive diagnostics for best model
+gam.check(best_model)
+```
+
+```{r diagnostic-plots}
+# Custom diagnostic plots
+# Residuals vs fitted
+p1 <- ggplot() +
+  geom_point(aes(x = fitted(best_model), y = residuals(best_model)), alpha = 0.6) +
+  geom_smooth(aes(x = fitted(best_model), y = residuals(best_model)), 
+              method = "loess", se = TRUE, color = "red") +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  labs(title = "Residuals vs Fitted Values",
+       x = "Fitted Values", y = "Residuals")
+
+# Q-Q plot of residuals
+p2 <- ggplot() +
+  geom_qq(aes(sample = residuals(best_model))) +
+  geom_qq_line(aes(sample = residuals(best_model)), color = "red") +
+  labs(title = "Q-Q Plot of Residuals",
+       x = "Theoretical Quantiles", y = "Sample Quantiles")
+
+# Residuals vs wind speed
+p3 <- ggplot() +
+  geom_point(aes(x = analysis_data$mean_wind_speed, y = residuals(best_model)), alpha = 0.6) +
+  geom_smooth(aes(x = analysis_data$mean_wind_speed, y = residuals(best_model)), 
+              method = "loess", se = TRUE, color = "red") +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  labs(title = "Residuals vs Wind Speed",
+       x = "Mean Wind Speed (m/s)", y = "Residuals")
+
+# Scale-location plot
+p4 <- ggplot() +
+  geom_point(aes(x = fitted(best_model), y = sqrt(abs(residuals(best_model)))), alpha = 0.6) +
+  geom_smooth(aes(x = fitted(best_model), y = sqrt(abs(residuals(best_model)))), 
+              method = "loess", se = TRUE, color = "red") +
+  labs(title = "Scale-Location Plot",
+       x = "Fitted Values", y = "√|Residuals|")
+
+p1
+p2
+p3
+p4
+```
+
+```{r temporal-diagnostics}
+# Check for temporal autocorrelation in residuals
+analysis_data_with_resids <- analysis_data %>%
+  mutate(
+    fitted_vals = fitted(best_model),
+    residuals = residuals(best_model)
+  )
+
+# Plot residuals over time by deployment
+ggplot(analysis_data_with_resids, aes(x = datetime, y = residuals)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "loess", se = TRUE, color = "red") +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  facet_wrap(~deployment_id, scales = "free_x") +
+  labs(title = "Residuals Over Time by Deployment",
+       x = "DateTime", y = "Residuals") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+# Effect Plots and Interpretation
+
+```{r effect-plots}
+# Plot smooth terms from best model
+draw(best_model, pages = 1)
+```
+
+```{r individual-effects}
+# Create individual effect plots
+# Wind effect
+wind_effect <- draw(best_model, select = "s(mean_wind_speed)") +
+  geom_vline(xintercept = 2, color = "red", linetype = "dashed", alpha = 0.7) +
+  labs(title = "Effect of Mean Wind Speed on Log Abundance",
+       subtitle = "Red line shows 2 m/s threshold from Leong (2016)")
+
+# Temperature effect  
+temp_effect <- draw(best_model, select = "s(temperature)") +
+  labs(title = "Effect of Temperature on Log Abundance")
+
+# Lagged abundance effect
+lag_effect <- draw(best_model, select = "s(log_abundance_lag1)") +
+  labs(title = "Effect of Previous Abundance on Current Abundance")
+
+# Hour of day effect
+hour_effect <- draw(best_model, select = "s(hour_of_day)") +
+  labs(title = "Daily Activity Pattern (Hour of Day Effect)")
+
+wind_effect
+temp_effect
+lag_effect  
+hour_effect
+```
+
+```{r predictions}
+# Generate predictions to visualize wind effect
+wind_pred_data <- expand_grid(
+  mean_wind_speed = seq(0, max(analysis_data$mean_wind_speed), length.out = 100),
+  log_abundance_lag1 = median(analysis_data$log_abundance_lag1),
+  temperature = median(analysis_data$temperature),
+  sunlight_prop = median(analysis_data$sunlight_prop),
+  hour_of_day = 12,
+  view_id = levels(factor(analysis_data$view_id))[1]
+)
+
+# Get predictions with confidence intervals
+wind_predictions <- predict(best_model, wind_pred_data, se.fit = TRUE, type = "link")
+
+wind_pred_plot <- wind_pred_data %>%
+  mutate(
+    predicted = exp(wind_predictions$fit),  # Back-transform from log scale
+    lower = exp(wind_predictions$fit - 1.96 * wind_predictions$se.fit),
+    upper = exp(wind_predictions$fit + 1.96 * wind_predictions$se.fit)
+  )
+
+ggplot(wind_pred_plot, aes(x = mean_wind_speed)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.3, fill = "blue") +
+  geom_line(aes(y = predicted), color = "blue", size = 1.2) +
+  geom_vline(xintercept = 2, color = "red", linetype = "dashed", alpha = 0.7) +
+  labs(title = "Predicted Butterfly Abundance vs Wind Speed",
+       subtitle = "Holding other variables at median values",
+       x = "Mean Wind Speed (m/s)",
+       y = "Predicted Butterfly Count",
+       caption = "Red dashed line: 2 m/s threshold") +
+  scale_y_log10()
+```
+
+# Results Summary and Next Steps
+
+```{r results-summary}
+# Extract key statistics
+wind_smooth_pvalue <- summary(best_model)$s.table["s(mean_wind_speed)", "p-value"]
+wind_edf <- summary(best_model)$s.table["s(mean_wind_speed)", "edf"]
+model_dev_expl <- summary(best_model)$dev.expl
+
+cat("## Key Results:\n")
+cat(paste("- Best model:", best_model_name, "\n"))
+cat(paste("- Model explains", round(model_dev_expl * 100, 1), "% of deviance\n"))
+cat(paste("- Wind smooth term p-value:", format(wind_smooth_pvalue, scientific = TRUE), "\n"))
+cat(paste("- Wind smooth effective degrees of freedom:", round(wind_edf, 2), "\n"))
+cat(paste("- Number of observations:", nrow(analysis_data), "\n"))
+cat(paste("- Number of deployments:", n_distinct(analysis_data$deployment_id), "\n"))
+```
+
+## Model Performance Metrics
+
+```{r performance-metrics}
+# Additional performance metrics
+r2_val <- cor(fitted(best_model), analysis_data$total_butterflies)^2
+rmse_val <- sqrt(mean((fitted(best_model) - analysis_data$total_butterflies)^2))
+
+cat("\n## Performance Metrics:\n")
+cat(paste("- R-squared (fitted vs observed):", round(r2_val, 3), "\n"))
+cat(paste("- RMSE:", round(rmse_val, 1), "butterflies\n"))
+cat(paste("- AIC:", round(AIC(best_model), 1), "\n"))
+```
+
+## Next Steps and Recommendations
+
+Based on this exploratory GAM analysis, here are the recommended next steps:
+
+1. **Model Assumptions**: The GAM diagnostic plots should be examined carefully to ensure model assumptions are met.
+
+2. **Threshold Testing**: The smooth function for wind speed can reveal whether there's evidence for a threshold effect around 2 m/s.
+
+3. **Alternative Distributions**: If residual patterns suggest issues, consider zero-inflated models or different distribution families.
+
+4. **Temporal Structure**: Consider adding AR(1) correlation structure if temporal autocorrelation persists in residuals.
+
+5. **Random Effects**: The current model uses fixed effects for view_id. Consider switching to random effects if you want to generalize beyond these specific sites.
+
+6. **Cross-validation**: Implement leave-one-deployment-out cross-validation to test predictive performance.
+
+7. **Effect Sizes**: Focus on biological significance of effects, not just statistical significance.
+
+8. **Mechanistic Models**: Based on GAM results, consider more structured models that incorporate specific hypotheses about wind thresholds.
