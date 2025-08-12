@@ -1,0 +1,6 @@
+Model,AIC,Response
+Relative,282.3046246067944,Relative change
+Categorical,2201.9794777343527,Categorical
+Log_Ratio,2370.6517342376924,Log ratio
+Winsorized,2862.994308290456,Winsorized prop change
+Absolute,NA,Absolute change
