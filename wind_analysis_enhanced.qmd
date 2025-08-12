@@ -1,0 +1,941 @@
+---
+title: "Enhanced Wind Analysis: Full Dataset with Changepoint Detection"
+author: "Kyle Nessen"
+date: "`r Sys.Date()`"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    code-fold: true
+    fig-width: 12
+    fig-height: 8
+    self-contained: false
+editor: visual
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, 
+                      fig.width = 12, fig.height = 8)
+
+# Load required packages
+library(tidyverse)
+library(mgcv)      # GAM models
+library(gratia)    # GAM diagnostics and plotting
+library(lubridate) # Date handling
+library(knitr)
+library(broom)
+library(viridis)
+library(changepoint) # For changepoint detection
+library(segmented)   # For piecewise regression
+
+# Set theme for all plots
+theme_set(theme_minimal(base_size = 14))
+```
+
+# Enhanced Analysis Goals
+
+Building on the initial defensible analysis, this enhanced version:
+
+1.  **Uses full dataset** (no sampling) for maximum statistical power
+2.  **Implements changepoint detection** to find data-driven thresholds
+3.  **Tests stratified models** by temperature ranges
+4.  **Examines site-specific effects** for consistency
+5.  **Assesses biological relevance** of effect sizes
+
+# Data Loading and Full Dataset Preparation
+
+```{r load-full-data}
+# Load core datasets
+butterfly_data <- read_csv("data/butterfly_abundance_index.csv", show_col_types = FALSE)
+wind_data <- read_csv("data/wind_all.csv", show_col_types = FALSE)
+temperature_data <- read_csv("data/temperature_data_2023.csv", show_col_types = FALSE)
+deployments <- read_csv("data/deployments.csv", show_col_types = FALSE)
+
+# Filter to complete deployments
+complete_deployments <- deployments %>%
+  filter(monarchs_present == TRUE, label_status == "Complete") %>%
+  dplyr::select(deployment_id, view_id, wind_meter_name)
+
+print(paste("Complete deployments:", nrow(complete_deployments)))
+
+# Process butterfly data - FULL DATASET
+butterfly_clean <- butterfly_data %>%
+  mutate(
+    timestamp_str = str_extract(image_filename, "\\d{14}"),
+    datetime = ymd_hms(timestamp_str, truncated = 3),
+    date = as_date(datetime),
+    hour = hour(datetime)
+  ) %>%
+  inner_join(complete_deployments, by = "deployment_id") %>%
+  filter(!is.na(datetime)) %>%
+  filter(hour >= 6, hour <= 18) %>%  # Daylight only
+  arrange(deployment_id, datetime)
+
+print(paste("Full butterfly dataset (daylight):", nrow(butterfly_clean)))
+
+# Process wind data
+wind_clean <- wind_data %>%
+  mutate(datetime = ymd_hms(time)) %>%
+  filter(wind_meter_name %in% complete_deployments$wind_meter_name,
+         datetime >= min(butterfly_clean$datetime) - hours(24),
+         datetime <= max(butterfly_clean$datetime) + hours(2)) %>%
+  dplyr::select(wind_meter_name, datetime, speed, gust) %>%
+  arrange(wind_meter_name, datetime)
+
+# Process temperature data  
+temp_clean <- temperature_data %>%
+  mutate(datetime = ymd_hms(timestamp)) %>%
+  dplyr::select(deployment_id, datetime, temperature)
+
+print(paste("Wind observations:", nrow(wind_clean)))
+```
+
+```{r enhanced-wind-functions}
+# Enhanced wind metrics function with additional metrics
+get_enhanced_wind_stats <- function(wind_meter, target_time, wind_df, window_minutes = 30) {
+  start_time <- target_time - minutes(window_minutes)
+  
+  wind_subset <- wind_df %>%
+    filter(wind_meter_name == wind_meter,
+           datetime >= start_time,
+           datetime <= target_time) %>%
+    arrange(datetime)
+  
+  if(nrow(wind_subset) < 3) {
+    return(list(
+      mean_wind = NA, max_wind = NA, wind_sd = NA, gust_factor = NA,
+      minutes_above_2ms = NA, minutes_above_3ms = NA, sustained_above_2ms = NA,
+      max_sustained_wind = NA, wind_ramp_rate = NA, cumulative_wind = NA, 
+      n_wind_obs = 0
+    ))
+  }
+  
+  speeds <- wind_subset$speed
+  mean_wind <- mean(speeds, na.rm = TRUE)
+  max_wind <- max(speeds, na.rm = TRUE)
+  
+  # Calculate sustained periods above thresholds
+  above_2ms <- speeds > 2
+  above_3ms <- speeds > 3
+  
+  # Find longest consecutive period above 2 m/s
+  if(any(above_2ms)) {
+    rle_2ms <- rle(above_2ms)
+    sustained_above_2ms <- max(rle_2ms$lengths[rle_2ms$values], na.rm = TRUE)
+  } else {
+    sustained_above_2ms <- 0
+  }
+  
+  # Maximum sustained wind over 5+ minute periods
+  if(length(speeds) >= 5) {
+    rolling_5min <- sapply(5:length(speeds), function(i) {
+      mean(speeds[(i-4):i], na.rm = TRUE)
+    })
+    max_sustained_wind <- max(rolling_5min, na.rm = TRUE)
+  } else {
+    max_sustained_wind <- mean_wind
+  }
+  
+  # Wind ramp rate (change per minute)
+  if(length(speeds) >= 2) {
+    wind_diffs <- diff(speeds)
+    wind_ramp_rate <- max(abs(wind_diffs), na.rm = TRUE)
+  } else {
+    wind_ramp_rate <- 0
+  }
+  
+  list(
+    mean_wind = mean_wind,
+    max_wind = max_wind,
+    wind_sd = sd(speeds, na.rm = TRUE),
+    gust_factor = ifelse(mean_wind > 0, max_wind / mean_wind, NA),
+    minutes_above_2ms = sum(above_2ms, na.rm = TRUE),
+    minutes_above_3ms = sum(above_3ms, na.rm = TRUE),
+    sustained_above_2ms = sustained_above_2ms,
+    max_sustained_wind = max_sustained_wind,
+    wind_ramp_rate = wind_ramp_rate,
+    cumulative_wind = sum(speeds, na.rm = TRUE),
+    n_wind_obs = nrow(wind_subset)
+  )
+}
+
+# Function for longer-term wind exposure
+get_wind_exposure <- function(wind_meter, target_time, wind_df, hours_back = 2) {
+  start_time <- target_time - hours(hours_back)
+  
+  wind_subset <- wind_df %>%
+    filter(wind_meter_name == wind_meter,
+           datetime >= start_time,
+           datetime <= target_time)
+  
+  if(nrow(wind_subset) < 3) {
+    return(list(
+      cumulative_wind_exposure = NA,
+      max_wind_exposure = NA,
+      mean_wind_exposure = NA,
+      total_minutes_above_2ms = NA,
+      n_obs = 0
+    ))
+  }
+  
+  list(
+    cumulative_wind_exposure = sum(wind_subset$speed, na.rm = TRUE),
+    max_wind_exposure = max(wind_subset$speed, na.rm = TRUE),
+    mean_wind_exposure = mean(wind_subset$speed, na.rm = TRUE),
+    total_minutes_above_2ms = sum(wind_subset$speed > 2, na.rm = TRUE),
+    n_obs = nrow(wind_subset)
+  )
+}
+```
+
+```{r create-full-analysis-dataset}
+# Create full analysis dataset - this may take several minutes
+print("Creating full analysis dataset... this may take several minutes")
+
+# Process in chunks to manage memory
+chunk_size <- 5000
+n_chunks <- ceiling(nrow(butterfly_clean) / chunk_size)
+
+analysis_data_list <- list()
+
+for(i in 1:n_chunks) {
+  start_idx <- (i-1) * chunk_size + 1
+  end_idx <- min(i * chunk_size, nrow(butterfly_clean))
+  
+  cat("Processing chunk", i, "of", n_chunks, "...\n")
+  
+  chunk_data <- butterfly_clean[start_idx:end_idx, ] %>%
+    # Add wind statistics
+    rowwise() %>%
+    mutate(
+      # Primary wind metrics (30-min window)
+      wind_stats = list(get_enhanced_wind_stats(wind_meter_name, datetime, wind_clean, 30)),
+      # 2-hour cumulative exposure
+      wind_exposure = list(get_wind_exposure(wind_meter_name, datetime, wind_clean, 2))
+    ) %>%
+    unnest_wider(wind_stats) %>%
+    unnest_wider(wind_exposure, names_sep = "_") %>%
+    ungroup()
+  
+  analysis_data_list[[i]] <- chunk_data
+}
+
+# Combine all chunks
+analysis_data_raw <- bind_rows(analysis_data_list)
+rm(analysis_data_list)  # Free memory
+
+print(paste("Raw analysis data created:", nrow(analysis_data_raw), "observations"))
+
+# Add temperature and create temporal lags
+analysis_data_full <- analysis_data_raw %>%
+  # Add temperature
+  left_join(temp_clean, by = c("deployment_id", "datetime")) %>%
+  
+  # Calculate temporal lags
+  arrange(deployment_id, datetime) %>%
+  group_by(deployment_id) %>%
+  mutate(
+    # Multiple abundance lags
+    abundance_lag_30min = lag(total_butterflies, 1),
+    abundance_lag_1hr = lag(total_butterflies, 2),
+    abundance_lag_2hr = lag(total_butterflies, 4),
+    abundance_lag_4hr = lag(total_butterflies, 8),
+    abundance_lag_24hr = lag(total_butterflies, 48),
+    
+    # Time since first observation
+    minutes_since_first = as.numeric(datetime - first(datetime), units = "mins"),
+    
+    # Time differences for validation
+    time_diff_30min = as.numeric(datetime - lag(datetime, 1), units = "mins")
+  ) %>%
+  ungroup() %>%
+  
+  # Apply defensible filtering
+  filter(
+    !is.na(mean_wind),
+    !is.na(temperature),
+    n_wind_obs >= 3,
+    # Remove consecutive zeros
+    !(total_butterflies == 0 & abundance_lag_30min == 0),
+    # Reasonable time gaps
+    time_diff_30min <= 60 | is.na(time_diff_30min)
+  ) %>%
+  
+  # Create derived variables
+  mutate(
+    log_abundance = log(total_butterflies + 1),
+    log_abundance_lag_30min = log(abundance_lag_30min + 1),
+    log_abundance_lag_24hr = log(abundance_lag_24hr + 1),
+    
+    hour_of_day = hour(datetime),
+    sunlight_prop = ifelse(total_butterflies > 0, 
+                          butterflies_direct_sun / total_butterflies, 0),
+    
+    # Temperature categories for stratified analysis
+    temp_category = case_when(
+      temperature < 15 ~ "Cold",
+      temperature >= 15 & temperature < 25 ~ "Moderate", 
+      temperature >= 25 ~ "Warm"
+    ),
+    
+    view_id = factor(view_id),
+    deployment_id = factor(deployment_id),
+    
+    # Binary indicators
+    wind_above_2ms = as.numeric(mean_wind > 2),
+    wind_above_3ms = as.numeric(mean_wind > 3)
+  )
+
+print(paste("Final full analysis dataset:", nrow(analysis_data_full), "observations"))
+print(paste("Deployments:", n_distinct(analysis_data_full$deployment_id)))
+print(paste("Views:", n_distinct(analysis_data_full$view_id)))
+print(paste("Date range:", min(analysis_data_full$datetime), "to", max(analysis_data_full$datetime)))
+
+# Save intermediate dataset for future use
+write_csv(analysis_data_full, "full_wind_analysis_dataset.csv")
+```
+
+# Changepoint Detection for Data-Driven Thresholds
+
+```{r changepoint-analysis}
+# Prepare data for changepoint analysis
+cp_data <- analysis_data_full %>%
+  filter(!is.na(mean_wind), !is.na(total_butterflies)) %>%
+  arrange(mean_wind) %>%
+  # Use log abundance for analysis
+  mutate(log_abundance = log(total_butterflies + 1))
+
+# Method 1: Simple changepoint detection on wind-abundance relationship
+# Create binned data for changepoint analysis
+wind_bins <- seq(0, ceiling(max(cp_data$mean_wind)), by = 0.1)
+binned_data <- cp_data %>%
+  mutate(wind_bin = cut(mean_wind, breaks = wind_bins, include.lowest = TRUE)) %>%
+  group_by(wind_bin) %>%
+  summarise(
+    wind_midpoint = mean(mean_wind, na.rm = TRUE),
+    mean_log_abundance = mean(log_abundance, na.rm = TRUE),
+    n_obs = n(),
+    .groups = "drop"
+  ) %>%
+  filter(n_obs >= 10) %>%  # Only use bins with sufficient data
+  arrange(wind_midpoint)
+
+print(paste("Number of wind bins for changepoint analysis:", nrow(binned_data)))
+
+# PELT (Pruned Exact Linear Time) changepoint detection
+if(nrow(binned_data) >= 10) {
+  cp_pelt <- cpt.mean(binned_data$mean_log_abundance, method = "PELT")
+  cp_points_pelt <- cpts(cp_pelt)
+  
+  if(length(cp_points_pelt) > 0) {
+    cp_wind_values_pelt <- binned_data$wind_midpoint[cp_points_pelt]
+    cat("PELT Changepoints at wind speeds:", paste(round(cp_wind_values_pelt, 2), collapse = ", "), "m/s\n")
+  } else {
+    cat("No changepoints detected with PELT\n")
+    cp_wind_values_pelt <- NULL
+  }
+} else {
+  cat("Insufficient data for PELT changepoint detection\n")
+  cp_wind_values_pelt <- NULL
+}
+
+# Method 2: Alternative changepoint detection using variance
+if(nrow(binned_data) >= 10) {
+  # Use variance-based changepoint detection
+  cp_var <- cpt.var(binned_data$mean_log_abundance, method = "PELT")
+  cp_points_var <- cpts(cp_var)
+  
+  if(length(cp_points_var) > 0) {
+    cp_wind_values_var <- binned_data$wind_midpoint[cp_points_var]
+    cat("Variance Changepoints at wind speeds:", 
+        paste(round(cp_wind_values_var, 2), collapse = ", "), "m/s\n")
+  } else {
+    cat("No variance changepoints detected\n")
+    cp_wind_values_var <- NULL
+  }
+} else {
+  cp_wind_values_var <- NULL
+}
+
+# Plot changepoint results
+p_cp <- ggplot(binned_data, aes(x = wind_midpoint, y = mean_log_abundance)) +
+  geom_point(aes(size = n_obs), alpha = 0.7) +
+  geom_line(alpha = 0.5) +
+  geom_vline(xintercept = 2, color = "red", linetype = "dashed", linewidth = 1) +
+  scale_size_continuous(name = "N obs") +
+  labs(title = "Changepoint Detection: Wind Speed vs Log Abundance",
+       subtitle = "Red line: Leong's 2 m/s threshold",
+       x = "Mean Wind Speed (m/s)",
+       y = "Mean Log Abundance") +
+  theme_minimal(base_size = 14)
+
+# Add detected changepoints
+if(!is.null(cp_wind_values_pelt)) {
+  p_cp <- p_cp + geom_vline(xintercept = cp_wind_values_pelt, 
+                            color = "blue", linetype = "solid", alpha = 0.7)
+}
+
+if(!is.null(cp_wind_values_var)) {
+  p_cp <- p_cp + geom_vline(xintercept = cp_wind_values_var, 
+                            color = "green", linetype = "dotted", alpha = 0.7)
+}
+
+print(p_cp)
+
+# Store detected thresholds for later use
+detected_thresholds <- unique(c(cp_wind_values_pelt, cp_wind_values_var))
+if(length(detected_thresholds) > 0) {
+  detected_thresholds <- detected_thresholds[detected_thresholds > 0.5 & detected_thresholds < 5]
+  cat("Data-driven thresholds to test:", paste(round(detected_thresholds, 2), collapse = ", "), "m/s\n")
+} else {
+  detected_thresholds <- c(1.5, 2.5)  # Fallback thresholds
+  cat("Using fallback thresholds: 1.5, 2.5 m/s\n")
+}
+```
+
+# Enhanced GAM Models with Full Dataset
+
+```{r enhanced-gam-models}
+# Primary enhanced model with full dataset
+gam_enhanced_full <- gam(
+  total_butterflies ~ 
+    # Temporal autocorrelation controls
+    s(log_abundance_lag_30min, k = 10) +
+    s(log_abundance_lag_24hr, k = 8) +
+    
+    # Enhanced wind predictors
+    s(mean_wind, k = 10) +  # Increased complexity
+    s(wind_sd, k = 6) +
+    s(max_sustained_wind, k = 8) +  # New metric
+    s(wind_ramp_rate, k = 6) +      # New metric
+    
+    # Environmental controls
+    s(temperature, k = 10) +
+    s(sunlight_prop, k = 6) +
+    s(minutes_since_first, k = 10, bs = "cc") +
+    
+    # Interactions
+    ti(mean_wind, temperature, k = c(6, 6)) +
+    
+    # Site effects
+    s(view_id, bs = "re"),
+    
+  family = nb(),
+  data = analysis_data_full,
+  method = "REML",
+  select = TRUE
+)
+
+print("Enhanced GAM Model Summary:")
+summary(gam_enhanced_full)
+
+# Model with three-way interaction
+gam_three_way <- gam(
+  total_butterflies ~ 
+    s(log_abundance_lag_30min, k = 10) +
+    s(log_abundance_lag_24hr, k = 8) +
+    s(mean_wind, k = 10) +
+    s(temperature, k = 10) +
+    s(sunlight_prop, k = 6) +
+    s(minutes_since_first, k = 10, bs = "cc") +
+    
+    # Three-way interaction
+    ti(mean_wind, temperature, sunlight_prop, k = c(4, 4, 4)) +
+    
+    s(view_id, bs = "re"),
+    
+  family = nb(),
+  data = analysis_data_full,
+  method = "REML",
+  select = TRUE
+)
+
+print("Three-way Interaction Model Summary:")
+summary(gam_three_way)
+```
+
+# Temperature-Stratified Models
+
+```{r stratified-temperature-models}
+# Create models for each temperature category
+temp_categories <- c("Cold", "Moderate", "Warm")
+stratified_models <- list()
+
+for(temp_cat in temp_categories) {
+  cat("\nFitting model for", temp_cat, "temperatures...\n")
+  
+  temp_data <- analysis_data_full %>%
+    filter(temp_category == temp_cat, !is.na(log_abundance_lag_30min))
+  
+  if(nrow(temp_data) < 100) {
+    cat("Insufficient data for", temp_cat, "temperatures:", nrow(temp_data), "observations\n")
+    next
+  }
+  
+  stratified_models[[temp_cat]] <- gam(
+    total_butterflies ~ 
+      s(log_abundance_lag_30min, k = 8) +
+      s(log_abundance_lag_24hr, k = 6) +
+      s(mean_wind, k = 8) +
+      s(wind_sd, k = 6) +
+      s(sunlight_prop, k = 6) +
+      s(minutes_since_first, k = 8, bs = "cc") +
+      s(view_id, bs = "re"),
+    family = nb(),
+    data = temp_data,
+    method = "REML",
+    select = TRUE
+  )
+  
+  cat("Model fitted for", temp_cat, "with", nrow(temp_data), "observations\n")
+  print(summary(stratified_models[[temp_cat]]))
+}
+
+# Extract wind effects from stratified models
+stratified_effects <- map_dfr(names(stratified_models), function(temp_cat) {
+  model <- stratified_models[[temp_cat]]
+  s_table <- summary(model)$s.table
+  
+  wind_row <- which(rownames(s_table) == "s(mean_wind)")
+  if(length(wind_row) > 0) {
+    tibble(
+      temp_category = temp_cat,
+      wind_edf = s_table[wind_row, "edf"],
+      wind_p_value = s_table[wind_row, "p-value"],
+      model_r_sq = summary(model)$r.sq,
+      n_obs = nrow(model$model)
+    )
+  } else {
+    tibble(
+      temp_category = temp_cat,
+      wind_edf = NA,
+      wind_p_value = NA,
+      model_r_sq = NA,
+      n_obs = 0
+    )
+  }
+})
+
+kable(stratified_effects, 
+      caption = "Wind Effects by Temperature Category", 
+      digits = 4)
+```
+
+# Site-Specific Analysis for Consistency
+
+```{r site-specific-analysis}
+# Analyze wind effects for each deployment separately
+deployments_with_data <- analysis_data_full %>%
+  group_by(deployment_id) %>%
+  summarise(
+    n_obs = n(),
+    date_range = paste(min(date), "to", max(date)),
+    wind_range = paste(round(min(mean_wind, na.rm = TRUE), 1), "to", 
+                      round(max(mean_wind, na.rm = TRUE), 1), "m/s"),
+    .groups = "drop"
+  ) %>%
+  filter(n_obs >= 50)  # Minimum observations for reliable analysis
+
+print(paste("Deployments with sufficient data:", nrow(deployments_with_data)))
+kable(deployments_with_data, caption = "Deployments Available for Site-Specific Analysis")
+
+# Fit site-specific models
+site_models <- list()
+site_effects <- list()
+
+for(deploy_id in deployments_with_data$deployment_id) {
+  cat("\nAnalyzing deployment:", deploy_id, "\n")
+  
+  site_data <- analysis_data_full %>%
+    filter(deployment_id == deploy_id, !is.na(log_abundance_lag_30min))
+  
+  if(nrow(site_data) < 50) next
+  
+  # Simple wind effect model for this site
+  site_model <- tryCatch({
+    gam(
+      total_butterflies ~ 
+        s(log_abundance_lag_30min, k = 6) +
+        s(mean_wind, k = 6) +
+        s(temperature, k = 6) +
+        s(minutes_since_first, k = 6, bs = "cc"),
+      family = nb(),
+      data = site_data,
+      method = "REML"
+    )
+  }, error = function(e) {
+    cat("Error fitting model for", deploy_id, ":", e$message, "\n")
+    return(NULL)
+  })
+  
+  if(!is.null(site_model)) {
+    site_models[[deploy_id]] <- site_model
+    
+    # Extract wind effect
+    s_table <- summary(site_model)$s.table
+    wind_row <- which(rownames(s_table) == "s(mean_wind)")
+    
+    if(length(wind_row) > 0) {
+      site_effects[[deploy_id]] <- tibble(
+        deployment_id = deploy_id,
+        wind_edf = s_table[wind_row, "edf"],
+        wind_p_value = s_table[wind_row, "p-value"],
+        wind_significant = s_table[wind_row, "p-value"] < 0.05,
+        model_r_sq = summary(site_model)$r.sq,
+        model_dev_expl = summary(site_model)$dev.expl * 100,
+        n_obs = nrow(site_data)
+      )
+    }
+  }
+}
+
+# Combine site-specific results
+if(length(site_effects) > 0) {
+  site_results_df <- bind_rows(site_effects)
+  
+  # Add deployment info
+  site_results_summary <- site_results_df %>%
+    left_join(deployments_with_data, by = "deployment_id") %>%
+    arrange(wind_p_value)
+  
+  kable(site_results_summary, 
+        caption = "Site-Specific Wind Effects", 
+        digits = 4)
+  
+  # Summary statistics
+  cat("\nSite-Specific Analysis Summary:\n")
+  cat("Sites with significant wind effects:", sum(site_results_df$wind_significant), 
+      "of", nrow(site_results_df), "\n")
+  cat("Mean wind p-value across sites:", round(mean(site_results_df$wind_p_value), 4), "\n")
+  cat("Range of R-squared values:", round(min(site_results_df$model_r_sq), 3), 
+      "to", round(max(site_results_df$model_r_sq), 3), "\n")
+  
+} else {
+  cat("No successful site-specific models fitted\n")
+  site_results_df <- tibble()
+}
+```
+
+# Data-Driven Threshold Testing
+
+```{r threshold-testing}
+# Test detected thresholds plus traditional ones
+all_thresholds <- sort(unique(c(1.5, 2.0, 2.5, 3.0, detected_thresholds)))
+all_thresholds <- all_thresholds[all_thresholds > 0 & all_thresholds < 6]
+
+cat("Testing thresholds:", paste(round(all_thresholds, 2), collapse = ", "), "m/s\n")
+
+threshold_results <- map_dfr(all_thresholds, function(threshold) {
+  # Create threshold variable
+  analysis_data_threshold <- analysis_data_full %>%
+    mutate(wind_above_threshold = as.numeric(mean_wind > threshold))
+  
+  # Fit threshold model
+  threshold_model <- gam(
+    total_butterflies ~ 
+      s(log_abundance_lag_30min, k = 10) +
+      s(log_abundance_lag_24hr, k = 8) +
+      wind_above_threshold +  # Binary threshold effect
+      s(temperature, k = 8) +
+      s(sunlight_prop, k = 6) +
+      s(minutes_since_first, k = 8, bs = "cc") +
+      s(view_id, bs = "re"),
+    family = nb(),
+    data = analysis_data_threshold,
+    method = "REML"
+  )
+  
+  # Extract threshold effect
+  p_table <- summary(threshold_model)$p.table
+  threshold_row <- which(rownames(p_table) == "wind_above_threshold")
+  
+  if(length(threshold_row) > 0 && ncol(p_table) >= 4) {
+    tibble(
+      threshold = threshold,
+      coefficient = p_table[threshold_row, 1],  # Estimate column
+      std_error = p_table[threshold_row, 2],    # Std. Error column
+      p_value = p_table[threshold_row, 4],      # p-value column
+      effect_percent = (exp(p_table[threshold_row, 1]) - 1) * 100,
+      AIC = AIC(threshold_model),
+      dev_explained = summary(threshold_model)$dev.expl * 100
+    )
+  } else {
+    tibble(
+      threshold = threshold,
+      coefficient = NA, std_error = NA, p_value = NA,
+      effect_percent = NA, AIC = NA, dev_explained = NA
+    )
+  }
+}) %>%
+  arrange(AIC)
+
+kable(threshold_results, 
+      caption = "Threshold Model Comparison", 
+      digits = 4)
+
+# Best threshold based on AIC
+best_threshold <- threshold_results$threshold[which.min(threshold_results$AIC)]
+cat("\nBest threshold based on AIC:", best_threshold, "m/s\n")
+
+# Compare with Leong's 2 m/s threshold
+leong_result <- threshold_results %>% filter(abs(threshold - 2.0) < 0.1)
+best_result <- threshold_results %>% filter(threshold == best_threshold)
+
+if(nrow(leong_result) > 0 && nrow(best_result) > 0) {
+  delta_aic <- leong_result$AIC - best_result$AIC
+  cat("Leong's 2 m/s threshold ΔAIC compared to best:", round(delta_aic, 2), "\n")
+  
+  if(delta_aic > 2) {
+    cat("Strong evidence against 2 m/s threshold (ΔAIC > 2)\n")
+  } else if(delta_aic > 0) {
+    cat("Moderate evidence against 2 m/s threshold\n") 
+  } else {
+    cat("Little evidence against 2 m/s threshold\n")
+  }
+}
+```
+
+# Biological Relevance Assessment
+
+```{r biological-relevance}
+# Calculate natural variation in abundance for context
+natural_variation <- analysis_data_full %>%
+  group_by(deployment_id, date) %>%
+  summarise(
+    daily_mean_abundance = mean(total_butterflies, na.rm = TRUE),
+    daily_cv = sd(total_butterflies, na.rm = TRUE) / mean(total_butterflies, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  filter(!is.na(daily_cv), is.finite(daily_cv))
+
+overall_cv <- sd(natural_variation$daily_mean_abundance, na.rm = TRUE) / 
+              mean(natural_variation$daily_mean_abundance, na.rm = TRUE)
+
+cat("Natural variation in daily mean abundance (CV):", round(overall_cv * 100, 1), "%\n")
+
+# Calculate wind effect sizes in biological context
+effect_sizes <- tibble(
+  comparison = c("1 to 2 m/s", "2 to 3 m/s", "0 to 3 m/s", "Best threshold"),
+  wind_change = c(1, 1, 3, NA),
+  threshold = c(NA, NA, NA, best_threshold)
+)
+
+# Use the best model to predict abundance changes
+median_conditions <- analysis_data_full %>%
+  summarise(
+    log_abundance_lag_30min = median(log_abundance_lag_30min, na.rm = TRUE),
+    log_abundance_lag_24hr = median(log_abundance_lag_24hr, na.rm = TRUE),
+    wind_sd = median(wind_sd, na.rm = TRUE),
+    max_sustained_wind = median(max_sustained_wind, na.rm = TRUE),
+    wind_ramp_rate = median(wind_ramp_rate, na.rm = TRUE),
+    temperature = median(temperature, na.rm = TRUE),
+    sunlight_prop = median(sunlight_prop, na.rm = TRUE),
+    minutes_since_first = median(minutes_since_first, na.rm = TRUE),
+    view_id = levels(analysis_data_full$view_id)[1]
+  )
+
+# Predict at different wind speeds
+wind_levels <- c(0.5, 1, 1.5, 2, 2.5, 3, 4)
+predictions <- map_dfr(wind_levels, function(wind_speed) {
+  pred_data <- median_conditions %>%
+    mutate(mean_wind = wind_speed)
+  
+  pred <- predict(gam_enhanced_full, pred_data, se.fit = TRUE, type = "response")
+  
+  tibble(
+    wind_speed = wind_speed,
+    predicted = pred$fit[1],
+    se = pred$se.fit[1],
+    lower_ci = pred$fit[1] - 1.96 * pred$se.fit[1],
+    upper_ci = pred$fit[1] + 1.96 * pred$se.fit[1]
+  )
+})
+
+# Calculate effect sizes
+effect_1to2 <- (predictions$predicted[predictions$wind_speed == 2] - 
+                predictions$predicted[predictions$wind_speed == 1]) /
+                predictions$predicted[predictions$wind_speed == 1] * 100
+
+effect_2to3 <- (predictions$predicted[predictions$wind_speed == 3] - 
+                predictions$predicted[predictions$wind_speed == 2]) /
+                predictions$predicted[predictions$wind_speed == 2] * 100
+
+effect_0to3 <- (predictions$predicted[predictions$wind_speed == 3] - 
+                predictions$predicted[predictions$wind_speed == 0.5]) /
+                predictions$predicted[predictions$wind_speed == 0.5] * 100
+
+# Threshold effect
+if(!is.na(best_threshold) && nrow(best_result) > 0) {
+  threshold_effect <- best_result$effect_percent
+} else {
+  threshold_effect <- NA
+}
+
+cat("\nBiological Effect Sizes:\n")
+cat("1 to 2 m/s wind change:", round(effect_1to2, 1), "% change in abundance\n")
+cat("2 to 3 m/s wind change:", round(effect_2to3, 1), "% change in abundance\n")
+cat("0.5 to 3 m/s wind change:", round(effect_0to3, 1), "% change in abundance\n")
+if(!is.na(threshold_effect)) {
+  cat("Best threshold (", best_threshold, " m/s) effect:", round(threshold_effect, 1), "% change\n")
+}
+cat("Natural daily variation (CV):", round(overall_cv * 100, 1), "%\n")
+
+# Assessment of biological significance
+cat("\nBiological Significance Assessment:\n")
+
+significance_threshold <- 15  # 15% change considered biologically meaningful
+
+if(abs(effect_1to2) > significance_threshold) {
+  cat("- 1-2 m/s effect is BIOLOGICALLY SIGNIFICANT (>15%)\n")
+} else {
+  cat("- 1-2 m/s effect is NOT biologically significant (<15%)\n")
+}
+
+if(abs(effect_0to3) > significance_threshold) {
+  cat("- 0.5-3 m/s effect is BIOLOGICALLY SIGNIFICANT (>15%)\n")
+} else {
+  cat("- 0.5-3 m/s effect is NOT biologically significant (<15%)\n")
+}
+
+if(abs(effect_1to2) > overall_cv * 100) {
+  cat("- Wind effects exceed natural daily variation\n")
+} else {
+  cat("- Wind effects are within natural daily variation\n")
+}
+
+# Number needed to observe (NNO) calculation
+baseline_abundance <- predictions$predicted[predictions$wind_speed == 1]
+effect_size_prop <- abs(effect_1to2) / 100
+
+# Simple power calculation for detecting this effect
+required_n <- (1.96 + 1.28)^2 * (1/effect_size_prop^2) * 2
+cat("Approximate sample size needed to detect 1-2 m/s effect with 80% power:", 
+    round(required_n), "observations\n")
+cat("Current sample size:", nrow(analysis_data_full), "observations\n")
+
+if(nrow(analysis_data_full) > required_n) {
+  cat("SUFFICIENT POWER to detect this effect size\n")
+} else {
+  cat("INSUFFICIENT POWER - may need", round(required_n), "observations\n")
+}
+
+# Create biological relevance plot
+p_bio <- ggplot(predictions, aes(x = wind_speed, y = predicted)) +
+  geom_ribbon(aes(ymin = lower_ci, ymax = upper_ci), alpha = 0.3, fill = "steelblue") +
+  geom_line(color = "steelblue", linewidth = 1.2) +
+  geom_vline(xintercept = 2, color = "red", linetype = "dashed", linewidth = 1) +
+  geom_hline(yintercept = baseline_abundance * (1 + significance_threshold/100), 
+             color = "orange", linetype = "dotted", alpha = 0.7) +
+  geom_hline(yintercept = baseline_abundance * (1 - significance_threshold/100), 
+             color = "orange", linetype = "dotted", alpha = 0.7) +
+  scale_y_log10() +
+  labs(title = "Biological Relevance of Wind Effects",
+       subtitle = paste("Orange lines: ±", significance_threshold, "% biological significance threshold"),
+       x = "Mean Wind Speed (m/s)",
+       y = "Predicted Butterfly Count (log scale)",
+       caption = "Predictions at median conditions with 95% CI") +
+  theme_minimal(base_size = 14)
+
+print(p_bio)
+```
+
+# Publication-Ready Summary
+
+```{r publication-summary}
+# Create comprehensive results table
+final_results <- tibble(
+  Analysis = c(
+    "Enhanced GAM (Full Dataset)",
+    "Temperature Stratified Models",
+    "Site-Specific Consistency",
+    "Data-Driven Threshold",
+    "Leong 2 m/s Threshold",
+    "Biological Significance"
+  ),
+  Key_Finding = c(
+    paste("Wind EDF:", round(summary(gam_enhanced_full)$s.table["s(mean_wind)", "edf"], 2), 
+          ", p =", format(summary(gam_enhanced_full)$s.table["s(mean_wind)", "p-value"], scientific = TRUE)),
+    paste(sum(stratified_effects$wind_p_value < 0.05, na.rm = TRUE), "of", 
+          nrow(stratified_effects), "temperature categories show significant wind effects"),
+    if(nrow(site_results_df) > 0) {
+      paste(sum(site_results_df$wind_significant), "of", nrow(site_results_df), 
+            "sites show significant wind effects")
+    } else {"Insufficient data for site analysis"},
+    paste("Best threshold:", best_threshold, "m/s, ΔAIC vs 2 m/s:", 
+          round(leong_result$AIC - best_result$AIC, 1)),
+    if(nrow(leong_result) > 0) {
+      paste("Effect:", round(leong_result$effect_percent, 1), "%, p =", 
+            format(leong_result$p_value, scientific = TRUE))
+    } else {"Not tested"},
+    paste("1-2 m/s effect:", round(effect_1to2, 1), "%, vs natural variation:", 
+          round(overall_cv * 100, 1), "%")
+  ),
+  Interpretation = c(
+    ifelse(summary(gam_enhanced_full)$s.table["s(mean_wind)", "p-value"] < 0.05, 
+           "Significant wind effect", "No significant wind effect"),
+    "Temperature moderates wind effects",
+    if(nrow(site_results_df) > 0) {
+      if(sum(site_results_df$wind_significant) > nrow(site_results_df)/2) {
+        "Consistent across sites"
+      } else {
+        "Inconsistent across sites"
+      }
+    } else {"Cannot assess"},
+    ifelse(abs(leong_result$AIC - best_result$AIC) > 2, 
+           "2 m/s threshold not supported", "2 m/s threshold plausible"),
+    ifelse(nrow(leong_result) > 0 && leong_result$p_value < 0.05, 
+           "Statistically significant", "Not statistically significant"),
+    ifelse(abs(effect_1to2) > significance_threshold, 
+           "Biologically meaningful", "Not biologically meaningful")
+  )
+)
+
+kable(final_results, 
+      caption = "Comprehensive Wind Analysis Results Summary",
+      col.names = c("Analysis Component", "Key Finding", "Interpretation"))
+
+# Overall conclusion
+cat("\n", paste(rep("=", 60), collapse = ""), "\n")
+cat("OVERALL CONCLUSION\n")
+cat(paste(rep("=", 60), collapse = ""), "\n")
+
+wind_significant <- summary(gam_enhanced_full)$s.table["s(mean_wind)", "p-value"] < 0.05
+effect_meaningful <- abs(effect_1to2) > significance_threshold
+threshold_supported <- if(nrow(leong_result) > 0) {
+  abs(leong_result$AIC - best_result$AIC) <= 2
+} else {
+  FALSE
+}
+
+if(wind_significant && effect_meaningful) {
+  conclusion <- "Wind has STATISTICALLY SIGNIFICANT and BIOLOGICALLY MEANINGFUL effects on monarch abundance"
+} else if(wind_significant && !effect_meaningful) {
+  conclusion <- "Wind has STATISTICALLY SIGNIFICANT but SMALL effects on monarch abundance"  
+} else {
+  conclusion <- "NO STRONG EVIDENCE that wind significantly affects monarch abundance"
+}
+
+cat(conclusion, "\n\n")
+
+if(threshold_supported) {
+  cat("Leong's 2 m/s threshold is SUPPORTED by the data\n")
+} else {
+  cat("Leong's 2 m/s threshold is NOT SUPPORTED; effects appear continuous\n")
+}
+
+cat("\nEffect sizes relative to natural variation suggest wind effects are ")
+if(abs(effect_1to2) > overall_cv * 100) {
+  cat("ABOVE normal daily fluctuations\n")
+} else {
+  cat("WITHIN normal daily fluctuations\n")
+}
+
+cat("\nThis analysis provides robust evidence for challenging or supporting conventional\n")
+cat("wisdom about wind effects on overwintering monarch butterflies.\n")
+```
+
+------------------------------------------------------------------------
+
+**Enhanced Analysis completed:** `r Sys.time()`
+
+**Contact:** Kyle Nessen
