@@ -32,9 +32,7 @@ library(see)       # Enhanced performance plots
 theme_set(theme_minimal(base_size = 14))
 ```
 
-
 # Data Loading and Preparation
-
 
 ```{r load-data}
 # Load data files
@@ -208,9 +206,7 @@ print(paste("View IDs in final dataset:", n_distinct(analysis_data$view_id)))
 print(paste("Date range:", min(analysis_data$date), "to", max(analysis_data$date)))
 ```
 
-
 # Exploratory Data Analysis
-
 
 ```{r eda-summary}
 # Summary statistics
@@ -265,11 +261,9 @@ ggplot(analysis_data, aes(x = mean_wind_speed, y = total_butterflies)) +
   theme(legend.position = "bottom")
 ```
 
-
 # GAM Analysis
 
 ## Model 1: Basic GAM with Smooth Terms
-
 
 ```{r gam-model1}
 # Fit GAM with smooth terms for wind variables
@@ -290,9 +284,7 @@ gam1 <- gam(
 summary(gam1)
 ```
 
-
 ## Model 2: GAM with Interaction Terms
-
 
 ```{r gam-model2}
 # GAM with wind-temperature interaction
@@ -313,9 +305,7 @@ gam2 <- gam(
 summary(gam2)
 ```
 
-
 ## Model 3: Alternative Wind Metrics
-
 
 ```{r gam-model3}
 # Test different wind metrics
@@ -336,9 +326,7 @@ gam3 <- gam(
 summary(gam3)
 ```
 
-
 # Model Comparison and Selection
-
 
 ```{r model-comparison}
 # Compare models using AIC
@@ -365,9 +353,7 @@ best_model_name <- c("GAM1", "GAM2", "GAM3")[which.min(c(AIC(gam1), AIC(gam2), A
 print(paste("Best model:", best_model_name))
 ```
 
-
 # Model Diagnostics
-
 
 ```{r diagnostics-gam}
 # Comprehensive diagnostics for best model
@@ -434,9 +420,7 @@ ggplot(analysis_data_with_resids, aes(x = datetime, y = residuals)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
-
 # Effect Plots and Interpretation
-
 
 ```{r effect-plots}
 # Plot smooth terms from best model
@@ -502,9 +486,7 @@ ggplot(wind_pred_plot, aes(x = mean_wind_speed)) +
   scale_y_log10()
 ```
 
-
 # Results Summary and Next Steps
-
 
 ```{r results-summary}
 # Extract key statistics
@@ -521,9 +503,7 @@ cat(paste("- Number of observations:", nrow(analysis_data), "\n"))
 cat(paste("- Number of deployments:", n_distinct(analysis_data$deployment_id), "\n"))
 ```
 
-
 ## Model Performance Metrics
-
 
 ```{r performance-metrics}
 # Additional performance metrics
@@ -536,23 +516,22 @@ cat(paste("- RMSE:", round(rmse_val, 1), "butterflies\n"))
 cat(paste("- AIC:", round(AIC(best_model), 1), "\n"))
 ```
 
-
 ## Next Steps and Recommendations
 
 Based on this exploratory GAM analysis, here are the recommended next steps:
 
-1. **Model Assumptions**: The GAM diagnostic plots should be examined carefully to ensure model assumptions are met.
+1.  **Model Assumptions**: The GAM diagnostic plots should be examined carefully to ensure model assumptions are met.
 
-2. **Threshold Testing**: The smooth function for wind speed can reveal whether there's evidence for a threshold effect around 2 m/s.
+2.  **Threshold Testing**: The smooth function for wind speed can reveal whether there's evidence for a threshold effect around 2 m/s.
 
-3. **Alternative Distributions**: If residual patterns suggest issues, consider zero-inflated models or different distribution families.
+3.  **Alternative Distributions**: If residual patterns suggest issues, consider zero-inflated models or different distribution families.
 
-4. **Temporal Structure**: Consider adding AR(1) correlation structure if temporal autocorrelation persists in residuals.
+4.  **Temporal Structure**: Consider adding AR(1) correlation structure if temporal autocorrelation persists in residuals.
 
-5. **Random Effects**: The current model uses fixed effects for view_id. Consider switching to random effects if you want to generalize beyond these specific sites.
+5.  **Random Effects**: The current model uses fixed effects for view_id. Consider switching to random effects if you want to generalize beyond these specific sites.
 
-6. **Cross-validation**: Implement leave-one-deployment-out cross-validation to test predictive performance.
+6.  **Cross-validation**: Implement leave-one-deployment-out cross-validation to test predictive performance.
 
-7. **Effect Sizes**: Focus on biological significance of effects, not just statistical significance.
+7.  **Effect Sizes**: Focus on biological significance of effects, not just statistical significance.
 
-8. **Mechanistic Models**: Based on GAM results, consider more structured models that incorporate specific hypotheses about wind thresholds.
+8.  **Mechanistic Models**: Based on GAM results, consider more structured models that incorporate specific hypotheses about wind thresholds.
