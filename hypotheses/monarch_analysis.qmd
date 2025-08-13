@@ -2,12 +2,7 @@
 title: "Monarch Butterfly Abundance Analysis: Wind and Environmental Factors"
 author: "Analysis Report"
 date: "`r Sys.Date()`"
-format: 
-  html:
-    toc: true
-    toc-depth: 3
-    code-fold: false
-    code-tools: true
+format: pdf
 ---
 
 # Monarch Butterfly Abundance Analysis: LLM Implementation
@@ -17,8 +12,7 @@ format:
 ```{r setup, message=FALSE, warning=FALSE}
 library(tidyverse)
 library(lubridate)
-library(mgcv)
-library(lme4)
+library(mgcv)  # for GAM models
 library(corrplot)
 library(knitr)
 ```
@@ -100,7 +94,6 @@ prepare_lag_data <- function(master_df, wind_df, lag_minutes) {
            butterflies_sun_t_minus_1, temperature_t_minus_1)
   
   # Perform sliding window join
-  # First add the expected datetime to df_t_lag
   df_t_lag <- df_t_lag %>%
     mutate(datetime_expected = datetime_t_minus_1 + minutes(lag_minutes))
   
@@ -117,19 +110,54 @@ prepare_lag_data <- function(master_df, wind_df, lag_minutes) {
   
   cat("Valid pairs after filtering:", nrow(final_df), "\n")
   
-  # Calculate interval predictors more efficiently
-  cat("Calculating interval predictors...\n")
+  if(nrow(final_df) == 0) {
+    cat("No valid pairs found, returning empty dataframe\n")
+    return(data.frame())
+  }
   
-  # Function to calculate metrics for each row
-  calculate_metrics <- function(i) {
-    row <- final_df[i, ]
+  # More efficient calculation using data.table-style operations
+  cat("Calculating interval predictors efficiently...\n")
+  
+  # Pre-sort and index the data for faster lookups
+  wind_sorted <- wind_df %>%
+    arrange(wind_meter_name, time) %>%
+    mutate(wind_id = row_number())
+  
+  master_sorted <- master_df %>%
+    arrange(view_id, datetime) %>%
+    mutate(master_id = row_number())
+  
+  # Calculate time delta first (fast operation)
+  final_df <- final_df %>%
+    mutate(time_delta_mins = as.numeric(difftime(datetime, datetime_t_minus_1, units = "mins")))
+  
+  # Batch process by unique combinations to reduce redundant calculations
+  unique_intervals <- final_df %>%
+    select(view_id, wind_meter_name, datetime_t_minus_1, datetime) %>%
+    distinct() %>%
+    mutate(interval_id = row_number())
+  
+  cat("Processing", nrow(unique_intervals), "unique intervals...\n")
+  
+  # Initialize progress tracking
+  pb_intervals <- nrow(unique_intervals)
+  
+  # Calculate metrics for each unique interval
+  interval_metrics <- list()
+  
+  for(i in 1:nrow(unique_intervals)) {
+    if(i %% max(1, floor(pb_intervals/10)) == 0) {
+      cat("Progress:", round(100*i/pb_intervals, 1), "%\n")
+    }
     
-    # Wind metrics
-    wind_subset <- wind_df %>%
+    interval <- unique_intervals[i, ]
+    
+    # Wind metrics for this interval
+    wind_subset <- wind_sorted %>%
       filter(
-        wind_meter_name == row$wind_meter_name,
-        time >= row$datetime_t_minus_1,
-        time <= row$datetime
+        wind_meter_name == interval$wind_meter_name,
+        time >= interval$datetime_t_minus_1,
+        time <= interval$datetime
       )
     
     if (nrow(wind_subset) > 0) {
@@ -150,32 +178,24 @@ prepare_lag_data <- function(master_df, wind_df, lag_minutes) {
       )
     }
     
-    # Temperature metrics
-    temp_subset <- master_df %>%
+    # Temperature and sunlight metrics for this interval
+    temp_subset <- master_sorted %>%
       filter(
-        view_id == row$view_id,
-        datetime >= row$datetime_t_minus_1,
-        datetime <= row$datetime
+        view_id == interval$view_id,
+        datetime >= interval$datetime_t_minus_1,
+        datetime <= interval$datetime
       )
     
     if (nrow(temp_subset) > 0) {
+      # Temperature metrics
       temp_metrics <- list(
         mean_temp = mean(temp_subset$temperature, na.rm = TRUE),
         max_temp = max(temp_subset$temperature, na.rm = TRUE),
         min_temp = min(temp_subset$temperature, na.rm = TRUE),
         sd_temp = sd(temp_subset$temperature, na.rm = TRUE)
       )
-    } else {
-      temp_metrics <- list(
-        mean_temp = NA_real_,
-        max_temp = NA_real_,
-        min_temp = NA_real_,
-        sd_temp = NA_real_
-      )
-    }
-    
-    # Sunlight metrics
-    if (nrow(temp_subset) > 0) {
+      
+      # Sunlight metrics
       total_sun <- sum(temp_subset$butterflies_direct_sun, na.rm = TRUE)
       total_count <- sum(temp_subset$total_butterflies, na.rm = TRUE)
       if (total_count > 0) {
@@ -198,6 +218,12 @@ prepare_lag_data <- function(master_df, wind_df, lag_minutes) {
         )
       }
     } else {
+      temp_metrics <- list(
+        mean_temp = NA_real_,
+        max_temp = NA_real_,
+        min_temp = NA_real_,
+        sd_temp = NA_real_
+      )
       sun_metrics <- list(
         sunlight_proportion = NA_real_,
         max_prop_sunlight = NA_real_,
@@ -206,27 +232,34 @@ prepare_lag_data <- function(master_df, wind_df, lag_minutes) {
       )
     }
     
-    # Time delta
-    time_delta <- as.numeric(difftime(row$datetime, row$datetime_t_minus_1, units = "mins"))
-    
-    # Combine all metrics
-    c(wind_metrics, temp_metrics, sun_metrics, time_delta_mins = time_delta)
+    # Store all metrics for this interval
+    interval_metrics[[i]] <- c(
+      interval_id = interval$interval_id,
+      wind_metrics,
+      temp_metrics,
+      sun_metrics
+    )
   }
   
-  # Apply the function to all rows
-  metrics_list <- lapply(1:nrow(final_df), calculate_metrics)
-  metrics_df <- do.call(rbind, lapply(metrics_list, as.data.frame))
+  # Convert to dataframe
+  cat("Combining results...\n")
+  metrics_df <- do.call(rbind, lapply(interval_metrics, as.data.frame))
   
-  # Combine with original data
-  final_df_with_predictors <- cbind(final_df, metrics_df)
+  # Join back with original data
+  final_df_with_intervals <- final_df %>%
+    left_join(unique_intervals, by = c("view_id", "wind_meter_name", "datetime_t_minus_1", "datetime")) %>%
+    left_join(metrics_df, by = "interval_id") %>%
+    select(-interval_id)
   
   # Remove rows with too many NAs in predictors
-  final_clean <- final_df_with_predictors %>%
+  final_clean <- final_df_with_intervals %>%
     filter(!is.na(mean_wind_speed) & !is.na(mean_temp))
   
   cat("Final dataset rows:", nrow(final_clean), "\n")
-  cat("Time delta range:", round(min(final_clean$time_delta_mins, na.rm = TRUE), 1),
-      "to", round(max(final_clean$time_delta_mins, na.rm = TRUE), 1), "minutes\n")
+  if(nrow(final_clean) > 0) {
+    cat("Time delta range:", round(min(final_clean$time_delta_mins, na.rm = TRUE), 1),
+        "to", round(max(final_clean$time_delta_mins, na.rm = TRUE), 1), "minutes\n")
+  }
   
   return(final_clean)
 }
@@ -250,6 +283,18 @@ glimpse(data_30m)
 
 cat("\n\nData summary:\n")
 summary(data_30m)
+
+# Check for data quality issues
+cat("\n\nData quality checks:\n")
+cat("Total rows:", nrow(data_30m), "\n")
+cat("Complete cases:", sum(complete.cases(data_30m)), "\n")
+cat("Rows with abundance_t_minus_1 > 0:", sum(data_30m$abundance_t_minus_1 > 0, na.rm = TRUE), "\n")
+cat("Rows with total_butterflies > 0:", sum(data_30m$total_butterflies > 0, na.rm = TRUE), "\n")
+cat("Unique view_ids:", length(unique(data_30m$view_id)), "\n")
+
+# Check response variable distribution
+cat("\nResponse variable (total_butterflies) distribution:\n")
+table(data_30m$total_butterflies)
 ```
 
 ```{r collinearity-30min, fig.width=10, fig.height=10}
@@ -311,29 +356,49 @@ for (i in seq_along(model_formulas_30m)) {
   cat("\n### Model", i, ":", model_name, "\n\n")
   
   tryCatch({
-    # Fit GAMM
-    gamm_model <- gamm(
+    # Check data before fitting
+    model_vars <- all.vars(formula)
+    model_data <- data_30m %>%
+      select(all_of(model_vars), view_id) %>%
+      na.omit()
+    
+    cat("Model data dimensions after removing NAs:", nrow(model_data), "x", ncol(model_data), "\n")
+    cat("Variables in model:", paste(model_vars, collapse = ", "), "\n")
+    
+    # Check if we have enough data
+    if(nrow(model_data) < 50) {
+      cat("Warning: Very few observations (", nrow(model_data), ") for this model\n")
+    }
+    
+    # Check for sufficient variation in view_id
+    view_counts <- table(model_data$view_id)
+    cat("View IDs with observations:", length(view_counts), "\n")
+    cat("Min/Max observations per view:", min(view_counts), "/", max(view_counts), "\n")
+    
+    # Fit GAM (simpler and faster than GAMM)
+    gam_model <- gam(
       formula,
       family = nb(),
-      data = data_30m,
-      random = list(view_id = ~1),
-      correlation = corAR1(form = ~ 1 | view_id)
+      data = model_data
     )
     
+    cat("GAM fitted successfully\n")
+    
     # Store model
-    models_30m[[model_name]] <- gamm_model
-    aic_values_30m[model_name] <- AIC(gamm_model$lme)
+    models_30m[[model_name]] <- gam_model
+    aic_values_30m[model_name] <- AIC(gam_model)
     
     # Print summary
     cat("Model Summary:\n")
-    print(summary(gamm_model$gam))
+    print(summary(gam_model))
     
     # Diagnostic plots
     cat("\n\nDiagnostic plots:\n")
-    gam.check(gamm_model$gam)
+    gam.check(gam_model)
     
   }, error = function(e) {
     cat("Error fitting model:", e$message, "\n")
+    cat("This might be due to insufficient data or convergence issues\n")
     aic_values_30m[model_name] <- NA
   })
 }
@@ -367,6 +432,14 @@ glimpse(data_60m)
 
 cat("\n\nData summary:\n")
 summary(data_60m)
+
+# Check for data quality issues
+cat("\n\nData quality checks:\n")
+cat("Total rows:", nrow(data_60m), "\n")
+cat("Complete cases:", sum(complete.cases(data_60m)), "\n")
+cat("Rows with abundance_t_minus_1 > 0:", sum(data_60m$abundance_t_minus_1 > 0, na.rm = TRUE), "\n")
+cat("Rows with total_butterflies > 0:", sum(data_60m$total_butterflies > 0, na.rm = TRUE), "\n")
+cat("Unique view_ids:", length(unique(data_60m$view_id)), "\n")
 ```
 
 ```{r collinearity-60min, fig.width=10, fig.height=10}
@@ -413,26 +486,34 @@ for (i in seq_along(model_formulas_60m)) {
   cat("\n### Model", i, ":", model_name, "\n\n")
   
   tryCatch({
-    # Fit GAMM
-    gamm_model <- gamm(
+    # Check data before fitting
+    model_vars <- all.vars(formula)
+    model_data <- data_60m %>%
+      select(all_of(model_vars), view_id) %>%
+      na.omit()
+    
+    cat("Model data dimensions after removing NAs:", nrow(model_data), "x", ncol(model_data), "\n")
+    
+    # Fit GAM
+    gam_model <- gam(
       formula,
       family = nb(),
-      data = data_60m,
-      random = list(view_id = ~1),
-      correlation = corAR1(form = ~ 1 | view_id)
+      data = model_data
     )
     
+    cat("GAM fitted successfully\n")
+    
     # Store model
-    models_60m[[model_name]] <- gamm_model
-    aic_values_60m[model_name] <- AIC(gamm_model$lme)
+    models_60m[[model_name]] <- gam_model
+    aic_values_60m[model_name] <- AIC(gam_model)
     
     # Print summary
     cat("Model Summary:\n")
-    print(summary(gamm_model$gam))
+    print(summary(gam_model))
     
     # Diagnostic plots
     cat("\n\nDiagnostic plots:\n")
-    gam.check(gamm_model$gam)
+    gam.check(gam_model)
     
   }, error = function(e) {
     cat("Error fitting model:", e$message, "\n")
@@ -469,6 +550,14 @@ glimpse(data_120m)
 
 cat("\n\nData summary:\n")
 summary(data_120m)
+
+# Check for data quality issues
+cat("\n\nData quality checks:\n")
+cat("Total rows:", nrow(data_120m), "\n")
+cat("Complete cases:", sum(complete.cases(data_120m)), "\n")
+cat("Rows with abundance_t_minus_1 > 0:", sum(data_120m$abundance_t_minus_1 > 0, na.rm = TRUE), "\n")
+cat("Rows with total_butterflies > 0:", sum(data_120m$total_butterflies > 0, na.rm = TRUE), "\n")
+cat("Unique view_ids:", length(unique(data_120m$view_id)), "\n")
 ```
 
 ```{r collinearity-120min, fig.width=10, fig.height=10}
@@ -515,26 +604,34 @@ for (i in seq_along(model_formulas_120m)) {
   cat("\n### Model", i, ":", model_name, "\n\n")
   
   tryCatch({
-    # Fit GAMM
-    gamm_model <- gamm(
+    # Check data before fitting
+    model_vars <- all.vars(formula)
+    model_data <- data_120m %>%
+      select(all_of(model_vars), view_id) %>%
+      na.omit()
+    
+    cat("Model data dimensions after removing NAs:", nrow(model_data), "x", ncol(model_data), "\n")
+    
+    # Fit GAM
+    gam_model <- gam(
       formula,
       family = nb(),
-      data = data_120m,
-      random = list(view_id = ~1),
-      correlation = corAR1(form = ~ 1 | view_id)
+      data = model_data
     )
     
+    cat("GAM fitted successfully\n")
+    
     # Store model
-    models_120m[[model_name]] <- gamm_model
-    aic_values_120m[model_name] <- AIC(gamm_model$lme)
+    models_120m[[model_name]] <- gam_model
+    aic_values_120m[model_name] <- AIC(gam_model)
     
     # Print summary
     cat("Model Summary:\n")
-    print(summary(gamm_model$gam))
+    print(summary(gam_model))
     
     # Diagnostic plots
     cat("\n\nDiagnostic plots:\n")
-    gam.check(gamm_model$gam)
+    gam.check(gam_model)
     
   }, error = function(e) {
     cat("Error fitting model:", e$message, "\n")
@@ -571,6 +668,14 @@ glimpse(data_240m)
 
 cat("\n\nData summary:\n")
 summary(data_240m)
+
+# Check for data quality issues
+cat("\n\nData quality checks:\n")
+cat("Total rows:", nrow(data_240m), "\n")
+cat("Complete cases:", sum(complete.cases(data_240m)), "\n")
+cat("Rows with abundance_t_minus_1 > 0:", sum(data_240m$abundance_t_minus_1 > 0, na.rm = TRUE), "\n")
+cat("Rows with total_butterflies > 0:", sum(data_240m$total_butterflies > 0, na.rm = TRUE), "\n")
+cat("Unique view_ids:", length(unique(data_240m$view_id)), "\n")
 ```
 
 ```{r collinearity-240min, fig.width=10, fig.height=10}
@@ -617,26 +722,34 @@ for (i in seq_along(model_formulas_240m)) {
   cat("\n### Model", i, ":", model_name, "\n\n")
   
   tryCatch({
-    # Fit GAMM
-    gamm_model <- gamm(
+    # Check data before fitting
+    model_vars <- all.vars(formula)
+    model_data <- data_240m %>%
+      select(all_of(model_vars), view_id) %>%
+      na.omit()
+    
+    cat("Model data dimensions after removing NAs:", nrow(model_data), "x", ncol(model_data), "\n")
+    
+    # Fit GAM
+    gam_model <- gam(
       formula,
       family = nb(),
-      data = data_240m,
-      random = list(view_id = ~1),
-      correlation = corAR1(form = ~ 1 | view_id)
+      data = model_data
     )
     
+    cat("GAM fitted successfully\n")
+    
     # Store model
-    models_240m[[model_name]] <- gamm_model
-    aic_values_240m[model_name] <- AIC(gamm_model$lme)
+    models_240m[[model_name]] <- gam_model
+    aic_values_240m[model_name] <- AIC(gam_model)
     
     # Print summary
     cat("Model Summary:\n")
-    print(summary(gamm_model$gam))
+    print(summary(gam_model))
     
     # Diagnostic plots
     cat("\n\nDiagnostic plots:\n")
-    gam.check(gamm_model$gam)
+    gam.check(gam_model)
     
   }, error = function(e) {
     cat("Error fitting model:", e$message, "\n")
@@ -828,6 +941,14 @@ glimpse(data_full_day)
 
 cat("\n\nData summary:\n")
 summary(data_full_day)
+
+# Check for data quality issues
+cat("\n\nData quality checks:\n")
+cat("Total rows:", nrow(data_full_day), "\n")
+cat("Complete cases:", sum(complete.cases(data_full_day)), "\n")
+cat("Rows with abundance_t_minus_1 > 0:", sum(data_full_day$abundance_t_minus_1 > 0, na.rm = TRUE), "\n")
+cat("Rows with total_butterflies > 0:", sum(data_full_day$total_butterflies > 0, na.rm = TRUE), "\n")
+cat("Unique view_ids:", length(unique(data_full_day$view_id)), "\n")
 ```
 
 ```{r collinearity-full-day, fig.width=10, fig.height=10}
@@ -874,26 +995,34 @@ for (i in seq_along(model_formulas_full_day)) {
   cat("\n### Model", i, ":", model_name, "\n\n")
   
   tryCatch({
-    # Fit GAMM
-    gamm_model <- gamm(
+    # Check data before fitting
+    model_vars <- all.vars(formula)
+    model_data <- data_full_day %>%
+      select(all_of(model_vars), view_id) %>%
+      na.omit()
+    
+    cat("Model data dimensions after removing NAs:", nrow(model_data), "x", ncol(model_data), "\n")
+    
+    # Fit GAM
+    gam_model <- gam(
       formula,
       family = nb(),
-      data = data_full_day,
-      random = list(view_id = ~1),
-      correlation = corAR1(form = ~ 1 | view_id)
+      data = model_data
     )
     
+    cat("GAM fitted successfully\n")
+    
     # Store model
-    models_full_day[[model_name]] <- gamm_model
-    aic_values_full_day[model_name] <- AIC(gamm_model$lme)
+    models_full_day[[model_name]] <- gam_model
+    aic_values_full_day[model_name] <- AIC(gam_model)
     
     # Print summary
     cat("Model Summary:\n")
-    print(summary(gamm_model$gam))
+    print(summary(gam_model))
     
     # Diagnostic plots
     cat("\n\nDiagnostic plots:\n")
-    gam.check(gamm_model$gam)
+    gam.check(gam_model)
     
   }, error = function(e) {
     cat("Error fitting model:", e$message, "\n")
