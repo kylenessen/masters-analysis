@@ -12,9 +12,10 @@ format: pdf
 ```{r setup, message=FALSE, warning=FALSE}
 library(tidyverse)
 library(lubridate)
-library(mgcv)  # for GAM models
+library(brms)  # for Bayesian GAM models
 library(corrplot)
 library(knitr)
+library(bayesplot)  # for Bayesian diagnostic plots
 ```
 
 ```{r load-data}
@@ -255,6 +256,11 @@ prepare_lag_data <- function(master_df, wind_df, lag_minutes) {
   final_clean <- final_df_with_intervals %>%
     filter(!is.na(mean_wind_speed) & !is.na(mean_temp))
   
+  # CRITICAL: Sort data for brms autocorrelation structure
+  # Data must be sorted by grouping variable (view_id) and then by time (datetime)
+  final_clean <- final_clean %>%
+    arrange(view_id, datetime)
+  
   cat("Final dataset rows:", nrow(final_clean), "\n")
   if(nrow(final_clean) > 0) {
     cat("Time delta range:", round(min(final_clean$time_delta_mins, na.rm = TRUE), 1),
@@ -330,39 +336,114 @@ if (nrow(predictors_30m) > 1) {
 ### Model Fitting (30 minutes)
 
 ```{r models-30min, warning=FALSE, fig.width=8, fig.height=6}
-# Define comprehensive model formulas
+# Define comprehensive Bayesian model formulas for brms
 model_formulas_30m <- list(
   # 1. Baseline Model
-  "1. Baseline" = total_butterflies ~ s(abundance_t_minus_1) + s(view_id, bs = "re"),
+  "1. Baseline" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                       (1 | view_id) + 
+                                       ar(time = datetime, gr = view_id, p = 1)),
   
-  # 2. Single Environmental Factor Models
-  "2a. Wind only" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(view_id, bs = "re"),
-  "2b. Temperature only" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_temp) + s(view_id, bs = "re"),
-  "2c. Sunlight only" = total_butterflies ~ s(abundance_t_minus_1) + s(sunlight_proportion) + s(view_id, bs = "re"),
+  # 2. Single Environmental Factor Models  
+  "2a. Wind only" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                          s(mean_wind_speed) + 
+                                          (1 | view_id) + 
+                                          ar(time = datetime, gr = view_id, p = 1)),
+  "2b. Temperature only" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                                 s(mean_temp) + 
+                                                 (1 | view_id) + 
+                                                 ar(time = datetime, gr = view_id, p = 1)),
+  "2c. Sunlight only" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                              s(sunlight_proportion) + 
+                                              (1 | view_id) + 
+                                              ar(time = datetime, gr = view_id, p = 1)),
   
   # 3. Additive Models (No Interactions)
-  "3a. Wind + Temp" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(view_id, bs = "re"),
-  "3b. Wind + Sunlight" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(sunlight_proportion) + s(view_id, bs = "re"),
-  "3c. Temp + Sunlight" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_temp) + s(sunlight_proportion) + s(view_id, bs = "re"),
-  "3d. All additive" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + s(view_id, bs = "re"),
+  "3a. Wind + Temp" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                            s(mean_wind_speed) + 
+                                            s(mean_temp) + 
+                                            (1 | view_id) + 
+                                            ar(time = datetime, gr = view_id, p = 1)),
+  "3b. Wind + Sunlight" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                                s(mean_wind_speed) + 
+                                                s(sunlight_proportion) + 
+                                                (1 | view_id) + 
+                                                ar(time = datetime, gr = view_id, p = 1)),
+  "3c. Temp + Sunlight" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                                s(mean_temp) + 
+                                                s(sunlight_proportion) + 
+                                                (1 | view_id) + 
+                                                ar(time = datetime, gr = view_id, p = 1)),
+  "3d. All additive" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                             s(mean_wind_speed) + 
+                                             s(mean_temp) + 
+                                             s(sunlight_proportion) + 
+                                             (1 | view_id) + 
+                                             ar(time = datetime, gr = view_id, p = 1)),
   
   # 4. Single Interaction Models
-  "4a. Wind x Temp interaction" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, mean_temp) + s(view_id, bs = "re"),
-  "4b. Wind x Sunlight interaction" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, sunlight_proportion) + s(view_id, bs = "re"),
-  "4c. Temp x Sunlight interaction" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_temp, sunlight_proportion) + s(view_id, bs = "re"),
+  "4a. Wind x Temp interaction" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                                        s(mean_wind_speed) + 
+                                                        s(mean_temp) + 
+                                                        s(sunlight_proportion) + 
+                                                        t2(mean_wind_speed, mean_temp) + 
+                                                        (1 | view_id) + 
+                                                        ar(time = datetime, gr = view_id, p = 1)),
+  "4b. Wind x Sunlight interaction" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                                            s(mean_wind_speed) + 
+                                                            s(mean_temp) + 
+                                                            s(sunlight_proportion) + 
+                                                            t2(mean_wind_speed, sunlight_proportion) + 
+                                                            (1 | view_id) + 
+                                                            ar(time = datetime, gr = view_id, p = 1)),
+  "4c. Temp x Sunlight interaction" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                                            s(mean_wind_speed) + 
+                                                            s(mean_temp) + 
+                                                            s(sunlight_proportion) + 
+                                                            t2(mean_temp, sunlight_proportion) + 
+                                                            (1 | view_id) + 
+                                                            ar(time = datetime, gr = view_id, p = 1)),
   
   # 5. Multiple Interaction Models
-  "5a. Wind x Temp + Wind x Sun" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, mean_temp) + ti(mean_wind_speed, sunlight_proportion) + s(view_id, bs = "re"),
-  "5b. Wind x Temp + Temp x Sun" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, mean_temp) + ti(mean_temp, sunlight_proportion) + s(view_id, bs = "re"),
-  "5c. Wind x Sun + Temp x Sun" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, sunlight_proportion) + ti(mean_temp, sunlight_proportion) + s(view_id, bs = "re"),
+  "5a. Wind x Temp + Wind x Sun" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                                         s(mean_wind_speed) + 
+                                                         s(mean_temp) + 
+                                                         s(sunlight_proportion) + 
+                                                         t2(mean_wind_speed, mean_temp) + 
+                                                         t2(mean_wind_speed, sunlight_proportion) + 
+                                                         (1 | view_id) + 
+                                                         ar(time = datetime, gr = view_id, p = 1)),
+  "5b. Wind x Temp + Temp x Sun" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                                         s(mean_wind_speed) + 
+                                                         s(mean_temp) + 
+                                                         s(sunlight_proportion) + 
+                                                         t2(mean_wind_speed, mean_temp) + 
+                                                         t2(mean_temp, sunlight_proportion) + 
+                                                         (1 | view_id) + 
+                                                         ar(time = datetime, gr = view_id, p = 1)),
+  "5c. Wind x Sun + Temp x Sun" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                                        s(mean_wind_speed) + 
+                                                        s(mean_temp) + 
+                                                        s(sunlight_proportion) + 
+                                                        t2(mean_wind_speed, sunlight_proportion) + 
+                                                        t2(mean_temp, sunlight_proportion) + 
+                                                        (1 | view_id) + 
+                                                        ar(time = datetime, gr = view_id, p = 1)),
   
   # 6. Global Model with All Interactions
-  "6. Global model" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, mean_temp) + ti(mean_wind_speed, sunlight_proportion) + ti(mean_temp, sunlight_proportion) + s(view_id, bs = "re")
+  "6. Global model" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                            s(mean_wind_speed) + 
+                                            s(mean_temp) + 
+                                            s(sunlight_proportion) + 
+                                            t2(mean_wind_speed, mean_temp) + 
+                                            t2(mean_wind_speed, sunlight_proportion) + 
+                                            t2(mean_temp, sunlight_proportion) + 
+                                            (1 | view_id) + 
+                                            ar(time = datetime, gr = view_id, p = 1))
 )
 
 # Storage for results
 models_30m <- list()
-aic_values_30m <- numeric()
+loo_values_30m <- numeric()
 
 # Fit each model
 for (i in seq_along(model_formulas_30m)) {
@@ -371,87 +452,92 @@ for (i in seq_along(model_formulas_30m)) {
   
   cat("\n### Model", i, ":", model_name, "\n\n")
   
-  tryCatch({
-    # Check data before fitting
-    model_vars <- all.vars(formula)
-    model_data <- data_30m %>%
-      select(all_of(model_vars), view_id) %>%
-      na.omit()
+# Check data before fitting
+  model_vars <- all.vars(formula)
+  model_data <- data_30m %>%
+    select(all_of(model_vars), view_id, datetime) %>%  # Include datetime for autocorrelation
+    na.omit() %>%
+    arrange(view_id, datetime)  # Ensure proper sorting
+  
+  cat("Model data dimensions after removing NAs:", nrow(model_data), "x", ncol(model_data), "\n")
+  cat("Variables in model:", paste(model_vars, collapse = ", "), "\n")
+  
+  # Check if we have enough data
+  if(nrow(model_data) < 50) {
+    cat("Warning: Very few observations (", nrow(model_data), ") for this model\n")
+  }
+  
+  # Check for sufficient variation in view_id
+  view_counts <- table(model_data$view_id)
+  cat("View IDs with observations:", length(view_counts), "\n")
+  cat("Min/Max observations per view:", min(view_counts), "/", max(view_counts), "\n")
+  
+  # Fit Bayesian GAM with brms
+  brm_model <- brm(
+    formula,
+    family = negbinomial(),
+    data = model_data,
+    cores = 4,
+    chains = 4,
+    iter = 2000,
+    warmup = 1000,
+    backend = "rstan",  # Use rstan as fallback if cmdstanr not available
+    control = list(adapt_delta = 0.95, max_treedepth = 12),
+    silent = 2,  # Suppress most output for cleaner logs
+    refresh = 0  # Suppress sampling progress
+  )
+  
+  cat("Bayesian GAM fitted successfully\n")
+  
+  # Store model
+  models_30m[[model_name]] <- brm_model
+  
+  # Calculate LOO for model comparison (better than AIC for Bayesian models)
+  loo_result <- loo(brm_model)
+  loo_values_30m[model_name] <- loo_result$estimates["looic", "Estimate"]
+  
+  # Print summary
+  cat("Model Summary:\n")
+  print(summary(brm_model))
+  
+  # Bayesian diagnostic plots
+  cat("\n\nBayesian Diagnostic plots:\n")
+  
+  # Set up for individual plots
+  par(mfrow = c(1, 1), mar = c(4, 4, 2, 1))
+  
+  # Plot 1: Posterior predictive check
+  pp_check(brm_model, ndraws = 50) + 
+    labs(title = paste("Posterior Predictive Check:", model_name))
+  
+  # Plot 2: Trace plots for key parameters
+  plot(brm_model, ask = FALSE)
+  
+  # Plot 3: Residuals vs Fitted (Bayesian version)
+  fitted_vals <- fitted(brm_model)[,"Estimate"]
+  residuals_vals <- residuals(brm_model)[,"Estimate"]
+  plot(fitted_vals, residuals_vals, 
+       xlab = "Fitted values", ylab = "Residuals",
+       main = paste("Residuals vs Fitted:", model_name))
+  abline(h = 0, col = "red", lty = 2)
+  
+  # Plot 4: Q-Q plot of residuals
+  qqnorm(residuals_vals, main = paste("Q-Q Plot:", model_name))
+  qqline(residuals_vals, col = "red")
     
-    cat("Model data dimensions after removing NAs:", nrow(model_data), "x", ncol(model_data), "\n")
-    cat("Variables in model:", paste(model_vars, collapse = ", "), "\n")
-    
-    # Check if we have enough data
-    if(nrow(model_data) < 50) {
-      cat("Warning: Very few observations (", nrow(model_data), ") for this model\n")
-    }
-    
-    # Check for sufficient variation in view_id
-    view_counts <- table(model_data$view_id)
-    cat("View IDs with observations:", length(view_counts), "\n")
-    cat("Min/Max observations per view:", min(view_counts), "/", max(view_counts), "\n")
-    
-    # Fit GAM (simpler and faster than GAMM)
-    gam_model <- gam(
-      formula,
-      family = nb(),
-      data = model_data
-    )
-    
-    cat("GAM fitted successfully\n")
-    
-    # Store model
-    models_30m[[model_name]] <- gam_model
-    aic_values_30m[model_name] <- AIC(gam_model)
-    
-    # Print summary
-    cat("Model Summary:\n")
-    print(summary(gam_model))
-    
-    # Diagnostic plots - individual plots for better visibility in PDF
-    cat("\n\nDiagnostic plots:\n")
-    
-    # Set up for individual plots
-    par(mfrow = c(1, 1), mar = c(4, 4, 2, 1))
-    
-    # Plot 1: Residuals vs Fitted
-    plot(fitted(gam_model), residuals(gam_model), 
-         xlab = "Fitted values", ylab = "Residuals",
-         main = "Residuals vs Fitted")
-    abline(h = 0, col = "red", lty = 2)
-    
-    # Plot 2: Q-Q plot
-    qqnorm(residuals(gam_model))
-    qqline(residuals(gam_model), col = "red")
-    
-    # Plot 3: Scale-Location (if appropriate)
-    plot(fitted(gam_model), sqrt(abs(residuals(gam_model))), 
-         xlab = "Fitted values", ylab = "√|Residuals|",
-         main = "Scale-Location")
-    
-    # Plot 4: Response vs Fitted
-    plot(fitted(gam_model), model_data$total_butterflies,
-         xlab = "Fitted values", ylab = "Observed values",
-         main = "Response vs Fitted")
-    abline(a = 0, b = 1, col = "red", lty = 2)
-    
-  }, error = function(e) {
-    cat("Error fitting model:", e$message, "\n")
-    cat("This might be due to insufficient data or convergence issues\n")
-    aic_values_30m[model_name] <- NA
-  })
 }
 ```
 
 ```{r model-comparison-30min}
-# Model comparison table
+# Model comparison table using LOO-CV
 comparison_30m <- data.frame(
-  Model = names(aic_values_30m),
-  AIC = round(aic_values_30m, 2)
+  Model = names(loo_values_30m),
+  LOO_IC = round(loo_values_30m, 2)
 ) %>%
-  arrange(AIC)
+  arrange(LOO_IC)  # Lower LOO-IC indicates better model
 
 cat("\n### Model Comparison (30-minute lag)\n")
+cat("Using LOO-CV Information Criterion (lower is better)\n")
 kable(comparison_30m)
 ```
 
@@ -510,39 +596,114 @@ if (nrow(predictors_60m) > 1) {
 ### Model Fitting (1 hour)
 
 ```{r models-60min, warning=FALSE, fig.width=8, fig.height=6}
-# Define comprehensive model formulas
+# Define comprehensive Bayesian model formulas for brms
 model_formulas_60m <- list(
   # 1. Baseline Model
-  "1. Baseline" = total_butterflies ~ s(abundance_t_minus_1) + s(view_id, bs = "re"),
+  "1. Baseline" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                       (1 | view_id) + 
+                                       ar(time = datetime, gr = view_id, p = 1)),
   
-  # 2. Single Environmental Factor Models
-  "2a. Wind only" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(view_id, bs = "re"),
-  "2b. Temperature only" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_temp) + s(view_id, bs = "re"),
-  "2c. Sunlight only" = total_butterflies ~ s(abundance_t_minus_1) + s(sunlight_proportion) + s(view_id, bs = "re"),
+  # 2. Single Environmental Factor Models  
+  "2a. Wind only" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                          s(mean_wind_speed) + 
+                                          (1 | view_id) + 
+                                          ar(time = datetime, gr = view_id, p = 1)),
+  "2b. Temperature only" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                                 s(mean_temp) + 
+                                                 (1 | view_id) + 
+                                                 ar(time = datetime, gr = view_id, p = 1)),
+  "2c. Sunlight only" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                              s(sunlight_proportion) + 
+                                              (1 | view_id) + 
+                                              ar(time = datetime, gr = view_id, p = 1)),
   
   # 3. Additive Models (No Interactions)
-  "3a. Wind + Temp" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(view_id, bs = "re"),
-  "3b. Wind + Sunlight" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(sunlight_proportion) + s(view_id, bs = "re"),
-  "3c. Temp + Sunlight" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_temp) + s(sunlight_proportion) + s(view_id, bs = "re"),
-  "3d. All additive" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + s(view_id, bs = "re"),
+  "3a. Wind + Temp" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                            s(mean_wind_speed) + 
+                                            s(mean_temp) + 
+                                            (1 | view_id) + 
+                                            ar(time = datetime, gr = view_id, p = 1)),
+  "3b. Wind + Sunlight" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                                s(mean_wind_speed) + 
+                                                s(sunlight_proportion) + 
+                                                (1 | view_id) + 
+                                                ar(time = datetime, gr = view_id, p = 1)),
+  "3c. Temp + Sunlight" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                                s(mean_temp) + 
+                                                s(sunlight_proportion) + 
+                                                (1 | view_id) + 
+                                                ar(time = datetime, gr = view_id, p = 1)),
+  "3d. All additive" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                             s(mean_wind_speed) + 
+                                             s(mean_temp) + 
+                                             s(sunlight_proportion) + 
+                                             (1 | view_id) + 
+                                             ar(time = datetime, gr = view_id, p = 1)),
   
   # 4. Single Interaction Models
-  "4a. Wind x Temp interaction" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, mean_temp) + s(view_id, bs = "re"),
-  "4b. Wind x Sunlight interaction" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, sunlight_proportion) + s(view_id, bs = "re"),
-  "4c. Temp x Sunlight interaction" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_temp, sunlight_proportion) + s(view_id, bs = "re"),
+  "4a. Wind x Temp interaction" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                                        s(mean_wind_speed) + 
+                                                        s(mean_temp) + 
+                                                        s(sunlight_proportion) + 
+                                                        t2(mean_wind_speed, mean_temp) + 
+                                                        (1 | view_id) + 
+                                                        ar(time = datetime, gr = view_id, p = 1)),
+  "4b. Wind x Sunlight interaction" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                                            s(mean_wind_speed) + 
+                                                            s(mean_temp) + 
+                                                            s(sunlight_proportion) + 
+                                                            t2(mean_wind_speed, sunlight_proportion) + 
+                                                            (1 | view_id) + 
+                                                            ar(time = datetime, gr = view_id, p = 1)),
+  "4c. Temp x Sunlight interaction" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                                            s(mean_wind_speed) + 
+                                                            s(mean_temp) + 
+                                                            s(sunlight_proportion) + 
+                                                            t2(mean_temp, sunlight_proportion) + 
+                                                            (1 | view_id) + 
+                                                            ar(time = datetime, gr = view_id, p = 1)),
   
   # 5. Multiple Interaction Models
-  "5a. Wind x Temp + Wind x Sun" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, mean_temp) + ti(mean_wind_speed, sunlight_proportion) + s(view_id, bs = "re"),
-  "5b. Wind x Temp + Temp x Sun" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, mean_temp) + ti(mean_temp, sunlight_proportion) + s(view_id, bs = "re"),
-  "5c. Wind x Sun + Temp x Sun" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, sunlight_proportion) + ti(mean_temp, sunlight_proportion) + s(view_id, bs = "re"),
+  "5a. Wind x Temp + Wind x Sun" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                                         s(mean_wind_speed) + 
+                                                         s(mean_temp) + 
+                                                         s(sunlight_proportion) + 
+                                                         t2(mean_wind_speed, mean_temp) + 
+                                                         t2(mean_wind_speed, sunlight_proportion) + 
+                                                         (1 | view_id) + 
+                                                         ar(time = datetime, gr = view_id, p = 1)),
+  "5b. Wind x Temp + Temp x Sun" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                                         s(mean_wind_speed) + 
+                                                         s(mean_temp) + 
+                                                         s(sunlight_proportion) + 
+                                                         t2(mean_wind_speed, mean_temp) + 
+                                                         t2(mean_temp, sunlight_proportion) + 
+                                                         (1 | view_id) + 
+                                                         ar(time = datetime, gr = view_id, p = 1)),
+  "5c. Wind x Sun + Temp x Sun" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                                        s(mean_wind_speed) + 
+                                                        s(mean_temp) + 
+                                                        s(sunlight_proportion) + 
+                                                        t2(mean_wind_speed, sunlight_proportion) + 
+                                                        t2(mean_temp, sunlight_proportion) + 
+                                                        (1 | view_id) + 
+                                                        ar(time = datetime, gr = view_id, p = 1)),
   
   # 6. Global Model with All Interactions
-  "6. Global model" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, mean_temp) + ti(mean_wind_speed, sunlight_proportion) + ti(mean_temp, sunlight_proportion) + s(view_id, bs = "re")
+  "6. Global model" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                            s(mean_wind_speed) + 
+                                            s(mean_temp) + 
+                                            s(sunlight_proportion) + 
+                                            t2(mean_wind_speed, mean_temp) + 
+                                            t2(mean_wind_speed, sunlight_proportion) + 
+                                            t2(mean_temp, sunlight_proportion) + 
+                                            (1 | view_id) + 
+                                            ar(time = datetime, gr = view_id, p = 1))
 )
 
 # Storage for results
 models_60m <- list()
-aic_values_60m <- numeric()
+loo_values_60m <- numeric()
 
 # Fit each model
 for (i in seq_along(model_formulas_60m)) {
@@ -555,71 +716,94 @@ for (i in seq_along(model_formulas_60m)) {
     # Check data before fitting
     model_vars <- all.vars(formula)
     model_data <- data_60m %>%
-      select(all_of(model_vars), view_id) %>%
-      na.omit()
+      select(all_of(model_vars), view_id, datetime) %>%  # Include datetime for autocorrelation
+      na.omit() %>%
+      arrange(view_id, datetime)  # Ensure proper sorting
     
     cat("Model data dimensions after removing NAs:", nrow(model_data), "x", ncol(model_data), "\n")
+    cat("Variables in model:", paste(model_vars, collapse = ", "), "\n")
     
-    # Fit GAM
-    gam_model <- gam(
+    # Check if we have enough data
+    if(nrow(model_data) < 50) {
+      cat("Warning: Very few observations (", nrow(model_data), ") for this model\n")
+    }
+    
+    # Check for sufficient variation in view_id
+    view_counts <- table(model_data$view_id)
+    cat("View IDs with observations:", length(view_counts), "\n")
+    cat("Min/Max observations per view:", min(view_counts), "/", max(view_counts), "\n")
+    
+    # Fit Bayesian GAM with brms
+    brm_model <- brm(
       formula,
-      family = nb(),
-      data = model_data
+      family = negbinomial(),
+      data = model_data,
+      cores = 4,
+      chains = 4,
+      iter = 2000,
+      warmup = 1000,
+      backend = "rstan",  # Use rstan as fallback if cmdstanr not available
+      control = list(adapt_delta = 0.95, max_treedepth = 12),
+      silent = 2,  # Suppress most output for cleaner logs
+      refresh = 0  # Suppress sampling progress
     )
     
-    cat("GAM fitted successfully\n")
+    cat("Bayesian GAM fitted successfully\n")
     
     # Store model
-    models_60m[[model_name]] <- gam_model
-    aic_values_60m[model_name] <- AIC(gam_model)
+    models_60m[[model_name]] <- brm_model
+    
+    # Calculate LOO for model comparison (better than AIC for Bayesian models)
+    loo_result <- loo(brm_model)
+    loo_values_60m[model_name] <- loo_result$estimates["looic", "Estimate"]
     
     # Print summary
     cat("Model Summary:\n")
-    print(summary(gam_model))
+    print(summary(brm_model))
     
-    # Diagnostic plots - individual plots for better visibility in PDF
-    cat("\n\nDiagnostic plots:\n")
+    # Bayesian diagnostic plots
+    cat("\n\nBayesian Diagnostic plots:\n")
     
     # Set up for individual plots
     par(mfrow = c(1, 1), mar = c(4, 4, 2, 1))
     
-    # Plot 1: Residuals vs Fitted
-    plot(fitted(gam_model), residuals(gam_model), 
+    # Plot 1: Posterior predictive check
+    pp_check(brm_model, ndraws = 50) + 
+      labs(title = paste("Posterior Predictive Check:", model_name))
+    
+    # Plot 2: Trace plots for key parameters
+    plot(brm_model, ask = FALSE)
+    
+    # Plot 3: Residuals vs Fitted (Bayesian version)
+    fitted_vals <- fitted(brm_model)[,"Estimate"]
+    residuals_vals <- residuals(brm_model)[,"Estimate"]
+    plot(fitted_vals, residuals_vals, 
          xlab = "Fitted values", ylab = "Residuals",
-         main = "Residuals vs Fitted")
+         main = paste("Residuals vs Fitted:", model_name))
     abline(h = 0, col = "red", lty = 2)
     
-    # Plot 2: Q-Q plot
-    qqnorm(residuals(gam_model))
-    qqline(residuals(gam_model), col = "red")
-    
-    # Plot 3: Scale-Location (if appropriate)
-    plot(fitted(gam_model), sqrt(abs(residuals(gam_model))), 
-         xlab = "Fitted values", ylab = "√|Residuals|",
-         main = "Scale-Location")
-    
-    # Plot 4: Response vs Fitted
-    plot(fitted(gam_model), model_data$total_butterflies,
-         xlab = "Fitted values", ylab = "Observed values",
-         main = "Response vs Fitted")
-    abline(a = 0, b = 1, col = "red", lty = 2)
+    # Plot 4: Q-Q plot of residuals
+    qqnorm(residuals_vals, main = paste("Q-Q Plot:", model_name))
+    qqline(residuals_vals, col = "red")
     
   }, error = function(e) {
     cat("Error fitting model:", e$message, "\n")
-    aic_values_60m[model_name] <- NA
+    cat("This might be due to insufficient data or convergence issues\n")
+    loo_values_60m[model_name] <- NA
   })
 }
 ```
 
 ```{r model-comparison-60min}
-# Model comparison table
+# Model comparison table using LOO-CV
 comparison_60m <- data.frame(
-  Model = names(aic_values_60m),
-  AIC = round(aic_values_60m, 2)
+  Model = names(loo_values_60m),
+  LOO_IC = round(loo_values_60m, 2)
 ) %>%
-  arrange(AIC)
+  arrange(LOO_IC)  # Lower LOO-IC indicates better model
 
 cat("\n### Model Comparison (1-hour lag)\n")
+cat("Using LOO-CV Information Criterion (lower is better)\n")
 kable(comparison_60m)
 ```
 
@@ -678,39 +862,114 @@ if (nrow(predictors_120m) > 1) {
 ### Model Fitting (2 hours)
 
 ```{r models-120min, warning=FALSE, fig.width=8, fig.height=6}
-# Define comprehensive model formulas
+# Define comprehensive Bayesian model formulas for brms
 model_formulas_120m <- list(
   # 1. Baseline Model
-  "1. Baseline" = total_butterflies ~ s(abundance_t_minus_1) + s(view_id, bs = "re"),
+  "1. Baseline" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                       (1 | view_id) + 
+                                       ar(time = datetime, gr = view_id, p = 1)),
   
-  # 2. Single Environmental Factor Models
-  "2a. Wind only" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(view_id, bs = "re"),
-  "2b. Temperature only" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_temp) + s(view_id, bs = "re"),
-  "2c. Sunlight only" = total_butterflies ~ s(abundance_t_minus_1) + s(sunlight_proportion) + s(view_id, bs = "re"),
+  # 2. Single Environmental Factor Models  
+  "2a. Wind only" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                          s(mean_wind_speed) + 
+                                          (1 | view_id) + 
+                                          ar(time = datetime, gr = view_id, p = 1)),
+  "2b. Temperature only" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                                 s(mean_temp) + 
+                                                 (1 | view_id) + 
+                                                 ar(time = datetime, gr = view_id, p = 1)),
+  "2c. Sunlight only" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                              s(sunlight_proportion) + 
+                                              (1 | view_id) + 
+                                              ar(time = datetime, gr = view_id, p = 1)),
   
   # 3. Additive Models (No Interactions)
-  "3a. Wind + Temp" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(view_id, bs = "re"),
-  "3b. Wind + Sunlight" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(sunlight_proportion) + s(view_id, bs = "re"),
-  "3c. Temp + Sunlight" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_temp) + s(sunlight_proportion) + s(view_id, bs = "re"),
-  "3d. All additive" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + s(view_id, bs = "re"),
+  "3a. Wind + Temp" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                            s(mean_wind_speed) + 
+                                            s(mean_temp) + 
+                                            (1 | view_id) + 
+                                            ar(time = datetime, gr = view_id, p = 1)),
+  "3b. Wind + Sunlight" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                                s(mean_wind_speed) + 
+                                                s(sunlight_proportion) + 
+                                                (1 | view_id) + 
+                                                ar(time = datetime, gr = view_id, p = 1)),
+  "3c. Temp + Sunlight" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                                s(mean_temp) + 
+                                                s(sunlight_proportion) + 
+                                                (1 | view_id) + 
+                                                ar(time = datetime, gr = view_id, p = 1)),
+  "3d. All additive" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                             s(mean_wind_speed) + 
+                                             s(mean_temp) + 
+                                             s(sunlight_proportion) + 
+                                             (1 | view_id) + 
+                                             ar(time = datetime, gr = view_id, p = 1)),
   
   # 4. Single Interaction Models
-  "4a. Wind x Temp interaction" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, mean_temp) + s(view_id, bs = "re"),
-  "4b. Wind x Sunlight interaction" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, sunlight_proportion) + s(view_id, bs = "re"),
-  "4c. Temp x Sunlight interaction" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_temp, sunlight_proportion) + s(view_id, bs = "re"),
+  "4a. Wind x Temp interaction" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                                        s(mean_wind_speed) + 
+                                                        s(mean_temp) + 
+                                                        s(sunlight_proportion) + 
+                                                        t2(mean_wind_speed, mean_temp) + 
+                                                        (1 | view_id) + 
+                                                        ar(time = datetime, gr = view_id, p = 1)),
+  "4b. Wind x Sunlight interaction" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                                            s(mean_wind_speed) + 
+                                                            s(mean_temp) + 
+                                                            s(sunlight_proportion) + 
+                                                            t2(mean_wind_speed, sunlight_proportion) + 
+                                                            (1 | view_id) + 
+                                                            ar(time = datetime, gr = view_id, p = 1)),
+  "4c. Temp x Sunlight interaction" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                                            s(mean_wind_speed) + 
+                                                            s(mean_temp) + 
+                                                            s(sunlight_proportion) + 
+                                                            t2(mean_temp, sunlight_proportion) + 
+                                                            (1 | view_id) + 
+                                                            ar(time = datetime, gr = view_id, p = 1)),
   
   # 5. Multiple Interaction Models
-  "5a. Wind x Temp + Wind x Sun" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, mean_temp) + ti(mean_wind_speed, sunlight_proportion) + s(view_id, bs = "re"),
-  "5b. Wind x Temp + Temp x Sun" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, mean_temp) + ti(mean_temp, sunlight_proportion) + s(view_id, bs = "re"),
-  "5c. Wind x Sun + Temp x Sun" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, sunlight_proportion) + ti(mean_temp, sunlight_proportion) + s(view_id, bs = "re"),
+  "5a. Wind x Temp + Wind x Sun" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                                         s(mean_wind_speed) + 
+                                                         s(mean_temp) + 
+                                                         s(sunlight_proportion) + 
+                                                         t2(mean_wind_speed, mean_temp) + 
+                                                         t2(mean_wind_speed, sunlight_proportion) + 
+                                                         (1 | view_id) + 
+                                                         ar(time = datetime, gr = view_id, p = 1)),
+  "5b. Wind x Temp + Temp x Sun" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                                         s(mean_wind_speed) + 
+                                                         s(mean_temp) + 
+                                                         s(sunlight_proportion) + 
+                                                         t2(mean_wind_speed, mean_temp) + 
+                                                         t2(mean_temp, sunlight_proportion) + 
+                                                         (1 | view_id) + 
+                                                         ar(time = datetime, gr = view_id, p = 1)),
+  "5c. Wind x Sun + Temp x Sun" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                                        s(mean_wind_speed) + 
+                                                        s(mean_temp) + 
+                                                        s(sunlight_proportion) + 
+                                                        t2(mean_wind_speed, sunlight_proportion) + 
+                                                        t2(mean_temp, sunlight_proportion) + 
+                                                        (1 | view_id) + 
+                                                        ar(time = datetime, gr = view_id, p = 1)),
   
   # 6. Global Model with All Interactions
-  "6. Global model" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, mean_temp) + ti(mean_wind_speed, sunlight_proportion) + ti(mean_temp, sunlight_proportion) + s(view_id, bs = "re")
+  "6. Global model" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                            s(mean_wind_speed) + 
+                                            s(mean_temp) + 
+                                            s(sunlight_proportion) + 
+                                            t2(mean_wind_speed, mean_temp) + 
+                                            t2(mean_wind_speed, sunlight_proportion) + 
+                                            t2(mean_temp, sunlight_proportion) + 
+                                            (1 | view_id) + 
+                                            ar(time = datetime, gr = view_id, p = 1))
 )
 
 # Storage for results
 models_120m <- list()
-aic_values_120m <- numeric()
+loo_values_120m <- numeric()
 
 # Fit each model
 for (i in seq_along(model_formulas_120m)) {
@@ -723,71 +982,94 @@ for (i in seq_along(model_formulas_120m)) {
     # Check data before fitting
     model_vars <- all.vars(formula)
     model_data <- data_120m %>%
-      select(all_of(model_vars), view_id) %>%
-      na.omit()
+      select(all_of(model_vars), view_id, datetime) %>%  # Include datetime for autocorrelation
+      na.omit() %>%
+      arrange(view_id, datetime)  # Ensure proper sorting
     
     cat("Model data dimensions after removing NAs:", nrow(model_data), "x", ncol(model_data), "\n")
+    cat("Variables in model:", paste(model_vars, collapse = ", "), "\n")
     
-    # Fit GAM
-    gam_model <- gam(
+    # Check if we have enough data
+    if(nrow(model_data) < 50) {
+      cat("Warning: Very few observations (", nrow(model_data), ") for this model\n")
+    }
+    
+    # Check for sufficient variation in view_id
+    view_counts <- table(model_data$view_id)
+    cat("View IDs with observations:", length(view_counts), "\n")
+    cat("Min/Max observations per view:", min(view_counts), "/", max(view_counts), "\n")
+    
+    # Fit Bayesian GAM with brms
+    brm_model <- brm(
       formula,
-      family = nb(),
-      data = model_data
+      family = negbinomial(),
+      data = model_data,
+      cores = 4,
+      chains = 4,
+      iter = 2000,
+      warmup = 1000,
+      backend = "rstan",  # Use rstan as fallback if cmdstanr not available
+      control = list(adapt_delta = 0.95, max_treedepth = 12),
+      silent = 2,  # Suppress most output for cleaner logs
+      refresh = 0  # Suppress sampling progress
     )
     
-    cat("GAM fitted successfully\n")
+    cat("Bayesian GAM fitted successfully\n")
     
     # Store model
-    models_120m[[model_name]] <- gam_model
-    aic_values_120m[model_name] <- AIC(gam_model)
+    models_120m[[model_name]] <- brm_model
+    
+    # Calculate LOO for model comparison (better than AIC for Bayesian models)
+    loo_result <- loo(brm_model)
+    loo_values_120m[model_name] <- loo_result$estimates["looic", "Estimate"]
     
     # Print summary
     cat("Model Summary:\n")
-    print(summary(gam_model))
+    print(summary(brm_model))
     
-    # Diagnostic plots - individual plots for better visibility in PDF
-    cat("\n\nDiagnostic plots:\n")
+    # Bayesian diagnostic plots
+    cat("\n\nBayesian Diagnostic plots:\n")
     
     # Set up for individual plots
     par(mfrow = c(1, 1), mar = c(4, 4, 2, 1))
     
-    # Plot 1: Residuals vs Fitted
-    plot(fitted(gam_model), residuals(gam_model), 
+    # Plot 1: Posterior predictive check
+    pp_check(brm_model, ndraws = 50) + 
+      labs(title = paste("Posterior Predictive Check:", model_name))
+    
+    # Plot 2: Trace plots for key parameters
+    plot(brm_model, ask = FALSE)
+    
+    # Plot 3: Residuals vs Fitted (Bayesian version)
+    fitted_vals <- fitted(brm_model)[,"Estimate"]
+    residuals_vals <- residuals(brm_model)[,"Estimate"]
+    plot(fitted_vals, residuals_vals, 
          xlab = "Fitted values", ylab = "Residuals",
-         main = "Residuals vs Fitted")
+         main = paste("Residuals vs Fitted:", model_name))
     abline(h = 0, col = "red", lty = 2)
     
-    # Plot 2: Q-Q plot
-    qqnorm(residuals(gam_model))
-    qqline(residuals(gam_model), col = "red")
-    
-    # Plot 3: Scale-Location (if appropriate)
-    plot(fitted(gam_model), sqrt(abs(residuals(gam_model))), 
-         xlab = "Fitted values", ylab = "√|Residuals|",
-         main = "Scale-Location")
-    
-    # Plot 4: Response vs Fitted
-    plot(fitted(gam_model), model_data$total_butterflies,
-         xlab = "Fitted values", ylab = "Observed values",
-         main = "Response vs Fitted")
-    abline(a = 0, b = 1, col = "red", lty = 2)
+    # Plot 4: Q-Q plot of residuals
+    qqnorm(residuals_vals, main = paste("Q-Q Plot:", model_name))
+    qqline(residuals_vals, col = "red")
     
   }, error = function(e) {
     cat("Error fitting model:", e$message, "\n")
-    aic_values_120m[model_name] <- NA
+    cat("This might be due to insufficient data or convergence issues\n")
+    loo_values_120m[model_name] <- NA
   })
 }
 ```
 
 ```{r model-comparison-120min}
-# Model comparison table
+# Model comparison table using LOO-CV
 comparison_120m <- data.frame(
-  Model = names(aic_values_120m),
-  AIC = round(aic_values_120m, 2)
+  Model = names(loo_values_120m),
+  LOO_IC = round(loo_values_120m, 2)
 ) %>%
-  arrange(AIC)
+  arrange(LOO_IC)  # Lower LOO-IC indicates better model
 
 cat("\n### Model Comparison (2-hour lag)\n")
+cat("Using LOO-CV Information Criterion (lower is better)\n")
 kable(comparison_120m)
 ```
 
@@ -846,39 +1128,114 @@ if (nrow(predictors_240m) > 1) {
 ### Model Fitting (4 hours)
 
 ```{r models-240min, warning=FALSE, fig.width=8, fig.height=6}
-# Define comprehensive model formulas
+# Define comprehensive Bayesian model formulas for brms
 model_formulas_240m <- list(
   # 1. Baseline Model
-  "1. Baseline" = total_butterflies ~ s(abundance_t_minus_1) + s(view_id, bs = "re"),
+  "1. Baseline" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                       (1 | view_id) + 
+                                       ar(time = datetime, gr = view_id, p = 1)),
   
-  # 2. Single Environmental Factor Models
-  "2a. Wind only" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(view_id, bs = "re"),
-  "2b. Temperature only" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_temp) + s(view_id, bs = "re"),
-  "2c. Sunlight only" = total_butterflies ~ s(abundance_t_minus_1) + s(sunlight_proportion) + s(view_id, bs = "re"),
+  # 2. Single Environmental Factor Models  
+  "2a. Wind only" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                          s(mean_wind_speed) + 
+                                          (1 | view_id) + 
+                                          ar(time = datetime, gr = view_id, p = 1)),
+  "2b. Temperature only" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                                 s(mean_temp) + 
+                                                 (1 | view_id) + 
+                                                 ar(time = datetime, gr = view_id, p = 1)),
+  "2c. Sunlight only" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                              s(sunlight_proportion) + 
+                                              (1 | view_id) + 
+                                              ar(time = datetime, gr = view_id, p = 1)),
   
   # 3. Additive Models (No Interactions)
-  "3a. Wind + Temp" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(view_id, bs = "re"),
-  "3b. Wind + Sunlight" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(sunlight_proportion) + s(view_id, bs = "re"),
-  "3c. Temp + Sunlight" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_temp) + s(sunlight_proportion) + s(view_id, bs = "re"),
-  "3d. All additive" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + s(view_id, bs = "re"),
+  "3a. Wind + Temp" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                            s(mean_wind_speed) + 
+                                            s(mean_temp) + 
+                                            (1 | view_id) + 
+                                            ar(time = datetime, gr = view_id, p = 1)),
+  "3b. Wind + Sunlight" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                                s(mean_wind_speed) + 
+                                                s(sunlight_proportion) + 
+                                                (1 | view_id) + 
+                                                ar(time = datetime, gr = view_id, p = 1)),
+  "3c. Temp + Sunlight" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                                s(mean_temp) + 
+                                                s(sunlight_proportion) + 
+                                                (1 | view_id) + 
+                                                ar(time = datetime, gr = view_id, p = 1)),
+  "3d. All additive" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                             s(mean_wind_speed) + 
+                                             s(mean_temp) + 
+                                             s(sunlight_proportion) + 
+                                             (1 | view_id) + 
+                                             ar(time = datetime, gr = view_id, p = 1)),
   
   # 4. Single Interaction Models
-  "4a. Wind x Temp interaction" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, mean_temp) + s(view_id, bs = "re"),
-  "4b. Wind x Sunlight interaction" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, sunlight_proportion) + s(view_id, bs = "re"),
-  "4c. Temp x Sunlight interaction" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_temp, sunlight_proportion) + s(view_id, bs = "re"),
+  "4a. Wind x Temp interaction" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                                        s(mean_wind_speed) + 
+                                                        s(mean_temp) + 
+                                                        s(sunlight_proportion) + 
+                                                        t2(mean_wind_speed, mean_temp) + 
+                                                        (1 | view_id) + 
+                                                        ar(time = datetime, gr = view_id, p = 1)),
+  "4b. Wind x Sunlight interaction" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                                            s(mean_wind_speed) + 
+                                                            s(mean_temp) + 
+                                                            s(sunlight_proportion) + 
+                                                            t2(mean_wind_speed, sunlight_proportion) + 
+                                                            (1 | view_id) + 
+                                                            ar(time = datetime, gr = view_id, p = 1)),
+  "4c. Temp x Sunlight interaction" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                                            s(mean_wind_speed) + 
+                                                            s(mean_temp) + 
+                                                            s(sunlight_proportion) + 
+                                                            t2(mean_temp, sunlight_proportion) + 
+                                                            (1 | view_id) + 
+                                                            ar(time = datetime, gr = view_id, p = 1)),
   
   # 5. Multiple Interaction Models
-  "5a. Wind x Temp + Wind x Sun" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, mean_temp) + ti(mean_wind_speed, sunlight_proportion) + s(view_id, bs = "re"),
-  "5b. Wind x Temp + Temp x Sun" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, mean_temp) + ti(mean_temp, sunlight_proportion) + s(view_id, bs = "re"),
-  "5c. Wind x Sun + Temp x Sun" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, sunlight_proportion) + ti(mean_temp, sunlight_proportion) + s(view_id, bs = "re"),
+  "5a. Wind x Temp + Wind x Sun" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                                         s(mean_wind_speed) + 
+                                                         s(mean_temp) + 
+                                                         s(sunlight_proportion) + 
+                                                         t2(mean_wind_speed, mean_temp) + 
+                                                         t2(mean_wind_speed, sunlight_proportion) + 
+                                                         (1 | view_id) + 
+                                                         ar(time = datetime, gr = view_id, p = 1)),
+  "5b. Wind x Temp + Temp x Sun" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                                         s(mean_wind_speed) + 
+                                                         s(mean_temp) + 
+                                                         s(sunlight_proportion) + 
+                                                         t2(mean_wind_speed, mean_temp) + 
+                                                         t2(mean_temp, sunlight_proportion) + 
+                                                         (1 | view_id) + 
+                                                         ar(time = datetime, gr = view_id, p = 1)),
+  "5c. Wind x Sun + Temp x Sun" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                                        s(mean_wind_speed) + 
+                                                        s(mean_temp) + 
+                                                        s(sunlight_proportion) + 
+                                                        t2(mean_wind_speed, sunlight_proportion) + 
+                                                        t2(mean_temp, sunlight_proportion) + 
+                                                        (1 | view_id) + 
+                                                        ar(time = datetime, gr = view_id, p = 1)),
   
   # 6. Global Model with All Interactions
-  "6. Global model" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, mean_temp) + ti(mean_wind_speed, sunlight_proportion) + ti(mean_temp, sunlight_proportion) + s(view_id, bs = "re")
+  "6. Global model" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                            s(mean_wind_speed) + 
+                                            s(mean_temp) + 
+                                            s(sunlight_proportion) + 
+                                            t2(mean_wind_speed, mean_temp) + 
+                                            t2(mean_wind_speed, sunlight_proportion) + 
+                                            t2(mean_temp, sunlight_proportion) + 
+                                            (1 | view_id) + 
+                                            ar(time = datetime, gr = view_id, p = 1))
 )
 
 # Storage for results
 models_240m <- list()
-aic_values_240m <- numeric()
+loo_values_240m <- numeric()
 
 # Fit each model
 for (i in seq_along(model_formulas_240m)) {
@@ -891,71 +1248,94 @@ for (i in seq_along(model_formulas_240m)) {
     # Check data before fitting
     model_vars <- all.vars(formula)
     model_data <- data_240m %>%
-      select(all_of(model_vars), view_id) %>%
-      na.omit()
+      select(all_of(model_vars), view_id, datetime) %>%  # Include datetime for autocorrelation
+      na.omit() %>%
+      arrange(view_id, datetime)  # Ensure proper sorting
     
     cat("Model data dimensions after removing NAs:", nrow(model_data), "x", ncol(model_data), "\n")
+    cat("Variables in model:", paste(model_vars, collapse = ", "), "\n")
     
-    # Fit GAM
-    gam_model <- gam(
+    # Check if we have enough data
+    if(nrow(model_data) < 50) {
+      cat("Warning: Very few observations (", nrow(model_data), ") for this model\n")
+    }
+    
+    # Check for sufficient variation in view_id
+    view_counts <- table(model_data$view_id)
+    cat("View IDs with observations:", length(view_counts), "\n")
+    cat("Min/Max observations per view:", min(view_counts), "/", max(view_counts), "\n")
+    
+    # Fit Bayesian GAM with brms
+    brm_model <- brm(
       formula,
-      family = nb(),
-      data = model_data
+      family = negbinomial(),
+      data = model_data,
+      cores = 4,
+      chains = 4,
+      iter = 2000,
+      warmup = 1000,
+      backend = "rstan",  # Use rstan as fallback if cmdstanr not available
+      control = list(adapt_delta = 0.95, max_treedepth = 12),
+      silent = 2,  # Suppress most output for cleaner logs
+      refresh = 0  # Suppress sampling progress
     )
     
-    cat("GAM fitted successfully\n")
+    cat("Bayesian GAM fitted successfully\n")
     
     # Store model
-    models_240m[[model_name]] <- gam_model
-    aic_values_240m[model_name] <- AIC(gam_model)
+    models_240m[[model_name]] <- brm_model
+    
+    # Calculate LOO for model comparison (better than AIC for Bayesian models)
+    loo_result <- loo(brm_model)
+    loo_values_240m[model_name] <- loo_result$estimates["looic", "Estimate"]
     
     # Print summary
     cat("Model Summary:\n")
-    print(summary(gam_model))
+    print(summary(brm_model))
     
-    # Diagnostic plots - individual plots for better visibility in PDF
-    cat("\n\nDiagnostic plots:\n")
+    # Bayesian diagnostic plots
+    cat("\n\nBayesian Diagnostic plots:\n")
     
     # Set up for individual plots
     par(mfrow = c(1, 1), mar = c(4, 4, 2, 1))
     
-    # Plot 1: Residuals vs Fitted
-    plot(fitted(gam_model), residuals(gam_model), 
+    # Plot 1: Posterior predictive check
+    pp_check(brm_model, ndraws = 50) + 
+      labs(title = paste("Posterior Predictive Check:", model_name))
+    
+    # Plot 2: Trace plots for key parameters
+    plot(brm_model, ask = FALSE)
+    
+    # Plot 3: Residuals vs Fitted (Bayesian version)
+    fitted_vals <- fitted(brm_model)[,"Estimate"]
+    residuals_vals <- residuals(brm_model)[,"Estimate"]
+    plot(fitted_vals, residuals_vals, 
          xlab = "Fitted values", ylab = "Residuals",
-         main = "Residuals vs Fitted")
+         main = paste("Residuals vs Fitted:", model_name))
     abline(h = 0, col = "red", lty = 2)
     
-    # Plot 2: Q-Q plot
-    qqnorm(residuals(gam_model))
-    qqline(residuals(gam_model), col = "red")
-    
-    # Plot 3: Scale-Location (if appropriate)
-    plot(fitted(gam_model), sqrt(abs(residuals(gam_model))), 
-         xlab = "Fitted values", ylab = "√|Residuals|",
-         main = "Scale-Location")
-    
-    # Plot 4: Response vs Fitted
-    plot(fitted(gam_model), model_data$total_butterflies,
-         xlab = "Fitted values", ylab = "Observed values",
-         main = "Response vs Fitted")
-    abline(a = 0, b = 1, col = "red", lty = 2)
+    # Plot 4: Q-Q plot of residuals
+    qqnorm(residuals_vals, main = paste("Q-Q Plot:", model_name))
+    qqline(residuals_vals, col = "red")
     
   }, error = function(e) {
     cat("Error fitting model:", e$message, "\n")
-    aic_values_240m[model_name] <- NA
+    cat("This might be due to insufficient data or convergence issues\n")
+    loo_values_240m[model_name] <- NA
   })
 }
 ```
 
 ```{r model-comparison-240min}
-# Model comparison table
+# Model comparison table using LOO-CV
 comparison_240m <- data.frame(
-  Model = names(aic_values_240m),
-  AIC = round(aic_values_240m, 2)
+  Model = names(loo_values_240m),
+  LOO_IC = round(loo_values_240m, 2)
 ) %>%
-  arrange(AIC)
+  arrange(LOO_IC)  # Lower LOO-IC indicates better model
 
 cat("\n### Model Comparison (4-hour lag)\n")
+cat("Using LOO-CV Information Criterion (lower is better)\n")
 kable(comparison_240m)
 ```
 
@@ -1169,39 +1549,114 @@ if (nrow(predictors_full_day) > 1) {
 ### Model Fitting (Full Day)
 
 ```{r models-full-day, warning=FALSE, fig.width=8, fig.height=6}
-# Define comprehensive model formulas
+# Define comprehensive Bayesian model formulas for brms
 model_formulas_full_day <- list(
   # 1. Baseline Model
-  "1. Baseline" = total_butterflies ~ s(abundance_t_minus_1) + s(view_id, bs = "re"),
+  "1. Baseline" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                       (1 | view_id) + 
+                                       ar(time = datetime, gr = view_id, p = 1)),
   
-  # 2. Single Environmental Factor Models
-  "2a. Wind only" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(view_id, bs = "re"),
-  "2b. Temperature only" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_temp) + s(view_id, bs = "re"),
-  "2c. Sunlight only" = total_butterflies ~ s(abundance_t_minus_1) + s(sunlight_proportion) + s(view_id, bs = "re"),
+  # 2. Single Environmental Factor Models  
+  "2a. Wind only" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                          s(mean_wind_speed) + 
+                                          (1 | view_id) + 
+                                          ar(time = datetime, gr = view_id, p = 1)),
+  "2b. Temperature only" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                                 s(mean_temp) + 
+                                                 (1 | view_id) + 
+                                                 ar(time = datetime, gr = view_id, p = 1)),
+  "2c. Sunlight only" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                              s(sunlight_proportion) + 
+                                              (1 | view_id) + 
+                                              ar(time = datetime, gr = view_id, p = 1)),
   
   # 3. Additive Models (No Interactions)
-  "3a. Wind + Temp" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(view_id, bs = "re"),
-  "3b. Wind + Sunlight" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(sunlight_proportion) + s(view_id, bs = "re"),
-  "3c. Temp + Sunlight" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_temp) + s(sunlight_proportion) + s(view_id, bs = "re"),
-  "3d. All additive" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + s(view_id, bs = "re"),
+  "3a. Wind + Temp" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                            s(mean_wind_speed) + 
+                                            s(mean_temp) + 
+                                            (1 | view_id) + 
+                                            ar(time = datetime, gr = view_id, p = 1)),
+  "3b. Wind + Sunlight" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                                s(mean_wind_speed) + 
+                                                s(sunlight_proportion) + 
+                                                (1 | view_id) + 
+                                                ar(time = datetime, gr = view_id, p = 1)),
+  "3c. Temp + Sunlight" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                                s(mean_temp) + 
+                                                s(sunlight_proportion) + 
+                                                (1 | view_id) + 
+                                                ar(time = datetime, gr = view_id, p = 1)),
+  "3d. All additive" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                             s(mean_wind_speed) + 
+                                             s(mean_temp) + 
+                                             s(sunlight_proportion) + 
+                                             (1 | view_id) + 
+                                             ar(time = datetime, gr = view_id, p = 1)),
   
   # 4. Single Interaction Models
-  "4a. Wind x Temp interaction" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, mean_temp) + s(view_id, bs = "re"),
-  "4b. Wind x Sunlight interaction" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, sunlight_proportion) + s(view_id, bs = "re"),
-  "4c. Temp x Sunlight interaction" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_temp, sunlight_proportion) + s(view_id, bs = "re"),
+  "4a. Wind x Temp interaction" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                                        s(mean_wind_speed) + 
+                                                        s(mean_temp) + 
+                                                        s(sunlight_proportion) + 
+                                                        t2(mean_wind_speed, mean_temp) + 
+                                                        (1 | view_id) + 
+                                                        ar(time = datetime, gr = view_id, p = 1)),
+  "4b. Wind x Sunlight interaction" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                                            s(mean_wind_speed) + 
+                                                            s(mean_temp) + 
+                                                            s(sunlight_proportion) + 
+                                                            t2(mean_wind_speed, sunlight_proportion) + 
+                                                            (1 | view_id) + 
+                                                            ar(time = datetime, gr = view_id, p = 1)),
+  "4c. Temp x Sunlight interaction" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                                            s(mean_wind_speed) + 
+                                                            s(mean_temp) + 
+                                                            s(sunlight_proportion) + 
+                                                            t2(mean_temp, sunlight_proportion) + 
+                                                            (1 | view_id) + 
+                                                            ar(time = datetime, gr = view_id, p = 1)),
   
   # 5. Multiple Interaction Models
-  "5a. Wind x Temp + Wind x Sun" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, mean_temp) + ti(mean_wind_speed, sunlight_proportion) + s(view_id, bs = "re"),
-  "5b. Wind x Temp + Temp x Sun" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, mean_temp) + ti(mean_temp, sunlight_proportion) + s(view_id, bs = "re"),
-  "5c. Wind x Sun + Temp x Sun" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, sunlight_proportion) + ti(mean_temp, sunlight_proportion) + s(view_id, bs = "re"),
+  "5a. Wind x Temp + Wind x Sun" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                                         s(mean_wind_speed) + 
+                                                         s(mean_temp) + 
+                                                         s(sunlight_proportion) + 
+                                                         t2(mean_wind_speed, mean_temp) + 
+                                                         t2(mean_wind_speed, sunlight_proportion) + 
+                                                         (1 | view_id) + 
+                                                         ar(time = datetime, gr = view_id, p = 1)),
+  "5b. Wind x Temp + Temp x Sun" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                                         s(mean_wind_speed) + 
+                                                         s(mean_temp) + 
+                                                         s(sunlight_proportion) + 
+                                                         t2(mean_wind_speed, mean_temp) + 
+                                                         t2(mean_temp, sunlight_proportion) + 
+                                                         (1 | view_id) + 
+                                                         ar(time = datetime, gr = view_id, p = 1)),
+  "5c. Wind x Sun + Temp x Sun" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                                        s(mean_wind_speed) + 
+                                                        s(mean_temp) + 
+                                                        s(sunlight_proportion) + 
+                                                        t2(mean_wind_speed, sunlight_proportion) + 
+                                                        t2(mean_temp, sunlight_proportion) + 
+                                                        (1 | view_id) + 
+                                                        ar(time = datetime, gr = view_id, p = 1)),
   
   # 6. Global Model with All Interactions
-  "6. Global model" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, mean_temp) + ti(mean_wind_speed, sunlight_proportion) + ti(mean_temp, sunlight_proportion) + s(view_id, bs = "re")
+  "6. Global model" = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                                            s(mean_wind_speed) + 
+                                            s(mean_temp) + 
+                                            s(sunlight_proportion) + 
+                                            t2(mean_wind_speed, mean_temp) + 
+                                            t2(mean_wind_speed, sunlight_proportion) + 
+                                            t2(mean_temp, sunlight_proportion) + 
+                                            (1 | view_id) + 
+                                            ar(time = datetime, gr = view_id, p = 1))
 )
 
 # Storage for results
 models_full_day <- list()
-aic_values_full_day <- numeric()
+loo_values_full_day <- numeric()
 
 # Fit each model
 for (i in seq_along(model_formulas_full_day)) {
@@ -1214,71 +1669,94 @@ for (i in seq_along(model_formulas_full_day)) {
     # Check data before fitting
     model_vars <- all.vars(formula)
     model_data <- data_full_day %>%
-      select(all_of(model_vars), view_id) %>%
-      na.omit()
+      select(all_of(model_vars), view_id, datetime) %>%  # Include datetime for autocorrelation
+      na.omit() %>%
+      arrange(view_id, datetime)  # Ensure proper sorting
     
     cat("Model data dimensions after removing NAs:", nrow(model_data), "x", ncol(model_data), "\n")
+    cat("Variables in model:", paste(model_vars, collapse = ", "), "\n")
     
-    # Fit GAM
-    gam_model <- gam(
+    # Check if we have enough data
+    if(nrow(model_data) < 50) {
+      cat("Warning: Very few observations (", nrow(model_data), ") for this model\n")
+    }
+    
+    # Check for sufficient variation in view_id
+    view_counts <- table(model_data$view_id)
+    cat("View IDs with observations:", length(view_counts), "\n")
+    cat("Min/Max observations per view:", min(view_counts), "/", max(view_counts), "\n")
+    
+    # Fit Bayesian GAM with brms
+    brm_model <- brm(
       formula,
-      family = nb(),
-      data = model_data
+      family = negbinomial(),
+      data = model_data,
+      cores = 4,
+      chains = 4,
+      iter = 2000,
+      warmup = 1000,
+      backend = "rstan",  # Use rstan as fallback if cmdstanr not available
+      control = list(adapt_delta = 0.95, max_treedepth = 12),
+      silent = 2,  # Suppress most output for cleaner logs
+      refresh = 0  # Suppress sampling progress
     )
     
-    cat("GAM fitted successfully\n")
+    cat("Bayesian GAM fitted successfully\n")
     
     # Store model
-    models_full_day[[model_name]] <- gam_model
-    aic_values_full_day[model_name] <- AIC(gam_model)
+    models_full_day[[model_name]] <- brm_model
+    
+    # Calculate LOO for model comparison (better than AIC for Bayesian models)
+    loo_result <- loo(brm_model)
+    loo_values_full_day[model_name] <- loo_result$estimates["looic", "Estimate"]
     
     # Print summary
     cat("Model Summary:\n")
-    print(summary(gam_model))
+    print(summary(brm_model))
     
-    # Diagnostic plots - individual plots for better visibility in PDF
-    cat("\n\nDiagnostic plots:\n")
+    # Bayesian diagnostic plots
+    cat("\n\nBayesian Diagnostic plots:\n")
     
     # Set up for individual plots
     par(mfrow = c(1, 1), mar = c(4, 4, 2, 1))
     
-    # Plot 1: Residuals vs Fitted
-    plot(fitted(gam_model), residuals(gam_model), 
+    # Plot 1: Posterior predictive check
+    pp_check(brm_model, ndraws = 50) + 
+      labs(title = paste("Posterior Predictive Check:", model_name))
+    
+    # Plot 2: Trace plots for key parameters
+    plot(brm_model, ask = FALSE)
+    
+    # Plot 3: Residuals vs Fitted (Bayesian version)
+    fitted_vals <- fitted(brm_model)[,"Estimate"]
+    residuals_vals <- residuals(brm_model)[,"Estimate"]
+    plot(fitted_vals, residuals_vals, 
          xlab = "Fitted values", ylab = "Residuals",
-         main = "Residuals vs Fitted")
+         main = paste("Residuals vs Fitted:", model_name))
     abline(h = 0, col = "red", lty = 2)
     
-    # Plot 2: Q-Q plot
-    qqnorm(residuals(gam_model))
-    qqline(residuals(gam_model), col = "red")
-    
-    # Plot 3: Scale-Location (if appropriate)
-    plot(fitted(gam_model), sqrt(abs(residuals(gam_model))), 
-         xlab = "Fitted values", ylab = "√|Residuals|",
-         main = "Scale-Location")
-    
-    # Plot 4: Response vs Fitted
-    plot(fitted(gam_model), model_data$total_butterflies,
-         xlab = "Fitted values", ylab = "Observed values",
-         main = "Response vs Fitted")
-    abline(a = 0, b = 1, col = "red", lty = 2)
+    # Plot 4: Q-Q plot of residuals
+    qqnorm(residuals_vals, main = paste("Q-Q Plot:", model_name))
+    qqline(residuals_vals, col = "red")
     
   }, error = function(e) {
     cat("Error fitting model:", e$message, "\n")
-    aic_values_full_day[model_name] <- NA
+    cat("This might be due to insufficient data or convergence issues\n")
+    loo_values_full_day[model_name] <- NA
   })
 }
 ```
 
 ```{r model-comparison-full-day}
-# Model comparison table
+# Model comparison table using LOO-CV
 comparison_full_day <- data.frame(
-  Model = names(aic_values_full_day),
-  AIC = round(aic_values_full_day, 2)
+  Model = names(loo_values_full_day),
+  LOO_IC = round(loo_values_full_day, 2)
 ) %>%
-  arrange(AIC)
+  arrange(LOO_IC)  # Lower LOO-IC indicates better model
 
 cat("\n### Model Comparison (Full Day lag)\n")
+cat("Using LOO-CV Information Criterion (lower is better)\n")
 kable(comparison_full_day)
 ```
 
@@ -1290,7 +1768,7 @@ kable(comparison_full_day)
 cat("Analysis Complete\n")
 cat("=================\n\n")
 
-# Combine all AIC comparisons
+# Combine all LOO-CV comparisons
 all_comparisons <- bind_rows(
   comparison_30m %>% mutate(Lag = "30 minutes"),
   comparison_60m %>% mutate(Lag = "1 hour"),
@@ -1298,10 +1776,11 @@ all_comparisons <- bind_rows(
   comparison_240m %>% mutate(Lag = "4 hours"),
   comparison_full_day %>% mutate(Lag = "Full day")
 ) %>%
-  select(Lag, Model, AIC) %>%
-  pivot_wider(names_from = Lag, values_from = AIC)
+  select(Lag, Model, LOO_IC) %>%
+  pivot_wider(names_from = Lag, values_from = LOO_IC)
 
-cat("AIC Values Across All Time Lags:\n")
+cat("LOO-CV Information Criterion Values Across All Time Lags:\n")
+cat("(Lower values indicate better model fit)\n")
 kable(all_comparisons, digits = 2)
 
 # Find best model for each lag
@@ -1314,15 +1793,16 @@ best_models <- data.frame(
     comparison_240m$Model[1],
     comparison_full_day$Model[1]
   ),
-  Best_AIC = c(
-    comparison_30m$AIC[1],
-    comparison_60m$AIC[1],
-    comparison_120m$AIC[1],
-    comparison_240m$AIC[1],
-    comparison_full_day$AIC[1]
+  Best_LOO_IC = c(
+    comparison_30m$LOO_IC[1],
+    comparison_60m$LOO_IC[1],
+    comparison_120m$LOO_IC[1],
+    comparison_240m$LOO_IC[1],
+    comparison_full_day$LOO_IC[1]
   )
 )
 
-cat("\n\nBest Model for Each Time Lag:\n")
+cat("\n\nBest Model for Each Time Lag (Bayesian Analysis):\n")
+cat("Based on LOO-CV Information Criterion (lower is better)\n")
 kable(best_models, digits = 2)
 ```
