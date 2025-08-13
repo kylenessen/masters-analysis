@@ -543,6 +543,59 @@ cat("Model Summary:\n")
 print(summary(global_model))
 ```
 
+```{r}
+# --- Step 2: Define Priors ---
+# These are weakly informative priors to help stabilize this complex model.
+my_priors <- c(
+  prior(student_t(3, 0, 2.5), class = "Intercept"),
+  prior(normal(0, 1), class = "sds"),
+  prior(normal(0, 1), class = "ar")
+)
+
+# --- Step 3: Run the brms Model ---
+# This model is complex and will take a significant amount of time to run.
+# Using 4000 iterations is a robust starting point.
+
+additive_model_brms <- brm(
+  # Define the model formula
+  bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
+                         s(mean_wind_speed) + 
+                         s(mean_temp) + 
+                         s(sunlight_proportion) +
+                         (1 | view_id) + 
+                         ar(time = datetime, gr = view_id, p = 1)),
+  
+  data = model_data,
+  family = negbinomial(),
+  prior = my_priors,
+  
+  # Set a sufficient number of iterations for convergence
+  iter = 4000, 
+  warmup = 1000, 
+  
+  # Use multiple cores for parallel processing
+  chains = 8, 
+  cores = 8,
+  
+  # The cmdstanr backend can be faster if you have it installed
+  # install.packages("cmdstanr", repos = c("https://mc-stan.org/r-packages/", getOption("repos")))
+  # cmdstanr::install_cmdstan()
+  backend = "cmdstanr",
+  
+  # Save model compilation to avoid re-compiling
+  file = "additive_model_brms"
+)
+
+# --- Step 4: Check the Results ---
+# Once it's finished, you can view the summary
+summary(additive_model_brms)
+
+# And look at the diagnostic plots
+plot(additive_model_brms)
+```
+
+
+
 ### Diagnostic Plots for Global Model
 
 ```{r global-diagnostics, fig.width=8, fig.height=6}
