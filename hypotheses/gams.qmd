@@ -133,12 +133,13 @@ prepare_lag_data <- function(master_df, wind_df, lag_minutes) {
         allow.cartesian = TRUE,
         nomatch = 0L
     ][, .(
-        interval_id        = interval_id[1L],
-        mean_wind_speed    = mean(speed, na.rm = TRUE),
-        max_wind_speed     = suppressWarnings(max(speed, na.rm = TRUE)),
-        sd_wind_speed      = sd(speed, na.rm = TRUE),
-        gust_factor        = mean(gust, na.rm = TRUE) / mean(speed, na.rm = TRUE),
-        minutes_above_2mps = sum(speed > 2, na.rm = TRUE)
+        interval_id                  = interval_id[1L],
+        mean_wind_speed              = mean(speed, na.rm = TRUE),
+        max_wind_speed               = suppressWarnings(max(gust, na.rm = TRUE)),
+        sd_wind_speed                = sd(speed, na.rm = TRUE),
+        gust_factor                  = mean(gust, na.rm = TRUE) / mean(speed, na.rm = TRUE),
+        sustained_minutes_above_2mps = sum(speed > 2, na.rm = TRUE),
+        gust_minutes_above_2mps      = sum(gust > 2, na.rm = TRUE)
     ), by = .(wind_meter_name, interval_id)]
 
 
