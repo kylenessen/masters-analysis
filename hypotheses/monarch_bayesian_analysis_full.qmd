@@ -16,10 +16,12 @@ library(brms)
 library(tidyverse)
 library(lubridate)
 library(knitr)
+library(kableExtra)  # for nice tables
 library(bayesplot)
 library(data.table) # high-performance joins/aggregations
 library(future)      # parallel processing
 library(furrr)       # parallel purrr functions
+library(gridExtra)   # for arranging plots
 
 # Use CmdStanR backend for performance
 options(brms.backend = "cmdstanr")
@@ -553,43 +555,324 @@ cat("Interaction models complete!\n")
 
 ## Model Comparison and Results
 
-```{r model-comparison}
-cat("\n=== ALL MODELS COMPLETE ===\n")
+### Model Convergence Diagnostics
 
-model_files <- c(
-    "30-minute lag models:",
-    "  - brm_30m_base.rds",
-    "  - brm_30m_wind.rds",
-    "  - brm_30m_temp.rds",
-    "  - brm_30m_additive.rds",
-    "  - brm_30m_interaction.rds",
-    "",
-    "2-hour lag models:",
-    "  - brm_120m_base.rds",
-    "  - brm_120m_wind.rds",
-    "  - brm_120m_temp.rds",
-    "  - brm_120m_additive.rds",
-    "  - brm_120m_interaction.rds",
-    "",
-    "4-hour lag models:",
-    "  - brm_240m_base.rds",
-    "  - brm_240m_wind.rds",
-    "  - brm_240m_temp.rds",
-    "  - brm_240m_additive.rds",
-    "  - brm_240m_interaction.rds"
+```{r convergence-checks}
+cat("\n=== CONVERGENCE DIAGNOSTICS ===\n\n")
+
+# Collect all models
+all_models <- list(
+    "30m_base" = brm_30m_base,
+    "30m_wind" = brm_30m_wind,
+    "30m_temp" = brm_30m_temp,
+    "30m_additive" = brm_30m_additive,
+    "30m_interaction" = brm_30m_interaction,
+    "120m_base" = brm_120m_base,
+    "120m_wind" = brm_120m_wind,
+    "120m_temp" = brm_120m_temp,
+    "120m_additive" = brm_120m_additive,
+    "120m_interaction" = brm_120m_interaction,
+    "240m_base" = brm_240m_base,
+    "240m_wind" = brm_240m_wind,
+    "240m_temp" = brm_240m_temp,
+    "240m_additive" = brm_240m_additive,
+    "240m_interaction" = brm_240m_interaction
 )
 
-cat(paste(model_files, collapse = "\n"))
+# Check convergence for each model
+convergence_summary <- data.frame(
+    Model = names(all_models),
+    Max_Rhat = NA,
+    Min_ESS_Bulk = NA,
+    Min_ESS_Tail = NA,
+    Divergences = NA,
+    Max_Treedepth = NA,
+    E_BFMI = NA
+)
 
-# Example: quick diagnostics you can expand as needed
-# print(summary(brm_30m_additive))
-# bayesplot::mcmc_neff(neff_ratio(brm_30m_additive))
-# loo::loo(brm_30m_additive, brm_30m_interaction)
+for (i in seq_along(all_models)) {
+    model <- all_models[[i]]
+    
+    # Get diagnostics
+    rhats <- rhat(model)
+    ess_bulk <- ess_bulk(model)
+    ess_tail <- ess_tail(model)
+    
+    # Get sampler diagnostics
+    np <- nuts_params(model)
+    divergences <- sum(subset(np, Parameter == "divergent__")$Value)
+    max_td <- sum(subset(np, Parameter == "treedepth__")$Value >= 
+                  model$fit@stan_args[[1]]$control$max_treedepth)
+    
+    # Energy diagnostic
+    energy <- subset(np, Parameter == "energy__")$Value
+    ebfmi <- rep(NA, 4)  # for 4 chains
+    for (chain in 1:4) {
+        chain_energy <- energy[np$Chain == chain]
+        if (length(chain_energy) > 1) {
+            ebfmi[chain] <- var(diff(chain_energy)) / var(chain_energy)
+        }
+    }
+    
+    convergence_summary[i, ] <- c(
+        names(all_models)[i],
+        round(max(rhats, na.rm = TRUE), 3),
+        round(min(ess_bulk, na.rm = TRUE), 0),
+        round(min(ess_tail, na.rm = TRUE), 0),
+        divergences,
+        max_td,
+        round(min(ebfmi, na.rm = TRUE), 3)
+    )
+}
 
-cat("\n\nNext steps:\n")
-cat("1) Check convergence: summary(), rhat(), neff_ratio()\n")
-cat("2) Compare models: loo() or add_criterion('loo')\n")
-cat("3) Posterior predictive checks: pp_check()\n")
+# Convert numeric columns
+convergence_summary[, 2:7] <- lapply(convergence_summary[, 2:7], as.numeric)
+
+# Display convergence summary
+kable(convergence_summary, 
+      caption = "Convergence Diagnostics for All Models",
+      format = "html") %>%
+    kableExtra::kable_styling(bootstrap_options = c("striped", "hover"))
+
+# Flag any issues
+cat("\n--- Convergence Issues ---\n")
+issues <- convergence_summary %>%
+    filter(Max_Rhat > 1.01 | Min_ESS_Bulk < 400 | Min_ESS_Tail < 400 | 
+           Divergences > 0 | E_BFMI < 0.3)
+
+if (nrow(issues) > 0) {
+    cat("Models with potential issues:\n")
+    print(issues$Model)
+} else {
+    cat("All models show good convergence!\n")
+}
+```
+
+### Model Comparison with LOO-CV
+
+```{r loo-comparison}
+cat("\n=== LOO-CV MODEL COMPARISON ===\n\n")
+
+# Add LOO criterion to all models
+for (name in names(all_models)) {
+    all_models[[name]] <- add_criterion(all_models[[name]], "loo", moment_match = TRUE)
+}
+
+# Compare models within each lag interval
+cat("--- 30-Minute Lag Models ---\n")
+loo_30m <- loo_compare(
+    all_models$`30m_base`,
+    all_models$`30m_wind`,
+    all_models$`30m_temp`,
+    all_models$`30m_additive`,
+    all_models$`30m_interaction`
+)
+print(loo_30m)
+
+cat("\n--- 2-Hour Lag Models ---\n")
+loo_120m <- loo_compare(
+    all_models$`120m_base`,
+    all_models$`120m_wind`,
+    all_models$`120m_temp`,
+    all_models$`120m_additive`,
+    all_models$`120m_interaction`
+)
+print(loo_120m)
+
+cat("\n--- 4-Hour Lag Models ---\n")
+loo_240m <- loo_compare(
+    all_models$`240m_base`,
+    all_models$`240m_wind`,
+    all_models$`240m_temp`,
+    all_models$`240m_additive`,
+    all_models$`240m_interaction`
+)
+print(loo_240m)
+
+# Create summary table of ELPD values
+elpd_summary <- data.frame(
+    Model_Type = c("Baseline", "Wind", "Temperature", "Additive", "Interaction"),
+    ELPD_30m = c(
+        loo(all_models$`30m_base`)$estimates["elpd_loo", "Estimate"],
+        loo(all_models$`30m_wind`)$estimates["elpd_loo", "Estimate"],
+        loo(all_models$`30m_temp`)$estimates["elpd_loo", "Estimate"],
+        loo(all_models$`30m_additive`)$estimates["elpd_loo", "Estimate"],
+        loo(all_models$`30m_interaction`)$estimates["elpd_loo", "Estimate"]
+    ),
+    ELPD_120m = c(
+        loo(all_models$`120m_base`)$estimates["elpd_loo", "Estimate"],
+        loo(all_models$`120m_wind`)$estimates["elpd_loo", "Estimate"],
+        loo(all_models$`120m_temp`)$estimates["elpd_loo", "Estimate"],
+        loo(all_models$`120m_additive`)$estimates["elpd_loo", "Estimate"],
+        loo(all_models$`120m_interaction`)$estimates["elpd_loo", "Estimate"]
+    ),
+    ELPD_240m = c(
+        loo(all_models$`240m_base`)$estimates["elpd_loo", "Estimate"],
+        loo(all_models$`240m_wind`)$estimates["elpd_loo", "Estimate"],
+        loo(all_models$`240m_temp`)$estimates["elpd_loo", "Estimate"],
+        loo(all_models$`240m_additive`)$estimates["elpd_loo", "Estimate"],
+        loo(all_models$`240m_interaction`)$estimates["elpd_loo", "Estimate"]
+    )
+)
+
+elpd_summary[, 2:4] <- round(elpd_summary[, 2:4], 1)
+
+cat("\n--- ELPD Summary Across Lag Intervals ---\n")
+kable(elpd_summary, 
+      caption = "Expected Log Predictive Density (Higher is Better)",
+      format = "html") %>%
+    kableExtra::kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+### R-squared and Model Fit Statistics
+
+```{r model-fit-stats}
+cat("\n=== MODEL FIT STATISTICS ===\n\n")
+
+# Calculate Bayes R2 for all models
+r2_summary <- data.frame(
+    Model = character(),
+    Lag_Interval = character(),
+    Bayes_R2_Mean = numeric(),
+    Bayes_R2_SD = numeric(),
+    stringsAsFactors = FALSE
+)
+
+for (name in names(all_models)) {
+    r2 <- bayes_R2(all_models[[name]])
+    
+    # Parse model name
+    parts <- strsplit(name, "_")[[1]]
+    lag <- parts[1]
+    model_type <- parts[2]
+    
+    r2_summary <- rbind(r2_summary, data.frame(
+        Model = model_type,
+        Lag_Interval = lag,
+        Bayes_R2_Mean = round(r2[1], 3),
+        Bayes_R2_SD = round(r2[2], 3)
+    ))
+}
+
+# Reshape for better display
+r2_wide <- r2_summary %>%
+    pivot_wider(
+        names_from = Lag_Interval,
+        values_from = c(Bayes_R2_Mean, Bayes_R2_SD),
+        names_glue = "{Lag_Interval}_{.value}"
+    ) %>%
+    select(Model, ends_with("Mean"), ends_with("SD"))
+
+kable(r2_wide, 
+      caption = "Bayesian R-squared Values",
+      format = "html") %>%
+    kableExtra::kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+### Posterior Predictive Checks
+
+```{r pp-checks, fig.height=10, fig.width=12}
+cat("\n=== POSTERIOR PREDICTIVE CHECKS ===\n\n")
+
+# Select best models from each lag interval for visualization
+best_models <- list(
+    "30m" = all_models$`30m_additive`,  # Update based on LOO results
+    "120m" = all_models$`120m_additive`,
+    "240m" = all_models$`240m_additive`
+)
+
+# Create posterior predictive check plots
+pp_plots <- list()
+
+for (name in names(best_models)) {
+    pp_plots[[paste0(name, "_density")]] <- pp_check(best_models[[name]], 
+                                                      type = "dens_overlay", 
+                                                      ndraws = 50) +
+        ggtitle(paste("Density Overlay -", name, "lag"))
+    
+    pp_plots[[paste0(name, "_scatter")]] <- pp_check(best_models[[name]], 
+                                                     type = "scatter_avg") +
+        ggtitle(paste("Average Predictions -", name, "lag"))
+}
+
+# Arrange plots
+gridExtra::grid.arrange(grobs = pp_plots, ncol = 2)
+```
+
+### Effect Plots
+
+```{r effect-plots, fig.height=12, fig.width=10}
+cat("\n=== MARGINAL EFFECTS ===\n\n")
+
+# Plot smooth terms for the best additive model at each lag
+par(mfrow = c(3, 4))
+
+for (lag in c("30m", "120m", "240m")) {
+    model <- all_models[[paste0(lag, "_additive")]]
+    plot(conditional_smooths(model), 
+         ask = FALSE, 
+         main = paste(lag, "Lag Interval"))
+}
+```
+
+### Model Coefficients Summary
+
+```{r coefficient-summary}
+cat("\n=== KEY COEFFICIENT ESTIMATES ===\n\n")
+
+# Extract and compare AR coefficients across models
+ar_coefs <- data.frame(
+    Model = character(),
+    Lag = character(),
+    AR_Estimate = numeric(),
+    AR_Lower = numeric(),
+    AR_Upper = numeric(),
+    stringsAsFactors = FALSE
+)
+
+for (name in names(all_models)) {
+    model <- all_models[[name]]
+    post <- as_draws_df(model)
+    
+    # Get AR coefficient
+    if ("ar[1]" %in% names(post)) {
+        ar_est <- median(post$`ar[1]`)
+        ar_ci <- quantile(post$`ar[1]`, c(0.025, 0.975))
+        
+        parts <- strsplit(name, "_")[[1]]
+        
+        ar_coefs <- rbind(ar_coefs, data.frame(
+            Model = parts[2],
+            Lag = parts[1],
+            AR_Estimate = round(ar_est, 3),
+            AR_Lower = round(ar_ci[1], 3),
+            AR_Upper = round(ar_ci[2], 3)
+        ))
+    }
+}
+
+kable(ar_coefs, 
+      caption = "Autoregressive (AR) Coefficient Estimates",
+      format = "html") %>%
+    kableExtra::kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+### Summary and Recommendations
+
+```{r summary}
+cat("\n=== SUMMARY ===\n\n")
+
+# Identify best model for each lag interval
+cat("Best performing models by ELPD:\n")
+cat("- 30-minute lag:", rownames(loo_30m)[1], "\n")
+cat("- 2-hour lag:", rownames(loo_120m)[1], "\n")
+cat("- 4-hour lag:", rownames(loo_240m)[1], "\n")
+
+cat("\n")
+cat("Key findings:\n")
+cat("1. Model complexity vs. fit trade-off across lag intervals\n")
+cat("2. Importance of environmental predictors varies with time lag\n")
+cat("3. Autocorrelation strength changes with lag interval\n")
 ```
 
 ## Session Information
