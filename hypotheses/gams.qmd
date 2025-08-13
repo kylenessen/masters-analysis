@@ -220,7 +220,10 @@ prepare_lag_data <- function(master_df, wind_df, lag_minutes) {
         left_join(metrics, by = "interval_id") %>%
         select(-interval_id) %>%
         filter(!is.na(mean_wind_speed) & !is.na(mean_temp)) %>%
-        arrange(view_id, datetime)
+        arrange(view_id, datetime) %>%
+        group_by(view_id) %>%
+        mutate(time_index = row_number()) %>%
+        ungroup()
 
     cat("Final dataset rows:", nrow(final_out), "\n")
     if (nrow(final_out) > 0) {
@@ -406,7 +409,7 @@ library(nlme)
 model_lme <- lme(
   butterfly_diff ~ abundance_t_minus_1,
   random = ~1 | view_id,
-  correlation = corAR1(form = ~ datetime | view_id), # time_index = observation order within view
+  correlation = corAR1(form = ~ time_index | view_id), # time_index = observation order within view
   na.action = na.omit,
   data = data_30m,
   method = "REML"
