@@ -137,6 +137,7 @@ prepare_lag_data <- function(master_df, wind_df, lag_minutes) {
         mean_wind_speed              = mean(speed, na.rm = TRUE),
         max_wind_speed               = suppressWarnings(max(gust, na.rm = TRUE)),
         sd_wind_speed                = sd(speed, na.rm = TRUE),
+        cumulative_wind              = sum(speed, na.rm = TRUE),
         gust_factor                  = mean(gust, na.rm = TRUE) / mean(speed, na.rm = TRUE),
         sustained_minutes_above_2mps = sum(speed > 2, na.rm = TRUE),
         gust_minutes_above_2mps      = sum(gust > 2, na.rm = TRUE)
@@ -202,7 +203,8 @@ prepare_lag_data <- function(master_df, wind_df, lag_minutes) {
     # First select only unique columns from each dataset before merging
     wind_ag_clean <- wind_ag[, .(
         interval_id, mean_wind_speed, max_wind_speed,
-        sd_wind_speed, gust_factor, minutes_above_2mps
+        sd_wind_speed, cumulative_wind, gust_factor, 
+        sustained_minutes_above_2mps, gust_minutes_above_2mps
     )]
     master_ag_clean <- master_ag[, .(
         interval_id, mean_temp, max_temp, min_temp,
