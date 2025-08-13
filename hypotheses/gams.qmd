@@ -102,7 +102,9 @@ prepare_lag_data <- function(master_df, wind_df, lag_minutes) {
         filter(!is.na(abundance_t_minus_1)) %>%
         filter(!(total_butterflies == 0 & abundance_t_minus_1 == 0)) %>%
         mutate(
-            time_delta_mins = as.numeric(difftime(datetime, datetime_t_minus_1, units = "mins"))
+            time_delta_mins = as.numeric(difftime(datetime, datetime_t_minus_1, units = "mins")),
+            butterfly_diff = total_butterflies - abundance_t_minus_1,
+            butterfly_log_diff = log((total_butterflies + 0.1) / (abundance_t_minus_1 + 0.1))
         )
 
     cat("Valid pairs after filtering:", nrow(final_df), "\n")
@@ -247,4 +249,6 @@ cat("30-minute lag dataset:", nrow(data_30m), "observations\n")
 cat("2-hour   lag dataset:", nrow(data_120m), "observations\n")
 cat("4-hour   lag dataset:", nrow(data_240m), "observations\n")
 ```
+
+## Exploratory Analysis
 
