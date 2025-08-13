@@ -252,3 +252,172 @@ cat("4-hour   lag dataset:", nrow(data_240m), "observations\n")
 
 ## Exploratory Analysis
 
+```{r}
+# Load additional libraries for visualization and correlation analysis
+library(corrplot)
+library(GGally)
+library(patchwork)
+
+# Function to create histograms for a dataset
+create_histograms <- function(data, dataset_name) {
+    cat(paste0("\n=== HISTOGRAMS FOR: ", dataset_name, " ===\n"))
+    
+    # Response variables
+    p1 <- ggplot(data, aes(x = total_butterflies)) +
+        geom_histogram(bins = 30, fill = "lightblue", alpha = 0.7) +
+        labs(title = "Total Butterflies (Response)", x = "Count") +
+        theme_minimal()
+    
+    p2 <- ggplot(data, aes(x = butterfly_diff)) +
+        geom_histogram(bins = 30, fill = "lightcoral", alpha = 0.7) +
+        labs(title = "Butterfly Difference", x = "Difference") +
+        theme_minimal()
+    
+    p3 <- ggplot(data, aes(x = butterfly_log_diff)) +
+        geom_histogram(bins = 30, fill = "lightgreen", alpha = 0.7) +
+        labs(title = "Log Butterfly Difference", x = "Log Difference") +
+        theme_minimal()
+    
+    # Lagged predictors
+    p4 <- ggplot(data, aes(x = abundance_t_minus_1)) +
+        geom_histogram(bins = 30, fill = "orange", alpha = 0.7) +
+        labs(title = "Abundance (t-1)", x = "Count") +
+        theme_minimal()
+    
+    # Wind predictors
+    p5 <- ggplot(data, aes(x = mean_wind_speed)) +
+        geom_histogram(bins = 30, fill = "steelblue", alpha = 0.7) +
+        labs(title = "Mean Wind Speed", x = "m/s") +
+        theme_minimal()
+    
+    p6 <- ggplot(data, aes(x = max_wind_speed)) +
+        geom_histogram(bins = 30, fill = "navy", alpha = 0.7) +
+        labs(title = "Max Wind Speed (Gust)", x = "m/s") +
+        theme_minimal()
+    
+    p7 <- ggplot(data, aes(x = cumulative_wind)) +
+        geom_histogram(bins = 30, fill = "darkblue", alpha = 0.7) +
+        labs(title = "Cumulative Wind", x = "Total m/s") +
+        theme_minimal()
+    
+    p8 <- ggplot(data, aes(x = sustained_minutes_above_2mps)) +
+        geom_histogram(bins = 30, fill = "purple", alpha = 0.7) +
+        labs(title = "Sustained Minutes > 2 m/s", x = "Minutes") +
+        theme_minimal()
+    
+    # Temperature predictors
+    p9 <- ggplot(data, aes(x = mean_temp)) +
+        geom_histogram(bins = 30, fill = "red", alpha = 0.7) +
+        labs(title = "Mean Temperature", x = "°C") +
+        theme_minimal()
+    
+    p10 <- ggplot(data, aes(x = max_temp)) +
+        geom_histogram(bins = 30, fill = "darkred", alpha = 0.7) +
+        labs(title = "Max Temperature", x = "°C") +
+        theme_minimal()
+    
+    # Sunlight predictors
+    p11 <- ggplot(data, aes(x = sunlight_proportion)) +
+        geom_histogram(bins = 30, fill = "gold", alpha = 0.7) +
+        labs(title = "Sunlight Proportion", x = "Proportion") +
+        theme_minimal()
+    
+    p12 <- ggplot(data, aes(x = max_prop_sunlight)) +
+        geom_histogram(bins = 30, fill = "orange", alpha = 0.7) +
+        labs(title = "Max Sunlight Proportion", x = "Proportion") +
+        theme_minimal()
+    
+    # Combine plots
+    combined_plot <- (p1 + p2 + p3) / (p4 + p5 + p6) / (p7 + p8 + p9) / (p10 + p11 + p12)
+    print(combined_plot)
+    
+    return(combined_plot)
+}
+
+# Function to create correlation matrix and plot
+create_correlation_analysis <- function(data, dataset_name) {
+    cat(paste0("\n=== CORRELATION ANALYSIS FOR: ", dataset_name, " ===\n"))
+    
+    # Select numeric variables for correlation analysis
+    numeric_vars <- data %>%
+        select(
+            total_butterflies, butterfly_diff, butterfly_log_diff,
+            abundance_t_minus_1, butterflies_sun_t_minus_1, temperature_t_minus_1,
+            mean_wind_speed, max_wind_speed, sd_wind_speed, cumulative_wind,
+            gust_factor, sustained_minutes_above_2mps, gust_minutes_above_2mps,
+            mean_temp, max_temp, min_temp, sd_temp,
+            sunlight_proportion, max_prop_sunlight, min_prop_sunlight, sd_prop_sunlight
+        ) %>%
+        na.omit()
+    
+    # Calculate correlation matrix
+    cor_matrix <- cor(numeric_vars, use = "complete.obs")
+    
+    # Create correlation plot
+    corrplot(cor_matrix, 
+             method = "color", 
+             type = "upper",
+             order = "hclust",
+             tl.cex = 0.8,
+             tl.col = "black",
+             tl.srt = 45,
+             title = paste("Correlation Matrix -", dataset_name),
+             mar = c(0,0,1,0))
+    
+    # Print highly correlated pairs (>0.7 or <-0.7)
+    high_cor <- which(abs(cor_matrix) > 0.7 & cor_matrix != 1, arr.ind = TRUE)
+    if (nrow(high_cor) > 0) {
+        cat("\nHighly correlated variable pairs (|r| > 0.7):\n")
+        for (i in 1:nrow(high_cor)) {
+            row_var <- rownames(cor_matrix)[high_cor[i, 1]]
+            col_var <- colnames(cor_matrix)[high_cor[i, 2]]
+            cor_val <- cor_matrix[high_cor[i, 1], high_cor[i, 2]]
+            cat(sprintf("%s <-> %s: r = %.3f\n", row_var, col_var, cor_val))
+        }
+    }
+    
+    return(cor_matrix)
+}
+```
+
+```{r}
+# Run exploratory analysis for 30-minute lag data (most observations)
+if (nrow(data_30m) > 0) {
+    hist_30m <- create_histograms(data_30m, "30-Minute Lag")
+    cor_30m <- create_correlation_analysis(data_30m, "30-Minute Lag")
+}
+```
+
+```{r}
+# Run exploratory analysis for 2-hour lag data
+if (nrow(data_120m) > 0) {
+    hist_120m <- create_histograms(data_120m, "2-Hour Lag")
+    cor_120m <- create_correlation_analysis(data_120m, "2-Hour Lag")
+}
+```
+
+## Models
+
+### 30 min
+```{r}
+library(nlme)
+
+# Mixed model with AR(1) correlation structure within view_id
+model_lme <- lme(
+  butterfly_diff ~ abundance_t_minus_1,
+  random = ~1 | view_id,
+  correlation = corAR1(form = ~ datetime | view_id), # time_index = observation order within view
+  na.action = na.omit,
+  data = data_30m,
+  method = "REML"
+)
+
+summary(model_lme)
+
+# Diagnostics
+plot(model_lme)                   # residuals vs fitted, QQ plot
+acf(resid(model_lme, type="normalized")) # residual autocorrelation check
+
+
+```
+
