@@ -1,6 +1,6 @@
 ---
 title: "Monarch Butterfly Abundance Analysis (Updated Approach)"
-format: html
+format: pdf
 editor: visual
 ---
 
@@ -335,10 +335,41 @@ create_histograms <- function(data, dataset_name) {
         labs(title = "Log Butterfly Difference", x = "Log Difference") +
         theme_minimal()
     
+    # GAM fitted response variables
+    p3a <- ggplot(data, aes(x = gam_fitted_count)) +
+        geom_histogram(bins = 30, fill = "cyan", alpha = 0.7) +
+        labs(title = "GAM Fitted Count", x = "Count") +
+        theme_minimal()
+    
+    p3b <- ggplot(data, aes(x = gam_pred_diff)) +
+        geom_histogram(bins = 30, fill = "darkgreen", alpha = 0.7) +
+        labs(title = "GAM Predicted Difference", x = "Difference") +
+        theme_minimal()
+    
+    p3c <- ggplot(data, aes(x = loess_fitted_count)) +
+        geom_histogram(bins = 30, fill = "lightpink", alpha = 0.7) +
+        labs(title = "LOESS Fitted Count", x = "Count") +
+        theme_minimal()
+    
+    p3d <- ggplot(data, aes(x = loess_pred_diff)) +
+        geom_histogram(bins = 30, fill = "darkmagenta", alpha = 0.7) +
+        labs(title = "LOESS Predicted Difference", x = "Difference") +
+        theme_minimal()
+    
     # Lagged predictors
     p4 <- ggplot(data, aes(x = abundance_t_minus_1)) +
         geom_histogram(bins = 30, fill = "orange", alpha = 0.7) +
         labs(title = "Abundance (t-1)", x = "Count") +
+        theme_minimal()
+    
+    p4a <- ggplot(data, aes(x = gam_fitted_count_t_minus_1)) +
+        geom_histogram(bins = 30, fill = "turquoise", alpha = 0.7) +
+        labs(title = "GAM Fitted Count (t-1)", x = "Count") +
+        theme_minimal()
+    
+    p4b <- ggplot(data, aes(x = loess_fitted_count_t_minus_1)) +
+        geom_histogram(bins = 30, fill = "plum", alpha = 0.7) +
+        labs(title = "LOESS Fitted Count (t-1)", x = "Count") +
         theme_minimal()
     
     # Wind predictors
@@ -384,11 +415,27 @@ create_histograms <- function(data, dataset_name) {
         labs(title = "Max Sunlight Proportion", x = "Proportion") +
         theme_minimal()
     
-    # Combine plots
-    combined_plot <- (p1 + p2 + p3) / (p4 + p5 + p6) / (p7 + p8 + p9) / (p10 + p11 + p12)
-    print(combined_plot)
+    # Print individual plots (will appear on separate pages in PDF)
+    print(p1)
+    print(p2)
+    print(p3)
+    print(p3a)
+    print(p3b)
+    print(p3c)
+    print(p3d)
+    print(p4)
+    print(p4a)
+    print(p4b)
+    print(p5)
+    print(p6)
+    print(p7)
+    print(p8)
+    print(p9)
+    print(p10)
+    print(p11)
+    print(p12)
     
-    return(combined_plot)
+    return(list(p1, p2, p3, p3a, p3b, p3c, p3d, p4, p4a, p4b, p5, p6, p7, p8, p9, p10, p11, p12))
 }
 
 # Function to create correlation matrix and plot
@@ -461,11 +508,11 @@ library(nlme)
 
 # Mixed model with AR(1) correlation structure within view_id
 model_lme <- lme(
-  butterfly_diff ~ abundance_t_minus_1,
+  gam_pred_diff ~ gam_fitted_count_t_minus_1,
   random = ~1 | view_id,
-  correlation = corAR1(form = ~ time_index | view_id), # time_index = observation order within view
+  #correlation = corAR1(form = ~ time_index | view_id), # time_index = observation order within view
   na.action = na.omit,
-  data = data_30m,
+  data = data_240m,
   method = "REML"
 )
 
@@ -476,5 +523,190 @@ plot(model_lme)                   # residuals vs fitted, QQ plot
 acf(resid(model_lme, type="normalized")) # residual autocorrelation check
 
 
+```
+```{r}
+library(mgcv)
+
+data_30m$datetime_num <- as.numeric(data_30m$datetime)
+
+gam_model <- gam(
+  total_butterflies ~ 
+    s(datetime_num, k = 40) +              # smooth time trend
+    s(mean_wind_speed, k = 10) +                # smooth wind effect
+    s(mean_temp, k = 10) +                      # smooth temp effect
+    sunlight_proportion +                       # linear or smooth
+    s(view_id, bs = "re"),                      # random intercepts
+  data = data_30m,
+  method = "REML"
+)
+
+summary(gam_model)
+plot(gam_model, pages = 1, shade = TRUE)
+
+```
+```{r}
+# Ensure view_id is a factor for use as a random effect and in 'by' variables
+data_30m$view_id <- as.factor(data_30m$view_id)
+
+# Build the null model
+# Response: gam_pred_diff ~ The change in smoothed butterfly counts
+# Predictors:
+#   s(time_index, by = view_id, k = 10) -> A smooth of time, with a *different* trend for each view_id. 
+#                                          'k=10' is a reasonable starting point to prevent overfitting.
+#   gam_fitted_count_t_minus_1         -> The smoothed abundance at the previous time step (t-1). This helps
+#                                          account for whether changes are happening from a high or low baseline.
+#   s(view_id, bs = "re")              -> A random effect for view_id, which accounts for baseline differences
+#                                          in abundance between sites.
+null_model <- gam(
+  gam_pred_diff ~ s(time_index, by = view_id, k = 10) +
+                  gam_fitted_count_t_minus_1 +
+                  s(view_id, bs = "re"),
+  data = data_30m,
+  method = "REML",
+  na.action = na.omit
+)
+
+# Get the summary of the model
+summary(null_model)
+
+# Check the model diagnostics
+# This is crucial! It tells you if 'k' is large enough.
+# Look for low p-values in the output of this function.
+gam.check(null_model)
+
+# Plot the model results
+# This will show you the unique time trend for each site.
+plot(null_model, pages = 1, shade = TRUE, seWithMean = TRUE)
+```
+
+```{r}
+# Load the parallel library
+library(parallel)
+
+# Detect the number of available cores
+num_cores <- detectCores()
+
+# Create a cluster, leaving one core free for system processes
+cl <- makeCluster(num_cores - 1)
+
+# Run bam() using the cluster for parallel processing
+null_model_scat <- bam(
+  gam_pred_diff ~ s(time_index, by = view_id, k = 10) +
+                  gam_fitted_count_t_minus_1 +
+                  s(view_id, bs = "re"),
+  family = scat(link = 'identity'),
+  data = data_30m,
+  na.action = na.omit,
+  cluster = cl # Pass the cluster object here
+)
+
+# Don't forget to stop the cluster when you're done!
+stopCluster(cl)
+
+summary(null_model_scat)
+```
+
+```{r}
+# A more stable hierarchical model structure
+# s(time_index) -> The average "global" time trend across all sites.
+# s(time_index, view_id, bs = "fs") -> The "factor-smooth" interaction. This models
+#                                     how each site's trend deviates from the global
+#                                     average. This is much more stable than fitting
+#                                     totally separate smooths.
+# We'll use bam() and the gaussian family to ensure convergence first.
+
+hierarchical_model <- bam(
+  gam_pred_diff ~ s(time_index, k = 20) +
+                  s(time_index, view_id, bs = "fs", k = 5) +
+                  gam_fitted_count_t_minus_1 +
+                  s(view_id, bs = "re"),
+  family = gaussian(),
+  data = data_30m,
+  na.action = na.omit
+)
+
+# Check for convergence warnings first!
+# Then examine the summary.
+summary(hierarchical_model)
+
+# Plot the diagnostics. Is the "fan shape" in the residuals still there?
+plot(hierarchical_model, pages = 1, shade = TRUE)
+```
+
+```{r}
+# Load the parallel library
+library(parallel)
+
+# Detect the number of available CPU cores on your machine
+num_cores <- detectCores()
+
+# Create a "cluster" of processes, leaving one core free for system stability
+cl <- makeCluster(num_cores - 1)
+
+# Fit the final null model using bam() and distribute the work across the cluster
+final_null_model <- bam(
+  gam_pred_diff ~ s(time_index, k = 20) +
+                  s(time_index, view_id, bs = "fs", k = 5) +
+                  gam_fitted_count_t_minus_1 +
+                  s(view_id, bs = "re"),
+  family = scat(),
+  data = data_240m,
+  na.action = na.omit,
+  cluster = cl # Assign the cluster to the model
+)
+
+# Stop the cluster once the model has finished running
+stopCluster(cl)
+
+# Check the results
+summary(final_null_model)
+gam.check(final_null_model)
+```
+```{r}
+# 1. Create a transformed response variable using the cube root.
+#    The sign() function preserves the negative values.
+data_30m$gam_pred_diff_cubert <- sign(data_30m$gam_pred_diff) * (abs(data_30m$gam_pred_diff))^(1/3)
+
+# 2. Fit the model to this NEW response variable.
+#    Since we transformed the data, we go back to the fast and simple gaussian() family.
+#    We will also increase 'k' slightly to be safe.
+final_null_model_transformed <- bam(
+  gam_pred_diff_cubert ~ s(time_index, k = 30) +
+                         s(time_index, view_id, bs = "fs", k = 10) +
+                         gam_fitted_count_t_minus_1 +
+                         s(view_id, bs = "re"),
+  family = gaussian(),
+  data = data_30m,
+  na.action = na.omit
+)
+
+# 3. Check the diagnostics of this new model.
+summary(final_null_model_transformed)
+gam.check(final_null_model_transformed)
+```
+```{r}
+# 1. Build the full model by adding environmental predictors
+full_model <- bam(
+  gam_pred_diff_cubert ~ s(time_index, k = 30) +
+                         s(time_index, view_id, bs = "fs", k = 10) +
+                         gam_fitted_count_t_minus_1 +
+                         s(view_id, bs = "re") +
+                         # --- ADDING ENVIRONMENTAL PREDICTORS ---
+                         s(mean_wind_speed, k = 10) +
+                         s(mean_temp, k = 10) +
+                         s(sunlight_proportion, k = 5),
+  family = gaussian(),
+  data = data_30m,
+  na.action = na.omit
+)
+
+# 2. Check the summary of the full model
+# Look at the p-values for the new environmental terms.
+summary(full_model)
+```
+
+```{r}
+# Formally compare the null model to the full environmental model
+anova(final_null_model_transformed, full_model, test = "F")
 ```
 
