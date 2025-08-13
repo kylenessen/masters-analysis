@@ -17,22 +17,21 @@ library(tidyverse)
 library(lubridate)
 library(knitr)
 library(bayesplot)
+library(data.table) # high-performance joins/aggregations
 
-# Use the cmdstanr backend for better performance
+# Use CmdStanR backend for performance (chains + within-chain threads)
 options(brms.backend = "cmdstanr")
-options(mc.cores = 23)  # Use 23 of 24 cores, leave 1 for system
 
 cat("Bayesian GAM Analysis Setup Complete\n")
 cat("Backend:", getOption("brms.backend"), "\n")
-cat("Using cores:", getOption("mc.cores"), "of", parallel::detectCores(), "available\n")
 ```
 
-```{r load-data}
+```{r load-data, message=FALSE}
 # Load raw data
-counts <- read_csv("../data/butterfly_abundance_index.csv")
-deployments <- read_csv("../data/deployments.csv")
-temp <- read_csv("../data/temperature_data_2023.csv")
-wind <- read_csv("../data/wind_all.csv")
+counts <- readr::read_csv("../data/butterfly_abundance_index.csv", show_col_types = FALSE)
+deployments <- readr::read_csv("../data/deployments.csv", show_col_types = FALSE)
+temp <- readr::read_csv("../data/temperature_data_2023.csv", show_col_types = FALSE)
+wind <- readr::read_csv("../data/wind_all.csv", show_col_types = FALSE)
 
 cat("Data loaded successfully\n")
 cat("Counts rows:", nrow(counts), "\n")
@@ -43,237 +42,210 @@ cat("Wind rows:", nrow(wind), "\n")
 
 ## Data Preparation
 
-```{r data-preparation}
+```{r data-preparation, message=FALSE}
 # Filter and prepare deployments data
 deployments_filtered <- deployments %>%
-  filter(label_status == "Complete") %>%
-  mutate(view_id = as.factor(view_id)) %>%
-  select(deployment_id, view_id, wind_meter_name)
+    filter(label_status == "Complete") %>%
+    mutate(view_id = as.factor(view_id)) %>%
+    select(deployment_id, view_id, wind_meter_name)
 
-# Parse timestamps in counts data
+# Parse timestamps in counts data (YYYYMMDDHHMMSS in image_filename)
 counts_with_datetime <- counts %>%
-  mutate(
-    datetime_str = str_extract(image_filename, "\\d{14}"),
-    datetime = ymd_hms(datetime_str)
-  ) %>%
-  select(-datetime_str)
+    mutate(
+        datetime_str = stringr::str_extract(image_filename, "\\d{14}"),
+        datetime     = lubridate::ymd_hms(datetime_str, tz = "UTC")
+    ) %>%
+    select(-datetime_str)
 
 # Create master dataframe
 master_df <- counts_with_datetime %>%
-  left_join(deployments_filtered, by = "deployment_id") %>%
-  left_join(temp, by = c("image_filename" = "filename"))
+    left_join(deployments_filtered, by = "deployment_id") %>%
+    left_join(temp, by = c("image_filename" = "filename"))
+
+# Coerce critical time columns; keep wind in UTC as well
+master_df <- master_df %>%
+    mutate(
+        view_id  = as.factor(view_id),
+        datetime = as.POSIXct(datetime, tz = "UTC")
+    )
+
+# Wind table must have clear names: wind_meter_name, time, speed, gust
+wind <- wind %>%
+    mutate(
+        time = as.POSIXct(time, tz = "UTC")
+    )
 
 cat("Master dataframe created with", nrow(master_df), "rows\n")
 ```
 
-## Lag Data Preparation Function
+## Super-fast lag builder (vectorized, no loops)
 
-```{r lag-function}
+```{r lag-function, message=FALSE}
+# This version uses data.table non-equi joins to aggregate over [t-Δ, t] intervals
+# per (view_id, wind_meter_name). It replaces the slow R loop.
+
 prepare_lag_data <- function(master_df, wind_df, lag_minutes) {
-  cat("Preparing data for", lag_minutes, "minute lag...\n")
-  
-  # Create time-shifted dataframes
-  df_t <- master_df %>%
-    filter(!is.na(datetime) & !is.na(view_id))
-  
-  df_t_lag <- df_t %>%
-    rename(
-      abundance_t_minus_1 = total_butterflies,
-      datetime_t_minus_1 = datetime,
-      butterflies_sun_t_minus_1 = butterflies_direct_sun,
-      temperature_t_minus_1 = temperature
-    ) %>%
-    select(view_id, datetime_t_minus_1, abundance_t_minus_1, 
-           butterflies_sun_t_minus_1, temperature_t_minus_1)
-  
-  # Perform sliding window join
-  df_t_lag <- df_t_lag %>%
-    mutate(datetime_expected = datetime_t_minus_1 + minutes(lag_minutes))
-  
-  final_df <- df_t %>%
-    left_join(
-      df_t_lag,
-      by = c("view_id" = "view_id", "datetime" = "datetime_expected")
-    )
-  
-  # Filter invalid pairs
-  final_df <- final_df %>%
-    filter(!is.na(abundance_t_minus_1)) %>%
-    filter(!(total_butterflies == 0 & abundance_t_minus_1 == 0))
-  
-  cat("Valid pairs after filtering:", nrow(final_df), "\n")
-  
-  if(nrow(final_df) == 0) {
-    cat("No valid pairs found, returning empty dataframe\n")
-    return(data.frame())
-  }
-  
-  # Calculate interval predictors efficiently
-  cat("Calculating interval predictors...\n")
-  
-  # Pre-sort data for faster lookups
-  wind_sorted <- wind_df %>%
-    arrange(wind_meter_name, time) %>%
-    mutate(wind_id = row_number())
-  
-  master_sorted <- master_df %>%
-    arrange(view_id, datetime) %>%
-    mutate(master_id = row_number())
-  
-  # Calculate time delta
-  final_df <- final_df %>%
-    mutate(time_delta_mins = as.numeric(difftime(datetime, datetime_t_minus_1, units = "mins")))
-  
-  # Batch process by unique combinations
-  unique_intervals <- final_df %>%
-    select(view_id, wind_meter_name, datetime_t_minus_1, datetime) %>%
-    distinct() %>%
-    mutate(interval_id = row_number())
-  
-  cat("Processing", nrow(unique_intervals), "unique intervals...\n")
-  
-  # Calculate metrics for each unique interval
-  interval_metrics <- list()
-  
-  for(i in 1:nrow(unique_intervals)) {
-    if(i %% max(1, floor(nrow(unique_intervals)/10)) == 0) {
-      cat("Progress:", round(100*i/nrow(unique_intervals), 1), "%\n")
-    }
-    
-    interval <- unique_intervals[i, ]
-    
-    # Wind metrics for this interval
-    wind_subset <- wind_sorted %>%
-      filter(
-        wind_meter_name == interval$wind_meter_name,
-        time >= interval$datetime_t_minus_1,
-        time <= interval$datetime
-      )
-    
-    if (nrow(wind_subset) > 0) {
-      wind_metrics <- list(
-        mean_wind_speed = mean(wind_subset$speed, na.rm = TRUE),
-        max_wind_speed = max(wind_subset$speed, na.rm = TRUE),
-        sd_wind_speed = sd(wind_subset$speed, na.rm = TRUE),
-        gust_factor = mean(wind_subset$gust, na.rm = TRUE) / mean(wind_subset$speed, na.rm = TRUE),
-        minutes_above_2mps = sum(wind_subset$speed > 2, na.rm = TRUE)
-      )
-    } else {
-      wind_metrics <- list(
-        mean_wind_speed = NA_real_,
-        max_wind_speed = NA_real_,
-        sd_wind_speed = NA_real_,
-        gust_factor = NA_real_,
-        minutes_above_2mps = NA_real_
-      )
-    }
-    
-    # Temperature and sunlight metrics
-    temp_subset <- master_sorted %>%
-      filter(
-        view_id == interval$view_id,
-        datetime >= interval$datetime_t_minus_1,
-        datetime <= interval$datetime
-      )
-    
-    if (nrow(temp_subset) > 0) {
-      # Temperature metrics
-      temp_metrics <- list(
-        mean_temp = mean(temp_subset$temperature, na.rm = TRUE),
-        max_temp = max(temp_subset$temperature, na.rm = TRUE),
-        min_temp = min(temp_subset$temperature, na.rm = TRUE),
-        sd_temp = sd(temp_subset$temperature, na.rm = TRUE)
-      )
-      
-      # Sunlight metrics
-      total_sun <- sum(temp_subset$butterflies_direct_sun, na.rm = TRUE)
-      total_count <- sum(temp_subset$total_butterflies, na.rm = TRUE)
-      if (total_count > 0) {
-        overall_prop <- total_sun / total_count
-        obs_props <- ifelse(temp_subset$total_butterflies > 0,
-                           temp_subset$butterflies_direct_sun / temp_subset$total_butterflies,
-                           NA_real_)
-        sun_metrics <- list(
-          sunlight_proportion = overall_prop,
-          max_prop_sunlight = max(obs_props, na.rm = TRUE),
-          min_prop_sunlight = min(obs_props, na.rm = TRUE),
-          sd_prop_sunlight = sd(obs_props, na.rm = TRUE)
+    cat("Preparing data for", lag_minutes, "minute lag...\n")
+
+    df_t <- master_df %>%
+        filter(!is.na(datetime) & !is.na(view_id))
+
+    # Create lagged copy, shifted forward by lag to align t-Δ with t
+    df_t_lag <- df_t %>%
+        rename(
+            abundance_t_minus_1        = total_butterflies,
+            datetime_t_minus_1         = datetime,
+            butterflies_sun_t_minus_1  = butterflies_direct_sun,
+            temperature_t_minus_1      = temperature
+        ) %>%
+        mutate(datetime_expected = datetime_t_minus_1 + minutes(lag_minutes)) %>%
+        select(
+            view_id, datetime_t_minus_1, datetime_expected,
+            abundance_t_minus_1, butterflies_sun_t_minus_1, temperature_t_minus_1
         )
-      } else {
-        sun_metrics <- list(
-          sunlight_proportion = NA_real_,
-          max_prop_sunlight = NA_real_,
-          min_prop_sunlight = NA_real_,
-          sd_prop_sunlight = NA_real_
+
+    # Join exact matches on (view_id, datetime == datetime_expected)
+    final_df <- df_t %>%
+        left_join(
+            df_t_lag,
+            by = c("view_id" = "view_id", "datetime" = "datetime_expected")
+        ) %>%
+        filter(!is.na(abundance_t_minus_1)) %>%
+        filter(!(total_butterflies == 0 & abundance_t_minus_1 == 0)) %>%
+        mutate(
+            time_delta_mins = as.numeric(difftime(datetime, datetime_t_minus_1, units = "mins"))
         )
-      }
-    } else {
-      temp_metrics <- list(
-        mean_temp = NA_real_,
-        max_temp = NA_real_,
-        min_temp = NA_real_,
-        sd_temp = NA_real_
-      )
-      sun_metrics <- list(
-        sunlight_proportion = NA_real_,
-        max_prop_sunlight = NA_real_,
-        min_prop_sunlight = NA_real_,
-        sd_prop_sunlight = NA_real_
-      )
+
+    cat("Valid pairs after filtering:", nrow(final_df), "\n")
+    if (nrow(final_df) == 0) {
+        return(final_df[0, ])
     }
-    
-    # Store all metrics for this interval
-    interval_metrics[[i]] <- c(
-      interval_id = interval$interval_id,
-      wind_metrics,
-      temp_metrics,
-      sun_metrics
-    )
-  }
-  
-  # Convert to dataframe
-  cat("Combining results...\n")
-  metrics_df <- do.call(rbind, lapply(interval_metrics, as.data.frame))
-  
-  # Join back with original data
-  final_df_with_intervals <- final_df %>%
-    left_join(unique_intervals, by = c("view_id", "wind_meter_name", "datetime_t_minus_1", "datetime")) %>%
-    left_join(metrics_df, by = "interval_id") %>%
-    select(-interval_id)
-  
-  # Remove rows with too many NAs in predictors
-  final_clean <- final_df_with_intervals %>%
-    filter(!is.na(mean_wind_speed) & !is.na(mean_temp))
-  
-  # CRITICAL: Sort data for brms autocorrelation structure
-  final_clean <- final_clean %>%
-    arrange(view_id, datetime)
-  
-  cat("Final dataset rows:", nrow(final_clean), "\n")
-  if(nrow(final_clean) > 0) {
-    cat("Time delta range:", round(min(final_clean$time_delta_mins, na.rm = TRUE), 1),
-        "to", round(max(final_clean$time_delta_mins, na.rm = TRUE), 1), "minutes\n")
-  }
-  
-  return(final_clean)
+
+    # Build unique intervals table
+    intervals <- final_df %>%
+        select(view_id, wind_meter_name, datetime_t_minus_1, datetime) %>%
+        distinct() %>%
+        mutate(interval_id = dplyr::row_number())
+
+    # Convert to data.table for vectorized range aggregations
+    wind_dt <- as.data.table(wind_df)
+    master_dt <- as.data.table(master_df)
+    ints_dt <- as.data.table(intervals)
+
+    setkey(wind_dt, wind_meter_name, time)
+    setkey(master_dt, view_id, datetime)
+
+    # WIND metrics over [start, end] = [datetime_t_minus_1, datetime]
+    wind_ag <- wind_dt[
+        ints_dt,
+        on = .(
+            wind_meter_name,
+            time >= datetime_t_minus_1,
+            time <= datetime
+        ),
+        allow.cartesian = TRUE,
+        nomatch = 0L,
+        .(
+            interval_id        = interval_id[1L],
+            mean_wind_speed    = mean(speed, na.rm = TRUE),
+            max_wind_speed     = suppressWarnings(max(speed, na.rm = TRUE)),
+            sd_wind_speed      = sd(speed, na.rm = TRUE),
+            gust_factor        = mean(gust, na.rm = TRUE) / mean(speed, na.rm = TRUE),
+            minutes_above_2mps = sum(speed > 2, na.rm = TRUE) # assumes ~1-min cadence
+        ),
+        by = .EACHI
+    ]
+
+    # Guard against all-NA => max = -Inf
+    if (nrow(wind_ag)) {
+        wind_ag[, max_wind_speed := ifelse(is.finite(max_wind_speed), max_wind_speed, NA_real_)]
+        wind_ag[, gust_factor := ifelse(is.finite(gust_factor), gust_factor, NA_real_)]
+    }
+
+    # TEMPERATURE & SUNLIGHT metrics over [start, end]
+    master_ag <- master_dt[
+        ints_dt,
+        on = .(
+            view_id,
+            datetime >= datetime_t_minus_1,
+            datetime <= datetime
+        ),
+        allow.cartesian = TRUE,
+        nomatch = 0L,
+        {
+            props <- ifelse(total_butterflies > 0,
+                butterflies_direct_sun / total_butterflies,
+                NA_real_
+            )
+            sum_total <- sum(total_butterflies, na.rm = TRUE)
+            sum_sun <- sum(butterflies_direct_sun, na.rm = TRUE)
+            sunlight_prop <- if (sum_total > 0) sum_sun / sum_total else NA_real_
+
+            pmax <- suppressWarnings(max(props, na.rm = TRUE))
+            pmin <- suppressWarnings(min(props, na.rm = TRUE))
+            psd <- sd(props, na.rm = TRUE)
+            pmax <- ifelse(is.finite(pmax), pmax, NA_real_)
+            pmin <- ifelse(is.finite(pmin), pmin, NA_real_)
+            psd <- ifelse(is.finite(psd), psd, NA_real_)
+
+            .(
+                interval_id         = interval_id[1L],
+                mean_temp           = mean(temperature, na.rm = TRUE),
+                max_temp            = suppressWarnings(max(temperature, na.rm = TRUE)),
+                min_temp            = suppressWarnings(min(temperature, na.rm = TRUE)),
+                sd_temp             = sd(temperature, na.rm = TRUE),
+                sunlight_proportion = sunlight_prop,
+                max_prop_sunlight   = pmax,
+                min_prop_sunlight   = pmin,
+                sd_prop_sunlight    = psd
+            )
+        },
+        by = .EACHI
+    ]
+
+    if (nrow(master_ag)) {
+        master_ag[, `:=`(
+            max_temp = ifelse(is.finite(max_temp), max_temp, NA_real_),
+            min_temp = ifelse(is.finite(min_temp), min_temp, NA_real_)
+        )]
+    }
+
+    # Merge metrics back to the matched pairs
+    metrics <- merge(wind_ag, master_ag, by = "interval_id", all = TRUE)
+
+    final_out <- final_df %>%
+        left_join(intervals, by = c("view_id", "wind_meter_name", "datetime_t_minus_1", "datetime")) %>%
+        left_join(metrics, by = "interval_id") %>%
+        select(-interval_id) %>%
+        filter(!is.na(mean_wind_speed) & !is.na(mean_temp)) %>%
+        arrange(view_id, datetime)
+
+    cat("Final dataset rows:", nrow(final_out), "\n")
+    if (nrow(final_out) > 0) {
+        cat(
+            "Time delta range:",
+            round(min(final_out$time_delta_mins, na.rm = TRUE), 1), "to",
+            round(max(final_out$time_delta_mins, na.rm = TRUE), 1), "minutes\n"
+        )
+    }
+
+    final_out
 }
 ```
 
 ## Generate Lag Datasets
 
 ```{r generate-datasets}
-# Generate the three lag datasets
 cat("=== GENERATING LAG DATASETS ===\n")
 
 data_30m <- prepare_lag_data(master_df, wind, lag_minutes = 30)
-data_120m <- prepare_lag_data(master_df, wind, lag_minutes = 120)  
+data_120m <- prepare_lag_data(master_df, wind, lag_minutes = 120)
 data_240m <- prepare_lag_data(master_df, wind, lag_minutes = 240)
 
-# Summary of datasets
 cat("\n=== DATASET SUMMARY ===\n")
 cat("30-minute lag dataset:", nrow(data_30m), "observations\n")
-cat("2-hour lag dataset:", nrow(data_120m), "observations\n") 
-cat("4-hour lag dataset:", nrow(data_240m), "observations\n")
+cat("2-hour   lag dataset:", nrow(data_120m), "observations\n")
+cat("4-hour   lag dataset:", nrow(data_240m), "observations\n")
 ```
 
 ## Bayesian Modeling Setup
@@ -283,49 +255,75 @@ cat("4-hour lag dataset:", nrow(data_240m), "observations\n")
 # SETUP
 # ===============================================================
 
-# Define weakly informative priors to help the models converge
+# Weakly-informative priors
 my_priors <- c(
-  prior(student_t(3, 0, 2.5), class = "Intercept"),
-  prior(normal(0, 1), class = "sds"),
-  prior(normal(0, 1), class = "ar")
+    prior(student_t(3, 0, 2.5), class = "Intercept"),
+    prior(normal(0, 1), class = "sds"),
+    prior(normal(0, 1), class = "ar")
 )
 
-# Optimized settings for 24-core machine
-CHAINS <- 12  # Excellent convergence with 12 chains
-CORES <- 12   # One core per chain
-ITER <- 4000  # Keep robust iteration count
+# Parallelization plan for a 24-core / 128 GB machine
+CHAINS <- 4 # diagnostics sweet spot
+PCHAINS <- 4 # run all chains concurrently
+THREADS <- 4 # within-chain threading (reduce_sum)
+ITER <- 4000 # or 2000 if runs are stable
 WARMUP <- 1000
+SEED <- 20250812
 
-cat("Optimized settings for high-performance computing:\n")
-cat("Chains:", CHAINS, "\n")
-cat("Cores:", CORES, "\n") 
-cat("Iterations:", ITER, "\n")
-cat("Warmup:", WARMUP, "\n")
+ctrl <- list(adapt_delta = 0.9, max_treedepth = 12)
 
-# Define a function to prepare data for brms (sort and remove NAs)
-prepare_brms_data <- function(df) {
-  # Check required variables exist
-  required_vars <- c("total_butterflies", "abundance_t_minus_1", "mean_wind_speed", 
-                    "mean_temp", "sunlight_proportion", "view_id", "datetime")
-  
-  missing_vars <- required_vars[!required_vars %in% names(df)]
-  if(length(missing_vars) > 0) {
-    stop("Missing required variables: ", paste(missing_vars, collapse = ", "))
-  }
-  
-  # Prepare clean dataset
-  clean_df <- df %>%
-    select(all_of(required_vars)) %>%
-    na.omit() %>%
-    arrange(view_id, datetime)  # Critical for autocorrelation
-  
-  cat("Prepared dataset:", nrow(clean_df), "observations,", 
-      length(unique(clean_df$view_id)), "view IDs\n")
-  
-  return(clean_df)
+cat("Parallel plan:\n")
+cat(
+    "  chains =", CHAINS,
+    "| parallel_chains =", PCHAINS,
+    "| threads_per_chain =", THREADS, "\n"
+)
+
+# Helper to standardize common brms args
+brms_common <- list(
+    family          = negbinomial(),
+    prior           = my_priors,
+    iter            = ITER,
+    warmup          = WARMUP,
+    chains          = CHAINS,
+    parallel_chains = PCHAINS,
+    threads         = threading(THREADS),
+    seed            = SEED,
+    backend         = "cmdstanr",
+    control         = ctrl,
+    save_pars       = save_pars(all = TRUE),
+    file_refit      = "on_change" # only refit if formula/data/prior changed
+)
+
+# Convenience wrapper to splice common args safely
+fit_brm <- function(formula, data, file) {
+    do.call(
+        what = brms::brm,
+        args = c(list(
+            formula = formula,
+            data    = data,
+            file    = file
+        ), brms_common)
+    )
 }
 
-# Prepare your three datasets
+# Prep function to ensure ordering/vars for AR structure
+prepare_brms_data <- function(df) {
+    required_vars <- c(
+        "total_butterflies", "abundance_t_minus_1", "mean_wind_speed",
+        "mean_temp", "sunlight_proportion", "view_id", "datetime"
+    )
+    missing_vars <- setdiff(required_vars, names(df))
+    if (length(missing_vars) > 0) {
+        stop("Missing required variables: ", paste(missing_vars, collapse = ", "))
+    }
+    df %>%
+        select(all_of(required_vars)) %>%
+        tidyr::drop_na() %>%
+        arrange(view_id, datetime)
+}
+
+# Prepare the datasets for modeling
 cat("Preparing datasets for brms modeling...\n")
 data_30m_brms <- prepare_brms_data(data_30m)
 data_120m_brms <- prepare_brms_data(data_120m)
@@ -333,8 +331,8 @@ data_240m_brms <- prepare_brms_data(data_240m)
 
 cat("\n=== BRMS-READY DATASETS ===\n")
 cat("30-minute:", nrow(data_30m_brms), "observations\n")
-cat("2-hour:", nrow(data_120m_brms), "observations\n")
-cat("4-hour:", nrow(data_240m_brms), "observations\n")
+cat("2-hour:   ", nrow(data_120m_brms), "observations\n")
+cat("4-hour:   ", nrow(data_240m_brms), "observations\n")
 ```
 
 ## Model Fitting
@@ -342,96 +340,58 @@ cat("4-hour:", nrow(data_240m_brms), "observations\n")
 ### 30-Minute Lag Models
 
 ```{r models-30min}
-# ===============================================================
-# MODELING - 30 MINUTE LAG
-# ===============================================================
 cat("\nStarting 30-Minute Lag Models...\n")
 
-# Model 1: Baseline
-cat("Fitting 30min Baseline model...\n")
-brm_30m_base <- brm(
-  bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
-                        (1 | view_id) + 
-                        ar(time = datetime, gr = view_id, p = 1)), 
-  data = data_30m_brms, 
-  file = "brm_30m_base.rds", 
-  family = negbinomial(), 
-  prior = my_priors, 
-  iter = ITER, 
-  warmup = WARMUP, 
-  chains = CHAINS, 
-  cores = CORES
+# 1) Baseline
+brm_30m_base <- fit_brm(
+    bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
+        (1 | view_id) +
+        ar(time = datetime, gr = view_id, p = 1)),
+    data = data_30m_brms,
+    file = "brm_30m_base.rds"
 )
 
-# Model 2: Wind
-cat("Fitting 30min Wind model...\n")
-brm_30m_wind <- brm(
-  bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
-                        s(mean_wind_speed) + 
-                        (1 | view_id) + 
-                        ar(time = datetime, gr = view_id, p = 1)), 
-  data = data_30m_brms, 
-  file = "brm_30m_wind.rds", 
-  family = negbinomial(), 
-  prior = my_priors, 
-  iter = ITER, 
-  warmup = WARMUP, 
-  chains = CHAINS, 
-  cores = CORES
+# 2) Wind only
+brm_30m_wind <- fit_brm(
+    bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
+        s(mean_wind_speed) +
+        (1 | view_id) +
+        ar(time = datetime, gr = view_id, p = 1)),
+    data = data_30m_brms,
+    file = "brm_30m_wind.rds"
 )
 
-# Model 3: Temperature
-cat("Fitting 30min Temperature model...\n")
-brm_30m_temp <- brm(
-  bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
-                        s(mean_temp) + 
-                        (1 | view_id) + 
-                        ar(time = datetime, gr = view_id, p = 1)), 
-  data = data_30m_brms, 
-  file = "brm_30m_temp.rds", 
-  family = negbinomial(), 
-  prior = my_priors, 
-  iter = ITER, 
-  warmup = WARMUP, 
-  chains = CHAINS, 
-  cores = CORES
+# 3) Temperature only
+brm_30m_temp <- fit_brm(
+    bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
+        s(mean_temp) +
+        (1 | view_id) +
+        ar(time = datetime, gr = view_id, p = 1)),
+    data = data_30m_brms,
+    file = "brm_30m_temp.rds"
 )
 
-# Model 4: All Additive
-cat("Fitting 30min Additive model...\n")
-brm_30m_additive <- brm(
-  bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
-                        s(mean_wind_speed) + 
-                        s(mean_temp) + 
-                        s(sunlight_proportion) + 
-                        (1 | view_id) + 
-                        ar(time = datetime, gr = view_id, p = 1)), 
-  data = data_30m_brms, 
-  file = "brm_30m_additive.rds", 
-  family = negbinomial(), 
-  prior = my_priors, 
-  iter = ITER, 
-  warmup = WARMUP, 
-  chains = CHAINS, 
-  cores = CORES
+# 4) Additive
+brm_30m_additive <- fit_brm(
+    bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
+        s(mean_wind_speed) +
+        s(mean_temp) +
+        s(sunlight_proportion) +
+        (1 | view_id) +
+        ar(time = datetime, gr = view_id, p = 1)),
+    data = data_30m_brms,
+    file = "brm_30m_additive.rds"
 )
 
-# Model 5: Temp x Sunlight Interaction
-cat("Fitting 30min Interaction model...\n")
-brm_30m_interaction <- brm(
-  bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
-                        s(mean_wind_speed) + 
-                        t2(mean_temp, sunlight_proportion) + 
-                        (1 | view_id) + 
-                        ar(time = datetime, gr = view_id, p = 1)), 
-  data = data_30m_brms, 
-  file = "brm_30m_interaction.rds", 
-  family = negbinomial(), 
-  prior = my_priors, 
-  iter = ITER, 
-  warmup = WARMUP, 
-  chains = CHAINS, 
-  cores = CORES
+# 5) Temp × Sunlight interaction
+brm_30m_interaction <- fit_brm(
+    bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
+        s(mean_wind_speed) +
+        t2(mean_temp, sunlight_proportion) +
+        (1 | view_id) +
+        ar(time = datetime, gr = view_id, p = 1)),
+    data = data_30m_brms,
+    file = "brm_30m_interaction.rds"
 )
 
 cat("30-minute lag models complete!\n")
@@ -440,91 +400,53 @@ cat("30-minute lag models complete!\n")
 ### 2-Hour Lag Models
 
 ```{r models-120min}
-# ===============================================================
-# MODELING - 2 HOUR LAG (120 MINUTES)
-# ===============================================================
 cat("\nStarting 2-Hour Lag Models...\n")
 
-cat("Fitting 120min Baseline model...\n")
-brm_120m_base <- brm(
-  bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
-                        (1 | view_id) + 
-                        ar(time = datetime, gr = view_id, p = 1)), 
-  data = data_120m_brms, 
-  file = "brm_120m_base.rds", 
-  family = negbinomial(), 
-  prior = my_priors, 
-  iter = ITER, 
-  warmup = WARMUP, 
-  chains = CHAINS, 
-  cores = CORES
+brm_120m_base <- fit_brm(
+    bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
+        (1 | view_id) +
+        ar(time = datetime, gr = view_id, p = 1)),
+    data = data_120m_brms,
+    file = "brm_120m_base.rds"
 )
 
-cat("Fitting 120min Wind model...\n")
-brm_120m_wind <- brm(
-  bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
-                        s(mean_wind_speed) + 
-                        (1 | view_id) + 
-                        ar(time = datetime, gr = view_id, p = 1)), 
-  data = data_120m_brms, 
-  file = "brm_120m_wind.rds", 
-  family = negbinomial(), 
-  prior = my_priors, 
-  iter = ITER, 
-  warmup = WARMUP, 
-  chains = CHAINS, 
-  cores = CORES
+brm_120m_wind <- fit_brm(
+    bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
+        s(mean_wind_speed) +
+        (1 | view_id) +
+        ar(time = datetime, gr = view_id, p = 1)),
+    data = data_120m_brms,
+    file = "brm_120m_wind.rds"
 )
 
-cat("Fitting 120min Temperature model...\n")
-brm_120m_temp <- brm(
-  bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
-                        s(mean_temp) + 
-                        (1 | view_id) + 
-                        ar(time = datetime, gr = view_id, p = 1)), 
-  data = data_120m_brms, 
-  file = "brm_120m_temp.rds", 
-  family = negbinomial(), 
-  prior = my_priors, 
-  iter = ITER, 
-  warmup = WARMUP, 
-  chains = CHAINS, 
-  cores = CORES
+brm_120m_temp <- fit_brm(
+    bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
+        s(mean_temp) +
+        (1 | view_id) +
+        ar(time = datetime, gr = view_id, p = 1)),
+    data = data_120m_brms,
+    file = "brm_120m_temp.rds"
 )
 
-cat("Fitting 120min Additive model...\n")
-brm_120m_additive <- brm(
-  bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
-                        s(mean_wind_speed) + 
-                        s(mean_temp) + 
-                        s(sunlight_proportion) + 
-                        (1 | view_id) + 
-                        ar(time = datetime, gr = view_id, p = 1)), 
-  data = data_120m_brms, 
-  file = "brm_120m_additive.rds", 
-  family = negbinomial(), 
-  prior = my_priors, 
-  iter = ITER, 
-  warmup = WARMUP, 
-  chains = CHAINS, 
-  cores = CORES
+brm_120m_additive <- fit_brm(
+    bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
+        s(mean_wind_speed) +
+        s(mean_temp) +
+        s(sunlight_proportion) +
+        (1 | view_id) +
+        ar(time = datetime, gr = view_id, p = 1)),
+    data = data_120m_brms,
+    file = "brm_120m_additive.rds"
 )
 
-cat("Fitting 120min Interaction model...\n")
-brm_120m_interaction <- brm(
-  bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
-                        s(mean_wind_speed) + 
-                        t2(mean_temp, sunlight_proportion) + 
-                        (1 | view_id) + 
-                        ar(time = datetime, gr = view_id, p = 1)), 
-  data = data_120m_brms, 
-  file = "brm_120m_interaction.rds", 
-  family = negbinomial(), 
-  prior = my_priors, 
-  iter = ITER, 
-  warmup = WARMUP, 
-  chains = CHAINS, 
-  cores = CORES
+brm_120m_interaction <- fit_brm(
+    bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
+        s(mean_wind_speed) +
+        t2(mean_temp, sunlight_proportion) +
+        (1 | view_id) +
+        ar(time = datetime, gr = view_id, p = 1)),
+    data = data_120m_brms,
+    file = "brm_120m_interaction.rds"
 )
 
 cat("2-hour lag models complete!\n")
@@ -533,91 +455,53 @@ cat("2-hour lag models complete!\n")
 ### 4-Hour Lag Models
 
 ```{r models-240min}
-# ===============================================================
-# MODELING - 4 HOUR LAG (240 MINUTES)
-# ===============================================================
 cat("\nStarting 4-Hour Lag Models...\n")
 
-cat("Fitting 240min Baseline model...\n")
-brm_240m_base <- brm(
-  bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
-                        (1 | view_id) + 
-                        ar(time = datetime, gr = view_id, p = 1)), 
-  data = data_240m_brms, 
-  file = "brm_240m_base.rds", 
-  family = negbinomial(), 
-  prior = my_priors, 
-  iter = ITER, 
-  warmup = WARMUP, 
-  chains = CHAINS, 
-  cores = CORES
+brm_240m_base <- fit_brm(
+    bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
+        (1 | view_id) +
+        ar(time = datetime, gr = view_id, p = 1)),
+    data = data_240m_brms,
+    file = "brm_240m_base.rds"
 )
 
-cat("Fitting 240min Wind model...\n")
-brm_240m_wind <- brm(
-  bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
-                        s(mean_wind_speed) + 
-                        (1 | view_id) + 
-                        ar(time = datetime, gr = view_id, p = 1)), 
-  data = data_240m_brms, 
-  file = "brm_240m_wind.rds", 
-  family = negbinomial(), 
-  prior = my_priors, 
-  iter = ITER, 
-  warmup = WARMUP, 
-  chains = CHAINS, 
-  cores = CORES
+brm_240m_wind <- fit_brm(
+    bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
+        s(mean_wind_speed) +
+        (1 | view_id) +
+        ar(time = datetime, gr = view_id, p = 1)),
+    data = data_240m_brms,
+    file = "brm_240m_wind.rds"
 )
 
-cat("Fitting 240min Temperature model...\n")
-brm_240m_temp <- brm(
-  bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
-                        s(mean_temp) + 
-                        (1 | view_id) + 
-                        ar(time = datetime, gr = view_id, p = 1)), 
-  data = data_240m_brms, 
-  file = "brm_240m_temp.rds", 
-  family = negbinomial(), 
-  prior = my_priors, 
-  iter = ITER, 
-  warmup = WARMUP, 
-  chains = CHAINS, 
-  cores = CORES
+brm_240m_temp <- fit_brm(
+    bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
+        s(mean_temp) +
+        (1 | view_id) +
+        ar(time = datetime, gr = view_id, p = 1)),
+    data = data_240m_brms,
+    file = "brm_240m_temp.rds"
 )
 
-cat("Fitting 240min Additive model...\n")
-brm_240m_additive <- brm(
-  bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
-                        s(mean_wind_speed) + 
-                        s(mean_temp) + 
-                        s(sunlight_proportion) + 
-                        (1 | view_id) + 
-                        ar(time = datetime, gr = view_id, p = 1)), 
-  data = data_240m_brms, 
-  file = "brm_240m_additive.rds", 
-  family = negbinomial(), 
-  prior = my_priors, 
-  iter = ITER, 
-  warmup = WARMUP, 
-  chains = CHAINS, 
-  cores = CORES
+brm_240m_additive <- fit_brm(
+    bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
+        s(mean_wind_speed) +
+        s(mean_temp) +
+        s(sunlight_proportion) +
+        (1 | view_id) +
+        ar(time = datetime, gr = view_id, p = 1)),
+    data = data_240m_brms,
+    file = "brm_240m_additive.rds"
 )
 
-cat("Fitting 240min Interaction model...\n")
-brm_240m_interaction <- brm(
-  bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
-                        s(mean_wind_speed) + 
-                        t2(mean_temp, sunlight_proportion) + 
-                        (1 | view_id) + 
-                        ar(time = datetime, gr = view_id, p = 1)), 
-  data = data_240m_brms, 
-  file = "brm_240m_interaction.rds", 
-  family = negbinomial(), 
-  prior = my_priors, 
-  iter = ITER, 
-  warmup = WARMUP, 
-  chains = CHAINS, 
-  cores = CORES
+brm_240m_interaction <- fit_brm(
+    bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
+        s(mean_wind_speed) +
+        t2(mean_temp, sunlight_proportion) +
+        (1 | view_id) +
+        ar(time = datetime, gr = view_id, p = 1)),
+    data = data_240m_brms,
+    file = "brm_240m_interaction.rds"
 )
 
 cat("4-hour lag models complete!\n")
@@ -627,52 +511,44 @@ cat("4-hour lag models complete!\n")
 
 ```{r model-comparison}
 cat("\n=== ALL MODELS COMPLETE ===\n")
-cat("All models have been fitted and saved as .rds files.\n")
-cat("Check the working directory for the following files:\n\n")
 
-# List all model files
 model_files <- c(
-  "30-minute lag models:",
-  "  - brm_30m_base.rds",
-  "  - brm_30m_wind.rds", 
-  "  - brm_30m_temp.rds",
-  "  - brm_30m_additive.rds",
-  "  - brm_30m_interaction.rds",
-  "",
-  "2-hour lag models:",
-  "  - brm_120m_base.rds",
-  "  - brm_120m_wind.rds",
-  "  - brm_120m_temp.rds", 
-  "  - brm_120m_additive.rds",
-  "  - brm_120m_interaction.rds",
-  "",
-  "4-hour lag models:",
-  "  - brm_240m_base.rds",
-  "  - brm_240m_wind.rds",
-  "  - brm_240m_temp.rds",
-  "  - brm_240m_additive.rds",
-  "  - brm_240m_interaction.rds"
+    "30-minute lag models:",
+    "  - brm_30m_base.rds",
+    "  - brm_30m_wind.rds",
+    "  - brm_30m_temp.rds",
+    "  - brm_30m_additive.rds",
+    "  - brm_30m_interaction.rds",
+    "",
+    "2-hour lag models:",
+    "  - brm_120m_base.rds",
+    "  - brm_120m_wind.rds",
+    "  - brm_120m_temp.rds",
+    "  - brm_120m_additive.rds",
+    "  - brm_120m_interaction.rds",
+    "",
+    "4-hour lag models:",
+    "  - brm_240m_base.rds",
+    "  - brm_240m_wind.rds",
+    "  - brm_240m_temp.rds",
+    "  - brm_240m_additive.rds",
+    "  - brm_240m_interaction.rds"
 )
 
 cat(paste(model_files, collapse = "\n"))
 
-cat("\n\n=== PERFORMANCE OPTIMIZATION SUMMARY ===\n")
-cat("✓ Optimized for 24-core machine (using 23 cores)\n")
-cat("✓ 12 chains per model for excellent convergence\n") 
-cat("✓ Each chain runs on dedicated core\n")
-cat("✓ Expected ~3x faster than 4-chain setup\n")
-cat("✓ Superior convergence diagnostics with 12 chains\n")
+# Example: quick diagnostics you can expand as needed
+# print(summary(brm_30m_additive))
+# bayesplot::mcmc_neff(neff_ratio(brm_30m_additive))
+# loo::loo(brm_30m_additive, brm_30m_interaction)
 
-cat("\n=== NEXT STEPS ===\n")
-cat("1. Check model convergence with summary() on each model\n")
-cat("2. Compare models using loo() for model selection\n") 
-cat("3. Examine posterior predictive checks with pp_check()\n")
-cat("4. Plot results and interpret coefficients\n")
-cat("\nHigh-performance Bayesian analysis complete! 🚀\n")
+cat("\n\nNext steps:\n")
+cat("1) Check convergence: summary(), rhat(), neff_ratio()\n")
+cat("2) Compare models: loo() or add_criterion('loo')\n")
+cat("3) Posterior predictive checks: pp_check()\n")
 ```
 
 ## Session Information
 
 ```{r session-info}
 sessionInfo()
-```
