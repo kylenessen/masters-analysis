@@ -134,7 +134,7 @@ prepare_lag_data <- function(master_df, wind_df, lag_minutes) {
     setkey(wind_dt, wind_meter_name, wind_time)
     setkey(master_dt, view_id, datetime)
 
-    # Now use wind_time in non-equi join
+    # Now use wind_time in non-equi join (remove duplicate wind_time from join)
     wind_ag <- wind_dt[
         ints_dt,
         on = .(
@@ -143,17 +143,15 @@ prepare_lag_data <- function(master_df, wind_df, lag_minutes) {
             wind_time <= datetime
         ),
         allow.cartesian = TRUE,
-        nomatch = 0L,
-        .(
-            interval_id        = interval_id[1L],
-            mean_wind_speed    = mean(speed, na.rm = TRUE),
-            max_wind_speed     = suppressWarnings(max(speed, na.rm = TRUE)),
-            sd_wind_speed      = sd(speed, na.rm = TRUE),
-            gust_factor        = mean(gust, na.rm = TRUE) / mean(speed, na.rm = TRUE),
-            minutes_above_2mps = sum(speed > 2, na.rm = TRUE)
-        ),
-        by = .EACHI
-    ]
+        nomatch = 0L
+    ][, .(
+        interval_id        = interval_id[1L],
+        mean_wind_speed    = mean(speed, na.rm = TRUE),
+        max_wind_speed     = suppressWarnings(max(speed, na.rm = TRUE)),
+        sd_wind_speed      = sd(speed, na.rm = TRUE),
+        gust_factor        = mean(gust, na.rm = TRUE) / mean(speed, na.rm = TRUE),
+        minutes_above_2mps = sum(speed > 2, na.rm = TRUE)
+    ), by = .(wind_meter_name, interval_id)]
 
 
     # Guard against all-NA => max = -Inf
@@ -171,37 +169,35 @@ prepare_lag_data <- function(master_df, wind_df, lag_minutes) {
             datetime <= datetime
         ),
         allow.cartesian = TRUE,
-        nomatch = 0L,
-        {
-            props <- ifelse(total_butterflies > 0,
-                butterflies_direct_sun / total_butterflies,
-                NA_real_
-            )
-            sum_total <- sum(total_butterflies, na.rm = TRUE)
-            sum_sun <- sum(butterflies_direct_sun, na.rm = TRUE)
-            sunlight_prop <- if (sum_total > 0) sum_sun / sum_total else NA_real_
+        nomatch = 0L
+    ][, {
+        props <- ifelse(total_butterflies > 0,
+            butterflies_direct_sun / total_butterflies,
+            NA_real_
+        )
+        sum_total <- sum(total_butterflies, na.rm = TRUE)
+        sum_sun <- sum(butterflies_direct_sun, na.rm = TRUE)
+        sunlight_prop <- if (sum_total > 0) sum_sun / sum_total else NA_real_
 
-            pmax <- suppressWarnings(max(props, na.rm = TRUE))
-            pmin <- suppressWarnings(min(props, na.rm = TRUE))
-            psd <- sd(props, na.rm = TRUE)
-            pmax <- ifelse(is.finite(pmax), pmax, NA_real_)
-            pmin <- ifelse(is.finite(pmin), pmin, NA_real_)
-            psd <- ifelse(is.finite(psd), psd, NA_real_)
+        pmax <- suppressWarnings(max(props, na.rm = TRUE))
+        pmin <- suppressWarnings(min(props, na.rm = TRUE))
+        psd <- sd(props, na.rm = TRUE)
+        pmax <- ifelse(is.finite(pmax), pmax, NA_real_)
+        pmin <- ifelse(is.finite(pmin), pmin, NA_real_)
+        psd <- ifelse(is.finite(psd), psd, NA_real_)
 
-            .(
-                interval_id         = interval_id[1L],
-                mean_temp           = mean(temperature, na.rm = TRUE),
-                max_temp            = suppressWarnings(max(temperature, na.rm = TRUE)),
-                min_temp            = suppressWarnings(min(temperature, na.rm = TRUE)),
-                sd_temp             = sd(temperature, na.rm = TRUE),
-                sunlight_proportion = sunlight_prop,
-                max_prop_sunlight   = pmax,
-                min_prop_sunlight   = pmin,
-                sd_prop_sunlight    = psd
-            )
-        },
-        by = .EACHI
-    ]
+        .(
+            interval_id         = interval_id[1L],
+            mean_temp           = mean(temperature, na.rm = TRUE),
+            max_temp            = suppressWarnings(max(temperature, na.rm = TRUE)),
+            min_temp            = suppressWarnings(min(temperature, na.rm = TRUE)),
+            sd_temp             = sd(temperature, na.rm = TRUE),
+            sunlight_proportion = sunlight_prop,
+            max_prop_sunlight   = pmax,
+            min_prop_sunlight   = pmin,
+            sd_prop_sunlight    = psd
+        )
+    }, by = .(view_id, interval_id)]
 
     if (nrow(master_ag)) {
         master_ag[, `:=`(
@@ -211,7 +207,13 @@ prepare_lag_data <- function(master_df, wind_df, lag_minutes) {
     }
 
     # Merge metrics back to the matched pairs
-    metrics <- merge(wind_ag, master_ag, by = "interval_id", all = TRUE)
+    # First select only unique columns from each dataset before merging
+    wind_ag_clean <- wind_ag[, .(interval_id, mean_wind_speed, max_wind_speed, 
+                                  sd_wind_speed, gust_factor, minutes_above_2mps)]
+    master_ag_clean <- master_ag[, .(interval_id, mean_temp, max_temp, min_temp, 
+                                      sd_temp, sunlight_proportion, max_prop_sunlight, 
+                                      min_prop_sunlight, sd_prop_sunlight)]
+    metrics <- merge(wind_ag_clean, master_ag_clean, by = "interval_id", all = TRUE)
 
     final_out <- final_df %>%
         left_join(intervals, by = c("view_id", "wind_meter_name", "datetime_t_minus_1", "datetime")) %>%
@@ -262,32 +264,34 @@ my_priors <- c(
     prior(normal(0, 1), class = "ar")
 )
 
-# Parallelization plan for a 24-core / 128 GB machine
-CHAINS <- 4 # diagnostics sweet spot
-PCHAINS <- 4 # run all chains concurrently
-THREADS <- 4 # within-chain threading (reduce_sum)
-ITER <- 4000 # or 2000 if runs are stable
+# Parallelization plan for a 24-core machine
+# Since threading is disabled with AR models, maximize parallel chains
+CHAINS <- 4 # standard for diagnostics
+PCHAINS <- 4 # run all 4 chains in parallel (uses 4 cores)
+# THREADS disabled due to AR terms
+ITER <- 4000 # full sampling
 WARMUP <- 1000
 SEED <- 20250812
 
 ctrl <- list(adapt_delta = 0.9, max_treedepth = 12)
 
-cat("Parallel plan:\n")
+cat("Parallel plan (24-core machine):\n")
 cat(
     "  chains =", CHAINS,
     "| parallel_chains =", PCHAINS,
-    "| threads_per_chain =", THREADS, "\n"
+    "| cores used =", PCHAINS, "(threading disabled with AR models)\n"
 )
 
 # Helper to standardize common brms args
+# Note: Threading disabled due to AR terms in models
 brms_common <- list(
     family          = negbinomial(),
     prior           = my_priors,
     iter            = ITER,
     warmup          = WARMUP,
     chains          = CHAINS,
-    parallel_chains = PCHAINS,
-    threads         = threading(THREADS),
+    cores           = PCHAINS,  # Use cores instead of parallel_chains for cmdstanr
+    # threads       = threading(THREADS), # Disabled - not supported with AR models
     seed            = SEED,
     backend         = "cmdstanr",
     control         = ctrl,
