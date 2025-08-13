@@ -276,272 +276,49 @@ prepare_lag_data <- function(master_df, wind_df, lag_minutes) {
 data_30m <- prepare_lag_data(master_df, wind, lag_minutes = 30)
 ```
 
-### Exploratory Data Analysis
+### Data Quality Check
 
-```{r eda-30min}
-cat("Data structure:\n")
-glimpse(data_30m)
-
-cat("\n\nData summary:\n")
-summary(data_30m)
-
-# Check for data quality issues
-cat("\n\nData quality checks:\n")
+```{r data-check}
+cat("Data structure summary:\n")
 cat("Total rows:", nrow(data_30m), "\n")
 cat("Complete cases:", sum(complete.cases(data_30m)), "\n")
-
-# Print column names to debug variable names
-cat("\nColumn names in data_30m:\n")
-print(names(data_30m))
-
-if("abundance_t_minus_1" %in% names(data_30m)) {
-  cat("Rows with abundance_t_minus_1 > 0:", sum(data_30m$abundance_t_minus_1 > 0, na.rm = TRUE), "\n")
-}
-if("total_butterflies" %in% names(data_30m)) {
-  cat("Rows with total_butterflies > 0:", sum(data_30m$total_butterflies > 0, na.rm = TRUE), "\n")
-  cat("\nResponse variable (total_butterflies) distribution:\n")
-  table(data_30m$total_butterflies)
-}
+cat("Rows with abundance_t_minus_1 > 0:", sum(data_30m$abundance_t_minus_1 > 0, na.rm = TRUE), "\n")
+cat("Rows with total_butterflies > 0:", sum(data_30m$total_butterflies > 0, na.rm = TRUE), "\n")
 cat("Unique view_ids:", length(unique(data_30m$view_id)), "\n")
+cat("Time range:", as.character(range(data_30m$datetime, na.rm = TRUE)), "\n")
 ```
 
-```{r collinearity-30min, fig.width=10, fig.height=10}
-# Select numeric predictors for correlation analysis
-predictors_30m <- data_30m %>%
-  select(abundance_t_minus_1, mean_wind_speed, max_wind_speed, sd_wind_speed,
-         gust_factor, minutes_above_2mps, mean_temp, max_temp, min_temp, sd_temp,
-         sunlight_proportion) %>%
-  na.omit()
+## Data Preparation for Modeling
 
-if (nrow(predictors_30m) > 1) {
-  # Calculate correlation matrix
-  cor_matrix_30m <- cor(predictors_30m, use = "complete.obs")
-  
-  # Check if correlation matrix has any NA/NaN/Inf values
-  if (!any(is.na(cor_matrix_30m) | is.infinite(cor_matrix_30m))) {
-    corrplot(cor_matrix_30m, method = "color", type = "upper", 
-             order = "hclust", tl.cex = 0.8, tl.col = "black",
-             addCoef.col = "black", number.cex = 0.7,
-             title = "Predictor Collinearity (30-minute lag)")
-  } else {
-    # If hclust fails, use original order
-    corrplot(cor_matrix_30m, method = "color", type = "upper", 
-             order = "original", tl.cex = 0.8, tl.col = "black",
-             addCoef.col = "black", number.cex = 0.7,
-             title = "Predictor Collinearity (30-minute lag)")
-  }
-} else {
-  cat("Not enough data for correlation analysis\n")
-}
-```
-
-## Variable Inspection
-
-```{r check-variables}
-cat("Checking available variables in the prepared dataset...\n")
-cat("Column names:\n")
-print(names(data_30m))
-
-cat("\nLooking for key variables:\n")
-# Check for response variable
-response_vars <- names(data_30m)[grepl("butterfl", names(data_30m), ignore.case = TRUE)]
-cat("Response variables (containing 'butterfl'):", paste(response_vars, collapse = ", "), "\n")
-
-# Check for lag variable
-lag_vars <- names(data_30m)[grepl("minus|lag|t_", names(data_30m), ignore.case = TRUE)]
-cat("Lag variables (containing 'minus', 'lag', or 't_'):", paste(lag_vars, collapse = ", "), "\n")
-
-# Check for wind variables
-wind_vars <- names(data_30m)[grepl("wind", names(data_30m), ignore.case = TRUE)]
-cat("Wind variables:", paste(wind_vars, collapse = ", "), "\n")
-
-# Check for temperature variables
-temp_vars <- names(data_30m)[grepl("temp", names(data_30m), ignore.case = TRUE)]
-cat("Temperature variables:", paste(temp_vars, collapse = ", "), "\n")
-
-# Check for sunlight variables
-sun_vars <- names(data_30m)[grepl("sun|light|proportion", names(data_30m), ignore.case = TRUE)]
-cat("Sunlight variables:", paste(sun_vars, collapse = ", "), "\n")
-
-# Check for time/date variables
-time_vars <- names(data_30m)[grepl("time|date", names(data_30m), ignore.case = TRUE)]
-cat("Time variables:", paste(time_vars, collapse = ", "), "\n")
-```
-
-## Test Model: Global Model Only
-
-**Note**: This test uses fast settings (2 chains, 500 iterations) for quick verification. For final analysis, use 4 chains with 2000+ iterations.
-
-```{r test-global-model, warning=FALSE, fig.width=8, fig.height=6}
-# First, let's identify the correct variable names
-if(nrow(data_30m) == 0) {
-  stop("No data available in data_30m. Check data preparation steps.")
-}
-
-# Check which variables are actually available and create appropriate formula
-available_vars <- names(data_30m)
-
-# Try to identify correct variable names
-response_var <- if("total_butterflies" %in% available_vars) {
-  "total_butterflies"
-} else {
-  response_vars <- available_vars[grepl("butterfl", available_vars, ignore.case = TRUE)]
-  if(length(response_vars) > 0) response_vars[1] else stop("No response variable found")
-}
-
-lag_var <- if("abundance_t_minus_1" %in% available_vars) {
-  "abundance_t_minus_1"
-} else {
-  lag_vars <- available_vars[grepl("minus|lag", available_vars, ignore.case = TRUE)]
-  if(length(lag_vars) > 0) lag_vars[1] else stop("No lag variable found")
-}
-
-wind_var <- if("mean_wind_speed" %in% available_vars) {
-  "mean_wind_speed"
-} else {
-  wind_vars <- available_vars[grepl("wind.*mean|mean.*wind", available_vars, ignore.case = TRUE)]
-  if(length(wind_vars) > 0) wind_vars[1] else stop("No wind variable found")
-}
-
-temp_var <- if("mean_temp" %in% available_vars) {
-  "mean_temp"
-} else {
-  temp_vars <- available_vars[grepl("temp.*mean|mean.*temp", available_vars, ignore.case = TRUE)]
-  if(length(temp_vars) > 0) temp_vars[1] else stop("No temperature variable found")
-}
-
-sun_var <- if("sunlight_proportion" %in% available_vars) {
-  "sunlight_proportion"
-} else {
-  sun_vars <- available_vars[grepl("sun|light|proportion", available_vars, ignore.case = TRUE)]
-  if(length(sun_vars) > 0) sun_vars[1] else stop("No sunlight variable found")
-}
-
-time_var <- if("datetime" %in% available_vars) {
-  "datetime"
-} else {
-  time_vars <- available_vars[grepl("time|date", available_vars, ignore.case = TRUE)]
-  if(length(time_vars) > 0) time_vars[1] else stop("No time variable found")
-}
-
-cat("✓ All required variables found in dataset\n")
-
-# Define the global model formula with correct variable names
-# Since all the expected variables are present, use them directly
-global_formula <- bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) + 
-                                        s(mean_wind_speed) + 
-                                        s(mean_temp) + 
-                                        s(sunlight_proportion) + 
-                                        t2(mean_wind_speed, mean_temp) + 
-                                        t2(mean_wind_speed, sunlight_proportion) + 
-                                        t2(mean_temp, sunlight_proportion) + 
-                                        (1 | view_id) + 
-                                        ar(time = datetime, gr = view_id, p = 1))
-
-cat("Formula created successfully\n")
-print(global_formula)
-
-cat("Testing Global Model with full interactions\n")
-cat("===========================================\n\n")
-
-# Check data before fitting
-# Extract variables manually since all.vars() doesn't work well with bf() objects
+```{r prepare-model-data}
+# Prepare data for brms modeling
 required_vars <- c("total_butterflies", "abundance_t_minus_1", "mean_wind_speed", 
                   "mean_temp", "sunlight_proportion", "view_id", "datetime")
 
-cat("Required variables:", paste(required_vars, collapse = ", "), "\n")
-
-# Check which variables are actually available
+# Check all required variables are present
 missing_vars <- required_vars[!required_vars %in% names(data_30m)]
 if(length(missing_vars) > 0) {
-  cat("Missing variables:", paste(missing_vars, collapse = ", "), "\n")
-  stop("Some variables from the formula are not in the data")
+  stop("Missing required variables: ", paste(missing_vars, collapse = ", "))
 }
 
+# Prepare clean dataset for modeling
 model_data <- data_30m %>%
-  select(all_of(required_vars)) %>%  # Include all needed variables
+  select(all_of(required_vars)) %>%
   na.omit() %>%
-  arrange(view_id, datetime)  # Ensure proper sorting
+  arrange(view_id, datetime)  # Critical for autocorrelation structure
 
-cat("Model data dimensions after removing NAs:", nrow(model_data), "x", ncol(model_data), "\n")
-cat("Variables in model:", paste(required_vars, collapse = ", "), "\n")
+cat("Model data prepared:\n")
+cat("- Observations:", nrow(model_data), "\n")
+cat("- Variables:", ncol(model_data), "\n")
+cat("- View IDs:", length(unique(model_data$view_id)), "\n")
+cat("- Time range:", as.character(range(model_data$datetime)), "\n")
 
-# Quick data verification
-cat("✓ Model data prepared successfully\n")
-cat("✓ All", length(required_vars), "variables present\n")
-
-# Check if we have enough data
-if(nrow(model_data) < 50) {
-  cat("Warning: Very few observations (", nrow(model_data), ") for this model\n")
-}
-
-# Check for sufficient variation in view_id
+# Check for sufficient variation
 view_counts <- table(model_data$view_id)
-cat("View IDs with observations:", length(view_counts), "\n")
-cat("Min/Max observations per view:", min(view_counts), "/", max(view_counts), "\n")
-
-cat("\nFitting Bayesian GAM with brms...\n")
-cat("This may take several minutes...\n\n")
-
-cat("\n=== ATTEMPTING TO FIT MODEL ===\n")
-cat("Data looks good, attempting to fit Bayesian GAM...\n")
-
-# Try fitting with error handling
-tryCatch({
-  # Fit Bayesian GAM with brms - FAST TEST VERSION
-  global_model <- brm(
-    global_formula,
-    family = negbinomial(),
-    data = model_data,
-    cores = 2,    # Reduced cores
-    chains = 2,   # Reduced for speed
-    iter = 500,   # Very fast for testing
-    warmup = 250, # Very fast for testing
-    backend = "rstan",
-    control = list(adapt_delta = 0.85, max_treedepth = 8),
-    silent = 0,   # Show all output for debugging
-    refresh = 50  # Show progress every 50 iterations
-  )
-  
-  cat("✓ Model fitted successfully!\n")
-  
-}, error = function(e) {
-  cat("Error fitting model:", e$message, "\n")
-  cat("This might be due to:\n")
-  cat("- Stan compilation issues\n") 
-  cat("- Complex model with fast settings\n")
-  cat("- Need to install cmdstanr instead of rstan\n")
-  
-  # Try a simpler model for testing
-  cat("\nTrying simpler baseline model...\n")
-  simple_formula <- bf(total_butterflies ~ s(abundance_t_minus_1, k = 10) + (1 | view_id))
-  
-  global_model <<- brm(
-    simple_formula,
-    family = negbinomial(),
-    data = model_data,
-    cores = 2,
-    chains = 2,
-    iter = 500,
-    warmup = 250,
-    backend = "rstan",
-    silent = 0,
-    refresh = 50
-  )
-  
-  cat("✓ Simpler model fitted successfully!\n")
-})
-
-cat("Bayesian GAM fitted successfully!\n\n")
-
-# Calculate LOO for model comparison
-loo_result <- loo(global_model)
-cat("LOO-CV Information Criterion:", round(loo_result$estimates["looic", "Estimate"], 2), "\n\n")
-
-# Print summary
-cat("Model Summary:\n")
-print(summary(global_model))
+cat("- Min/Max observations per view:", min(view_counts), "/", max(view_counts), "\n")
 ```
+
+## Bayesian GAM Model
 
 ```{r}
 # --- Step 2: Define Priors ---
@@ -596,60 +373,67 @@ plot(additive_model_brms)
 
 
 
-### Diagnostic Plots for Global Model
+## Model Diagnostics
 
-```{r global-diagnostics, fig.width=8, fig.height=6}
-cat("\nBayesian Diagnostic plots:\n")
+```{r model-diagnostics, fig.width=10, fig.height=8}
+# Check model convergence and diagnostics
+cat("=== MODEL DIAGNOSTICS ===\n")
 
-# Plot 1: Posterior predictive check
-pp_check(global_model, ndraws = 50) + 
-  labs(title = "Posterior Predictive Check: Global Model")
-
-# Plot 2: Trace plots for key parameters (first few only to avoid clutter)
-plot(global_model, ask = FALSE, pars = c("b_Intercept"))
-
-# Plot 3: Residuals vs Fitted (Bayesian version)
-fitted_vals <- fitted(global_model)[,"Estimate"]
-residuals_vals <- residuals(global_model)[,"Estimate"]
-plot(fitted_vals, residuals_vals, 
-     xlab = "Fitted values", ylab = "Residuals",
-     main = "Residuals vs Fitted: Global Model")
-abline(h = 0, col = "red", lty = 2)
-
-# Plot 4: Q-Q plot of residuals
-qqnorm(residuals_vals, main = "Q-Q Plot: Global Model")
-qqline(residuals_vals, col = "red")
-```
-
-### Model Performance Summary
-
-```{r global-summary}
-cat("\n=== GLOBAL MODEL TEST RESULTS ===\n")
-cat("Model fitted successfully:", !is.null(global_model), "\n")
-cat("Number of observations used:", nrow(model_data), "\n")
+# Basic convergence checks
+cat("Model fitted successfully:", !is.null(additive_model_brms), "\n")
+cat("Number of observations:", nrow(model_data), "\n")
 cat("Number of view IDs:", length(unique(model_data$view_id)), "\n")
-cat("LOO-CV IC:", round(loo_result$estimates["looic", "Estimate"], 2), "\n")
 
-# Check convergence diagnostics
+# Convergence diagnostics
 tryCatch({
-  cat("Effective sample size (bulk):", round(min(neff_ratio(global_model)) * (2 * 250), 0), "\n")  # 2 chains * 250 post-warmup
-  cat("R-hat (max):", round(max(rhat(global_model), na.rm = TRUE), 3), "\n")
+  rhat_values <- rhat(additive_model_brms)
+  ess_values <- neff_ratio(additive_model_brms)
+  
+  cat("R-hat (max):", round(max(rhat_values, na.rm = TRUE), 3), "\n")
+  cat("Effective sample size (min ratio):", round(min(ess_values, na.rm = TRUE), 3), "\n")
   
   # Check convergence
-  if (max(rhat(global_model), na.rm = TRUE) < 1.1) {
-    cat("✓ Model converged successfully (R-hat < 1.1)\n")
+  if (max(rhat_values, na.rm = TRUE) < 1.01) {
+    cat("✓ Excellent convergence (R-hat < 1.01)\n")
+  } else if (max(rhat_values, na.rm = TRUE) < 1.1) {
+    cat("✓ Good convergence (R-hat < 1.1)\n")
   } else {
-    cat("⚠ Warning: Model may not have converged (R-hat >= 1.1)\n")
-    cat("  This is expected with the fast test settings. Use more iterations for final analysis.\n")
+    cat("⚠ Warning: Poor convergence (R-hat >= 1.1)\n")
   }
+  
+  if (min(ess_values, na.rm = TRUE) > 0.1) {
+    cat("✓ Sufficient effective sample size\n")
+  } else {
+    cat("⚠ Warning: Low effective sample size\n")
+  }
+  
 }, error = function(e) {
-  cat("Note: Some convergence diagnostics not available with test settings\n")
+  cat("Error accessing convergence diagnostics:", e$message, "\n")
 })
 
-cat("\n🎉 SUCCESS: Bayesian GAM model fitted successfully!\n")
-cat("You can now proceed with the full model comparison using proper settings:\n")
-cat("- Increase chains to 4\n")
-cat("- Increase iter to 2000+ \n")
-cat("- Increase warmup to 1000+\n")
-cat("- Set silent = 2 for cleaner output\n")
+# Posterior predictive check
+print(pp_check(additive_model_brms, ndraws = 100) + 
+      labs(title = "Posterior Predictive Check: Additive Model"))
+
+# Trace plots for key parameters
+plot(additive_model_brms, ask = FALSE)
+```
+
+## Model Results
+
+```{r model-results}
+# Model summary
+print(summary(additive_model_brms))
+
+# Calculate model comparison metrics
+tryCatch({
+  loo_result <- loo(additive_model_brms)
+  cat("\nModel Performance:\n")
+  cat("LOO-CV IC:", round(loo_result$estimates["looic", "Estimate"], 2), "\n")
+  cat("LOO-CV SE:", round(loo_result$estimates["looic", "SE"], 2), "\n")
+}, error = function(e) {
+  cat("Could not calculate LOO-CV:", e$message, "\n")
+})
+
+cat("\n🎉 Model fitting complete!\n")
 ```
