@@ -87,10 +87,12 @@ cat("Master dataframe created with", nrow(master_df), "rows\n")
 prepare_lag_data <- function(master_df, wind_df, lag_minutes) {
     cat("Preparing data for", lag_minutes, "minute lag...\n")
 
+    # Ensure unique column names in wind_df
+    wind_df <- wind_df %>% rename(wind_time = time)
+
     df_t <- master_df %>%
         filter(!is.na(datetime) & !is.na(view_id))
 
-    # Create lagged copy, shifted forward by lag to align t-Δ with t
     df_t_lag <- df_t %>%
         rename(
             abundance_t_minus_1        = total_butterflies,
@@ -104,7 +106,6 @@ prepare_lag_data <- function(master_df, wind_df, lag_minutes) {
             abundance_t_minus_1, butterflies_sun_t_minus_1, temperature_t_minus_1
         )
 
-    # Join exact matches on (view_id, datetime == datetime_expected)
     final_df <- df_t %>%
         left_join(
             df_t_lag,
@@ -121,27 +122,25 @@ prepare_lag_data <- function(master_df, wind_df, lag_minutes) {
         return(final_df[0, ])
     }
 
-    # Build unique intervals table
     intervals <- final_df %>%
         select(view_id, wind_meter_name, datetime_t_minus_1, datetime) %>%
         distinct() %>%
         mutate(interval_id = dplyr::row_number())
 
-    # Convert to data.table for vectorized range aggregations
     wind_dt <- as.data.table(wind_df)
     master_dt <- as.data.table(master_df)
     ints_dt <- as.data.table(intervals)
 
-    setkey(wind_dt, wind_meter_name, time)
+    setkey(wind_dt, wind_meter_name, wind_time)
     setkey(master_dt, view_id, datetime)
 
-    # WIND metrics over [start, end] = [datetime_t_minus_1, datetime]
+    # Now use wind_time in non-equi join
     wind_ag <- wind_dt[
         ints_dt,
         on = .(
             wind_meter_name,
-            time >= datetime_t_minus_1,
-            time <= datetime
+            wind_time >= datetime_t_minus_1,
+            wind_time <= datetime
         ),
         allow.cartesian = TRUE,
         nomatch = 0L,
@@ -151,10 +150,11 @@ prepare_lag_data <- function(master_df, wind_df, lag_minutes) {
             max_wind_speed     = suppressWarnings(max(speed, na.rm = TRUE)),
             sd_wind_speed      = sd(speed, na.rm = TRUE),
             gust_factor        = mean(gust, na.rm = TRUE) / mean(speed, na.rm = TRUE),
-            minutes_above_2mps = sum(speed > 2, na.rm = TRUE) # assumes ~1-min cadence
+            minutes_above_2mps = sum(speed > 2, na.rm = TRUE)
         ),
         by = .EACHI
     ]
+
 
     # Guard against all-NA => max = -Inf
     if (nrow(wind_ag)) {
