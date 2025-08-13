@@ -329,7 +329,7 @@ if (nrow(predictors_30m) > 1) {
 
 ### Model Fitting (30 minutes)
 
-```{r models-30min, warning=FALSE}
+```{r models-30min, warning=FALSE, fig.width=8, fig.height=6}
 # Define model formulas
 model_formulas_30m <- list(
   "Baseline (abundance only)" = total_butterflies ~ s(abundance_t_minus_1, k = 4),
@@ -392,9 +392,32 @@ for (i in seq_along(model_formulas_30m)) {
     cat("Model Summary:\n")
     print(summary(gam_model))
     
-    # Diagnostic plots
+    # Diagnostic plots - individual plots for better visibility in PDF
     cat("\n\nDiagnostic plots:\n")
-    gam.check(gam_model)
+    
+    # Set up for individual plots
+    par(mfrow = c(1, 1), mar = c(4, 4, 2, 1))
+    
+    # Plot 1: Residuals vs Fitted
+    plot(fitted(gam_model), residuals(gam_model), 
+         xlab = "Fitted values", ylab = "Residuals",
+         main = "Residuals vs Fitted")
+    abline(h = 0, col = "red", lty = 2)
+    
+    # Plot 2: Q-Q plot
+    qqnorm(residuals(gam_model))
+    qqline(residuals(gam_model), col = "red")
+    
+    # Plot 3: Scale-Location (if appropriate)
+    plot(fitted(gam_model), sqrt(abs(residuals(gam_model))), 
+         xlab = "Fitted values", ylab = "√|Residuals|",
+         main = "Scale-Location")
+    
+    # Plot 4: Response vs Fitted
+    plot(fitted(gam_model), model_data$total_butterflies,
+         xlab = "Fitted values", ylab = "Observed values",
+         main = "Response vs Fitted")
+    abline(a = 0, b = 1, col = "red", lty = 2)
     
   }, error = function(e) {
     cat("Error fitting model:", e$message, "\n")
@@ -470,7 +493,7 @@ if (nrow(predictors_60m) > 1) {
 
 ### Model Fitting (1 hour)
 
-```{r models-60min, warning=FALSE}
+```{r models-60min, warning=FALSE, fig.width=8, fig.height=6}
 # Use same model formulas
 model_formulas_60m <- model_formulas_30m
 
@@ -511,9 +534,32 @@ for (i in seq_along(model_formulas_60m)) {
     cat("Model Summary:\n")
     print(summary(gam_model))
     
-    # Diagnostic plots
+    # Diagnostic plots - individual plots for better visibility in PDF
     cat("\n\nDiagnostic plots:\n")
-    gam.check(gam_model)
+    
+    # Set up for individual plots
+    par(mfrow = c(1, 1), mar = c(4, 4, 2, 1))
+    
+    # Plot 1: Residuals vs Fitted
+    plot(fitted(gam_model), residuals(gam_model), 
+         xlab = "Fitted values", ylab = "Residuals",
+         main = "Residuals vs Fitted")
+    abline(h = 0, col = "red", lty = 2)
+    
+    # Plot 2: Q-Q plot
+    qqnorm(residuals(gam_model))
+    qqline(residuals(gam_model), col = "red")
+    
+    # Plot 3: Scale-Location (if appropriate)
+    plot(fitted(gam_model), sqrt(abs(residuals(gam_model))), 
+         xlab = "Fitted values", ylab = "√|Residuals|",
+         main = "Scale-Location")
+    
+    # Plot 4: Response vs Fitted
+    plot(fitted(gam_model), model_data$total_butterflies,
+         xlab = "Fitted values", ylab = "Observed values",
+         main = "Response vs Fitted")
+    abline(a = 0, b = 1, col = "red", lty = 2)
     
   }, error = function(e) {
     cat("Error fitting model:", e$message, "\n")
@@ -588,7 +634,7 @@ if (nrow(predictors_120m) > 1) {
 
 ### Model Fitting (2 hours)
 
-```{r models-120min, warning=FALSE}
+```{r models-120min, warning=FALSE, fig.width=8, fig.height=6}
 # Use same model formulas
 model_formulas_120m <- model_formulas_30m
 
@@ -629,9 +675,32 @@ for (i in seq_along(model_formulas_120m)) {
     cat("Model Summary:\n")
     print(summary(gam_model))
     
-    # Diagnostic plots
+    # Diagnostic plots - individual plots for better visibility in PDF
     cat("\n\nDiagnostic plots:\n")
-    gam.check(gam_model)
+    
+    # Set up for individual plots
+    par(mfrow = c(1, 1), mar = c(4, 4, 2, 1))
+    
+    # Plot 1: Residuals vs Fitted
+    plot(fitted(gam_model), residuals(gam_model), 
+         xlab = "Fitted values", ylab = "Residuals",
+         main = "Residuals vs Fitted")
+    abline(h = 0, col = "red", lty = 2)
+    
+    # Plot 2: Q-Q plot
+    qqnorm(residuals(gam_model))
+    qqline(residuals(gam_model), col = "red")
+    
+    # Plot 3: Scale-Location (if appropriate)
+    plot(fitted(gam_model), sqrt(abs(residuals(gam_model))), 
+         xlab = "Fitted values", ylab = "√|Residuals|",
+         main = "Scale-Location")
+    
+    # Plot 4: Response vs Fitted
+    plot(fitted(gam_model), model_data$total_butterflies,
+         xlab = "Fitted values", ylab = "Observed values",
+         main = "Response vs Fitted")
+    abline(a = 0, b = 1, col = "red", lty = 2)
     
   }, error = function(e) {
     cat("Error fitting model:", e$message, "\n")
@@ -706,7 +775,7 @@ if (nrow(predictors_240m) > 1) {
 
 ### Model Fitting (4 hours)
 
-```{r models-240min, warning=FALSE}
+```{r models-240min, warning=FALSE, fig.width=8, fig.height=6}
 # Use same model formulas
 model_formulas_240m <- model_formulas_30m
 
@@ -747,9 +816,32 @@ for (i in seq_along(model_formulas_240m)) {
     cat("Model Summary:\n")
     print(summary(gam_model))
     
-    # Diagnostic plots
+    # Diagnostic plots - individual plots for better visibility in PDF
     cat("\n\nDiagnostic plots:\n")
-    gam.check(gam_model)
+    
+    # Set up for individual plots
+    par(mfrow = c(1, 1), mar = c(4, 4, 2, 1))
+    
+    # Plot 1: Residuals vs Fitted
+    plot(fitted(gam_model), residuals(gam_model), 
+         xlab = "Fitted values", ylab = "Residuals",
+         main = "Residuals vs Fitted")
+    abline(h = 0, col = "red", lty = 2)
+    
+    # Plot 2: Q-Q plot
+    qqnorm(residuals(gam_model))
+    qqline(residuals(gam_model), col = "red")
+    
+    # Plot 3: Scale-Location (if appropriate)
+    plot(fitted(gam_model), sqrt(abs(residuals(gam_model))), 
+         xlab = "Fitted values", ylab = "√|Residuals|",
+         main = "Scale-Location")
+    
+    # Plot 4: Response vs Fitted
+    plot(fitted(gam_model), model_data$total_butterflies,
+         xlab = "Fitted values", ylab = "Observed values",
+         main = "Response vs Fitted")
+    abline(a = 0, b = 1, col = "red", lty = 2)
     
   }, error = function(e) {
     cat("Error fitting model:", e$message, "\n")
@@ -979,7 +1071,7 @@ if (nrow(predictors_full_day) > 1) {
 
 ### Model Fitting (Full Day)
 
-```{r models-full-day, warning=FALSE}
+```{r models-full-day, warning=FALSE, fig.width=8, fig.height=6}
 # Use same model formulas
 model_formulas_full_day <- model_formulas_30m
 
@@ -1020,9 +1112,32 @@ for (i in seq_along(model_formulas_full_day)) {
     cat("Model Summary:\n")
     print(summary(gam_model))
     
-    # Diagnostic plots
+    # Diagnostic plots - individual plots for better visibility in PDF
     cat("\n\nDiagnostic plots:\n")
-    gam.check(gam_model)
+    
+    # Set up for individual plots
+    par(mfrow = c(1, 1), mar = c(4, 4, 2, 1))
+    
+    # Plot 1: Residuals vs Fitted
+    plot(fitted(gam_model), residuals(gam_model), 
+         xlab = "Fitted values", ylab = "Residuals",
+         main = "Residuals vs Fitted")
+    abline(h = 0, col = "red", lty = 2)
+    
+    # Plot 2: Q-Q plot
+    qqnorm(residuals(gam_model))
+    qqline(residuals(gam_model), col = "red")
+    
+    # Plot 3: Scale-Location (if appropriate)
+    plot(fitted(gam_model), sqrt(abs(residuals(gam_model))), 
+         xlab = "Fitted values", ylab = "√|Residuals|",
+         main = "Scale-Location")
+    
+    # Plot 4: Response vs Fitted
+    plot(fitted(gam_model), model_data$total_butterflies,
+         xlab = "Fitted values", ylab = "Observed values",
+         main = "Response vs Fitted")
+    abline(a = 0, b = 1, col = "red", lty = 2)
     
   }, error = function(e) {
     cat("Error fitting model:", e$message, "\n")
