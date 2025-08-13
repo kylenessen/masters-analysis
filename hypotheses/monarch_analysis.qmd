@@ -330,18 +330,34 @@ if (nrow(predictors_30m) > 1) {
 ### Model Fitting (30 minutes)
 
 ```{r models-30min, warning=FALSE, fig.width=8, fig.height=6}
-# Define model formulas
+# Define comprehensive model formulas
 model_formulas_30m <- list(
-  "Baseline (abundance only)" = total_butterflies ~ s(abundance_t_minus_1, k = 4),
-  "Wind speed" = total_butterflies ~ s(abundance_t_minus_1, k = 4) + s(mean_wind_speed, k = 4),
-  "Temperature" = total_butterflies ~ s(abundance_t_minus_1, k = 4) + s(mean_temp, k = 4),
-  "Wind + Temperature" = total_butterflies ~ s(abundance_t_minus_1, k = 4) + 
-    s(mean_wind_speed, k = 4) + s(mean_temp, k = 4),
-  "Wind + Temp + Sunlight" = total_butterflies ~ s(abundance_t_minus_1, k = 4) + 
-    s(mean_wind_speed, k = 4) + s(mean_temp, k = 4) + s(sunlight_proportion, k = 4),
-  "Full model" = total_butterflies ~ s(abundance_t_minus_1, k = 4) + 
-    s(mean_wind_speed, k = 4) + s(mean_temp, k = 4) + 
-    s(sunlight_proportion, k = 4) + s(minutes_above_2mps, k = 4)
+  # 1. Baseline Model
+  "1. Baseline" = total_butterflies ~ s(abundance_t_minus_1) + s(view_id, bs = "re"),
+  
+  # 2. Single Environmental Factor Models
+  "2a. Wind only" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(view_id, bs = "re"),
+  "2b. Temperature only" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_temp) + s(view_id, bs = "re"),
+  "2c. Sunlight only" = total_butterflies ~ s(abundance_t_minus_1) + s(sunlight_proportion) + s(view_id, bs = "re"),
+  
+  # 3. Additive Models (No Interactions)
+  "3a. Wind + Temp" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(view_id, bs = "re"),
+  "3b. Wind + Sunlight" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(sunlight_proportion) + s(view_id, bs = "re"),
+  "3c. Temp + Sunlight" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_temp) + s(sunlight_proportion) + s(view_id, bs = "re"),
+  "3d. All additive" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + s(view_id, bs = "re"),
+  
+  # 4. Single Interaction Models
+  "4a. Wind x Temp interaction" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, mean_temp) + s(view_id, bs = "re"),
+  "4b. Wind x Sunlight interaction" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, sunlight_proportion) + s(view_id, bs = "re"),
+  "4c. Temp x Sunlight interaction" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_temp, sunlight_proportion) + s(view_id, bs = "re"),
+  
+  # 5. Multiple Interaction Models
+  "5a. Wind x Temp + Wind x Sun" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, mean_temp) + ti(mean_wind_speed, sunlight_proportion) + s(view_id, bs = "re"),
+  "5b. Wind x Temp + Temp x Sun" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, mean_temp) + ti(mean_temp, sunlight_proportion) + s(view_id, bs = "re"),
+  "5c. Wind x Sun + Temp x Sun" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, sunlight_proportion) + ti(mean_temp, sunlight_proportion) + s(view_id, bs = "re"),
+  
+  # 6. Global Model with All Interactions
+  "6. Global model" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, mean_temp) + ti(mean_wind_speed, sunlight_proportion) + ti(mean_temp, sunlight_proportion) + s(view_id, bs = "re")
 )
 
 # Storage for results
@@ -494,8 +510,35 @@ if (nrow(predictors_60m) > 1) {
 ### Model Fitting (1 hour)
 
 ```{r models-60min, warning=FALSE, fig.width=8, fig.height=6}
-# Use same model formulas
-model_formulas_60m <- model_formulas_30m
+# Define comprehensive model formulas
+model_formulas_60m <- list(
+  # 1. Baseline Model
+  "1. Baseline" = total_butterflies ~ s(abundance_t_minus_1) + s(view_id, bs = "re"),
+  
+  # 2. Single Environmental Factor Models
+  "2a. Wind only" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(view_id, bs = "re"),
+  "2b. Temperature only" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_temp) + s(view_id, bs = "re"),
+  "2c. Sunlight only" = total_butterflies ~ s(abundance_t_minus_1) + s(sunlight_proportion) + s(view_id, bs = "re"),
+  
+  # 3. Additive Models (No Interactions)
+  "3a. Wind + Temp" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(view_id, bs = "re"),
+  "3b. Wind + Sunlight" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(sunlight_proportion) + s(view_id, bs = "re"),
+  "3c. Temp + Sunlight" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_temp) + s(sunlight_proportion) + s(view_id, bs = "re"),
+  "3d. All additive" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + s(view_id, bs = "re"),
+  
+  # 4. Single Interaction Models
+  "4a. Wind x Temp interaction" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, mean_temp) + s(view_id, bs = "re"),
+  "4b. Wind x Sunlight interaction" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, sunlight_proportion) + s(view_id, bs = "re"),
+  "4c. Temp x Sunlight interaction" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_temp, sunlight_proportion) + s(view_id, bs = "re"),
+  
+  # 5. Multiple Interaction Models
+  "5a. Wind x Temp + Wind x Sun" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, mean_temp) + ti(mean_wind_speed, sunlight_proportion) + s(view_id, bs = "re"),
+  "5b. Wind x Temp + Temp x Sun" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, mean_temp) + ti(mean_temp, sunlight_proportion) + s(view_id, bs = "re"),
+  "5c. Wind x Sun + Temp x Sun" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, sunlight_proportion) + ti(mean_temp, sunlight_proportion) + s(view_id, bs = "re"),
+  
+  # 6. Global Model with All Interactions
+  "6. Global model" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, mean_temp) + ti(mean_wind_speed, sunlight_proportion) + ti(mean_temp, sunlight_proportion) + s(view_id, bs = "re")
+)
 
 # Storage for results
 models_60m <- list()
@@ -635,8 +678,35 @@ if (nrow(predictors_120m) > 1) {
 ### Model Fitting (2 hours)
 
 ```{r models-120min, warning=FALSE, fig.width=8, fig.height=6}
-# Use same model formulas
-model_formulas_120m <- model_formulas_30m
+# Define comprehensive model formulas
+model_formulas_120m <- list(
+  # 1. Baseline Model
+  "1. Baseline" = total_butterflies ~ s(abundance_t_minus_1) + s(view_id, bs = "re"),
+  
+  # 2. Single Environmental Factor Models
+  "2a. Wind only" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(view_id, bs = "re"),
+  "2b. Temperature only" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_temp) + s(view_id, bs = "re"),
+  "2c. Sunlight only" = total_butterflies ~ s(abundance_t_minus_1) + s(sunlight_proportion) + s(view_id, bs = "re"),
+  
+  # 3. Additive Models (No Interactions)
+  "3a. Wind + Temp" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(view_id, bs = "re"),
+  "3b. Wind + Sunlight" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(sunlight_proportion) + s(view_id, bs = "re"),
+  "3c. Temp + Sunlight" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_temp) + s(sunlight_proportion) + s(view_id, bs = "re"),
+  "3d. All additive" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + s(view_id, bs = "re"),
+  
+  # 4. Single Interaction Models
+  "4a. Wind x Temp interaction" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, mean_temp) + s(view_id, bs = "re"),
+  "4b. Wind x Sunlight interaction" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, sunlight_proportion) + s(view_id, bs = "re"),
+  "4c. Temp x Sunlight interaction" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_temp, sunlight_proportion) + s(view_id, bs = "re"),
+  
+  # 5. Multiple Interaction Models
+  "5a. Wind x Temp + Wind x Sun" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, mean_temp) + ti(mean_wind_speed, sunlight_proportion) + s(view_id, bs = "re"),
+  "5b. Wind x Temp + Temp x Sun" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, mean_temp) + ti(mean_temp, sunlight_proportion) + s(view_id, bs = "re"),
+  "5c. Wind x Sun + Temp x Sun" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, sunlight_proportion) + ti(mean_temp, sunlight_proportion) + s(view_id, bs = "re"),
+  
+  # 6. Global Model with All Interactions
+  "6. Global model" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, mean_temp) + ti(mean_wind_speed, sunlight_proportion) + ti(mean_temp, sunlight_proportion) + s(view_id, bs = "re")
+)
 
 # Storage for results
 models_120m <- list()
@@ -776,8 +846,35 @@ if (nrow(predictors_240m) > 1) {
 ### Model Fitting (4 hours)
 
 ```{r models-240min, warning=FALSE, fig.width=8, fig.height=6}
-# Use same model formulas
-model_formulas_240m <- model_formulas_30m
+# Define comprehensive model formulas
+model_formulas_240m <- list(
+  # 1. Baseline Model
+  "1. Baseline" = total_butterflies ~ s(abundance_t_minus_1) + s(view_id, bs = "re"),
+  
+  # 2. Single Environmental Factor Models
+  "2a. Wind only" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(view_id, bs = "re"),
+  "2b. Temperature only" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_temp) + s(view_id, bs = "re"),
+  "2c. Sunlight only" = total_butterflies ~ s(abundance_t_minus_1) + s(sunlight_proportion) + s(view_id, bs = "re"),
+  
+  # 3. Additive Models (No Interactions)
+  "3a. Wind + Temp" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(view_id, bs = "re"),
+  "3b. Wind + Sunlight" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(sunlight_proportion) + s(view_id, bs = "re"),
+  "3c. Temp + Sunlight" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_temp) + s(sunlight_proportion) + s(view_id, bs = "re"),
+  "3d. All additive" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + s(view_id, bs = "re"),
+  
+  # 4. Single Interaction Models
+  "4a. Wind x Temp interaction" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, mean_temp) + s(view_id, bs = "re"),
+  "4b. Wind x Sunlight interaction" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, sunlight_proportion) + s(view_id, bs = "re"),
+  "4c. Temp x Sunlight interaction" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_temp, sunlight_proportion) + s(view_id, bs = "re"),
+  
+  # 5. Multiple Interaction Models
+  "5a. Wind x Temp + Wind x Sun" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, mean_temp) + ti(mean_wind_speed, sunlight_proportion) + s(view_id, bs = "re"),
+  "5b. Wind x Temp + Temp x Sun" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, mean_temp) + ti(mean_temp, sunlight_proportion) + s(view_id, bs = "re"),
+  "5c. Wind x Sun + Temp x Sun" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, sunlight_proportion) + ti(mean_temp, sunlight_proportion) + s(view_id, bs = "re"),
+  
+  # 6. Global Model with All Interactions
+  "6. Global model" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, mean_temp) + ti(mean_wind_speed, sunlight_proportion) + ti(mean_temp, sunlight_proportion) + s(view_id, bs = "re")
+)
 
 # Storage for results
 models_240m <- list()
@@ -1072,8 +1169,35 @@ if (nrow(predictors_full_day) > 1) {
 ### Model Fitting (Full Day)
 
 ```{r models-full-day, warning=FALSE, fig.width=8, fig.height=6}
-# Use same model formulas
-model_formulas_full_day <- model_formulas_30m
+# Define comprehensive model formulas
+model_formulas_full_day <- list(
+  # 1. Baseline Model
+  "1. Baseline" = total_butterflies ~ s(abundance_t_minus_1) + s(view_id, bs = "re"),
+  
+  # 2. Single Environmental Factor Models
+  "2a. Wind only" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(view_id, bs = "re"),
+  "2b. Temperature only" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_temp) + s(view_id, bs = "re"),
+  "2c. Sunlight only" = total_butterflies ~ s(abundance_t_minus_1) + s(sunlight_proportion) + s(view_id, bs = "re"),
+  
+  # 3. Additive Models (No Interactions)
+  "3a. Wind + Temp" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(view_id, bs = "re"),
+  "3b. Wind + Sunlight" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(sunlight_proportion) + s(view_id, bs = "re"),
+  "3c. Temp + Sunlight" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_temp) + s(sunlight_proportion) + s(view_id, bs = "re"),
+  "3d. All additive" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + s(view_id, bs = "re"),
+  
+  # 4. Single Interaction Models
+  "4a. Wind x Temp interaction" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, mean_temp) + s(view_id, bs = "re"),
+  "4b. Wind x Sunlight interaction" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, sunlight_proportion) + s(view_id, bs = "re"),
+  "4c. Temp x Sunlight interaction" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_temp, sunlight_proportion) + s(view_id, bs = "re"),
+  
+  # 5. Multiple Interaction Models
+  "5a. Wind x Temp + Wind x Sun" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, mean_temp) + ti(mean_wind_speed, sunlight_proportion) + s(view_id, bs = "re"),
+  "5b. Wind x Temp + Temp x Sun" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, mean_temp) + ti(mean_temp, sunlight_proportion) + s(view_id, bs = "re"),
+  "5c. Wind x Sun + Temp x Sun" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, sunlight_proportion) + ti(mean_temp, sunlight_proportion) + s(view_id, bs = "re"),
+  
+  # 6. Global Model with All Interactions
+  "6. Global model" = total_butterflies ~ s(abundance_t_minus_1) + s(mean_wind_speed) + s(mean_temp) + s(sunlight_proportion) + ti(mean_wind_speed, mean_temp) + ti(mean_wind_speed, sunlight_proportion) + ti(mean_temp, sunlight_proportion) + s(view_id, bs = "re")
+)
 
 # Storage for results
 models_full_day <- list()
