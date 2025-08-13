@@ -5,3 +5,4 @@ hypotheses/brm_30m_additive.rds
 hypotheses/brm_30m_base.rds
 hypotheses/brm_30m_interaction.rds
 hypotheses/brm_30m_temp.rds
+*.rds

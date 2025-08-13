@@ -25,9 +25,9 @@ library(furrr)       # parallel purrr functions
 options(brms.backend = "cmdstanr")
 
 # Setup parallel processing for 24-core machine
-# Reserve 4 cores per model, allowing 5 models to run simultaneously
-# Keep some cores free for system processes
-plan(multisession, workers = 20)  # Use 20 cores total
+# Running 3 models at a time (same model type across lag intervals)
+# This uses 3 × 4 = 12 cores, leaving plenty of headroom
+plan(multisession, workers = 12)  # Use 12 cores total
 
 cat("Bayesian GAM Analysis Setup Complete\n")
 cat("Backend:", getOption("brms.backend"), "\n")
@@ -265,11 +265,16 @@ cat("4-hour   lag dataset:", nrow(data_240m), "observations\n")
 # SETUP
 # ===============================================================
 
-# Weakly-informative priors
+# SAMPLING OPTION: Set to TRUE for testing, FALSE for full analysis
+USE_SAMPLE <- TRUE
+SAMPLE_SIZE <- 300
+
+# More informative priors to help with convergence
 my_priors <- c(
     prior(student_t(3, 0, 2.5), class = "Intercept"),
-    prior(normal(0, 1), class = "sds"),
-    prior(normal(0, 1), class = "ar")
+    prior(normal(0, 0.5), class = "sds"),  # Tighter prior on smooth terms
+    prior(normal(0.5, 0.3), class = "ar"),  # Expect positive autocorrelation
+    prior(exponential(1), class = "shape")  # Prior for negative binomial dispersion
 )
 
 # Parallelization plan for a 24-core machine
@@ -278,11 +283,25 @@ my_priors <- c(
 CHAINS <- 4 # standard for diagnostics
 CORES <- 4 # run all 4 chains in parallel
 # THREADS disabled due to AR terms
-ITER <- 4000 
-WARMUP <- 1000
+
+# Adjust iterations based on whether we're testing or running full analysis
+if (USE_SAMPLE) {
+    ITER <- 2000   # Increased for better sampling
+    WARMUP <- 1000  # Increased warmup for better adaptation
+    cat("Using testing iterations: ITER =", ITER, ", WARMUP =", WARMUP, "\n")
+} else {
+    ITER <- 4000   # Full analysis
+    WARMUP <- 2000 # Increased warmup for full analysis
+}
+
 SEED <- 20250812
 
-ctrl <- list(adapt_delta = 0.9, max_treedepth = 12)
+# Updated control parameters to address divergences and E-BFMI warnings
+ctrl <- list(
+    adapt_delta = 0.95,     # Increased from 0.9 to reduce divergences
+    max_treedepth = 15,     # Increased from 12 for complex posteriors
+    stepsize = 0.01         # Smaller stepsize for better exploration
+)
 
 cat("Parallel plan (24-core machine):\n")
 cat(
@@ -340,9 +359,28 @@ prepare_brms_data <- function(df) {
 
 # Prepare the datasets for modeling
 cat("Preparing datasets for brms modeling...\n")
-data_30m_brms <- prepare_brms_data(data_30m)
-data_120m_brms <- prepare_brms_data(data_120m)
-data_240m_brms <- prepare_brms_data(data_240m)
+
+if (USE_SAMPLE) {
+    cat("\n*** USING SAMPLED DATA FOR TESTING ***\n")
+    cat("Sample size:", SAMPLE_SIZE, "observations per dataset\n\n")
+    
+    set.seed(SEED)  # Ensure reproducible sampling
+    
+    # Sample from each dataset
+    data_30m_brms <- prepare_brms_data(data_30m) %>%
+        sample_n(min(SAMPLE_SIZE, n()))
+    
+    data_120m_brms <- prepare_brms_data(data_120m) %>%
+        sample_n(min(SAMPLE_SIZE, n()))
+    
+    data_240m_brms <- prepare_brms_data(data_240m) %>%
+        sample_n(min(SAMPLE_SIZE, n()))
+} else {
+    cat("\n*** USING FULL DATA ***\n")
+    data_30m_brms <- prepare_brms_data(data_30m)
+    data_120m_brms <- prepare_brms_data(data_120m)
+    data_240m_brms <- prepare_brms_data(data_240m)
+}
 
 cat("\n=== BRMS-READY DATASETS ===\n")
 cat("30-minute:", nrow(data_30m_brms), "observations\n")
@@ -352,175 +390,165 @@ cat("4-hour:   ", nrow(data_240m_brms), "observations\n")
 
 ## Model Fitting
 
-### Option: Run All Models Simultaneously
+### Model Fitting Strategy
 
-```{r run-all-models-option, eval=FALSE}
-# OPTIONAL: Run all 15 models at once (requires sufficient memory)
-# This would use 15 * 4 = 60 cores, so we'll stick with sequential batches
-# But if you have sufficient RAM and want maximum speed, you could:
-# plan(multisession, workers = 15)  # Then set cores = 1 in brms_common
-```
+We'll run the same model type across all three lag intervals simultaneously.
+This allows for better comparison and uses 3 models × 4 cores = 12 cores at a time,
+leaving headroom for system processes.
 
-### 30-Minute Lag Models
+### Baseline Models (All Lag Intervals)
 
-```{r models-30min}
-cat("\nStarting 30-Minute Lag Models (Parallel Execution)...\n")
+```{r models-baseline}
+cat("\n=== FITTING BASELINE MODELS ACROSS ALL LAG INTERVALS ===\n")
+cat("Running 3 models in parallel (30min, 2hr, 4hr)...\n\n")
 
-# Define model specifications
-models_30m <- list(
-    base = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
-              (1 | view_id) +
-              ar(time = datetime, gr = view_id, p = 1)),
-    
-    wind = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
-              s(mean_wind_speed) +
-              (1 | view_id) +
-              ar(time = datetime, gr = view_id, p = 1)),
-    
-    temp = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
-              s(mean_temp) +
-              (1 | view_id) +
-              ar(time = datetime, gr = view_id, p = 1)),
-    
-    additive = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
-                  s(mean_wind_speed) +
-                  s(mean_temp) +
-                  s(sunlight_proportion) +
-                  (1 | view_id) +
-                  ar(time = datetime, gr = view_id, p = 1)),
-    
-    interaction = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
-                     s(mean_wind_speed) +
-                     t2(mean_temp, sunlight_proportion) +
-                     (1 | view_id) +
-                     ar(time = datetime, gr = view_id, p = 1))
+# Define baseline model formula
+# Reduced k from 20 to 10 for smoother splines and better convergence
+baseline_formula <- bf(total_butterflies ~ s(abundance_t_minus_1, k = 10) +
+                       (1 | view_id) +
+                       ar(time = datetime, gr = view_id, p = 1))
+
+# Prepare data and file names
+file_prefix <- if (USE_SAMPLE) "sample_" else ""
+datasets <- list(
+    "30m" = data_30m_brms,
+    "120m" = data_120m_brms,
+    "240m" = data_240m_brms
 )
+files_baseline <- paste0(file_prefix, "brm_", names(datasets), "_base.rds")
 
-# File names for caching
-files_30m <- paste0("brm_30m_", names(models_30m), ".rds")
-
-# Run all models in parallel
-cat("Fitting", length(models_30m), "models in parallel...\n")
-results_30m <- future_map2(
-    models_30m, files_30m,
-    ~fit_brm(.x, data = data_30m_brms, file = .y),
+# Run baseline models for all lag intervals in parallel
+results_baseline <- future_map2(
+    datasets, files_baseline,
+    ~fit_brm(baseline_formula, data = .x, file = .y),
     .options = furrr_options(seed = TRUE),
     .progress = TRUE
 )
 
-# Assign to individual objects for backward compatibility
-names(results_30m) <- paste0("brm_30m_", names(models_30m))
-list2env(results_30m, envir = .GlobalEnv)
+# Assign to individual objects
+names(results_baseline) <- paste0("brm_", names(datasets), "_base")
+list2env(results_baseline, envir = .GlobalEnv)
 
-cat("30-minute lag models complete!\n")
+cat("Baseline models complete!\n")
 ```
 
-### 2-Hour Lag Models
+### Wind Models (All Lag Intervals)
 
-```{r models-120min}
-cat("\nStarting 2-Hour Lag Models (Parallel Execution)...\n")
+```{r models-wind}
+cat("\n=== FITTING WIND MODELS ACROSS ALL LAG INTERVALS ===\n")
+cat("Running 3 models in parallel (30min, 2hr, 4hr)...\n\n")
 
-# Define model specifications (same structure, different data)
-models_120m <- list(
-    base = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
-              (1 | view_id) +
-              ar(time = datetime, gr = view_id, p = 1)),
-    
-    wind = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
-              s(mean_wind_speed) +
-              (1 | view_id) +
-              ar(time = datetime, gr = view_id, p = 1)),
-    
-    temp = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
-              s(mean_temp) +
-              (1 | view_id) +
-              ar(time = datetime, gr = view_id, p = 1)),
-    
-    additive = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
-                  s(mean_wind_speed) +
-                  s(mean_temp) +
-                  s(sunlight_proportion) +
-                  (1 | view_id) +
-                  ar(time = datetime, gr = view_id, p = 1)),
-    
-    interaction = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
-                     s(mean_wind_speed) +
-                     t2(mean_temp, sunlight_proportion) +
-                     (1 | view_id) +
-                     ar(time = datetime, gr = view_id, p = 1))
-)
+# Define wind model formula
+wind_formula <- bf(total_butterflies ~ s(abundance_t_minus_1, k = 10) +
+                   s(mean_wind_speed, k = 10) +
+                   (1 | view_id) +
+                   ar(time = datetime, gr = view_id, p = 1))
 
-# File names for caching
-files_120m <- paste0("brm_120m_", names(models_120m), ".rds")
+files_wind <- paste0(file_prefix, "brm_", names(datasets), "_wind.rds")
 
-# Run all models in parallel
-cat("Fitting", length(models_120m), "models in parallel...\n")
-results_120m <- future_map2(
-    models_120m, files_120m,
-    ~fit_brm(.x, data = data_120m_brms, file = .y),
+# Run wind models for all lag intervals in parallel
+results_wind <- future_map2(
+    datasets, files_wind,
+    ~fit_brm(wind_formula, data = .x, file = .y),
     .options = furrr_options(seed = TRUE),
     .progress = TRUE
 )
 
-# Assign to individual objects for backward compatibility
-names(results_120m) <- paste0("brm_120m_", names(models_120m))
-list2env(results_120m, envir = .GlobalEnv)
+# Assign to individual objects
+names(results_wind) <- paste0("brm_", names(datasets), "_wind")
+list2env(results_wind, envir = .GlobalEnv)
 
-cat("2-hour lag models complete!\n")
+cat("Wind models complete!\n")
 ```
 
-### 4-Hour Lag Models
+### Temperature Models (All Lag Intervals)
 
-```{r models-240min}
-cat("\nStarting 4-Hour Lag Models (Parallel Execution)...\n")
+```{r models-temp}
+cat("\n=== FITTING TEMPERATURE MODELS ACROSS ALL LAG INTERVALS ===\n")
+cat("Running 3 models in parallel (30min, 2hr, 4hr)...\n\n")
 
-# Define model specifications (same structure, different data)
-models_240m <- list(
-    base = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
-              (1 | view_id) +
-              ar(time = datetime, gr = view_id, p = 1)),
-    
-    wind = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
-              s(mean_wind_speed) +
-              (1 | view_id) +
-              ar(time = datetime, gr = view_id, p = 1)),
-    
-    temp = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
-              s(mean_temp) +
-              (1 | view_id) +
-              ar(time = datetime, gr = view_id, p = 1)),
-    
-    additive = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
-                  s(mean_wind_speed) +
-                  s(mean_temp) +
-                  s(sunlight_proportion) +
-                  (1 | view_id) +
-                  ar(time = datetime, gr = view_id, p = 1)),
-    
-    interaction = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
-                     s(mean_wind_speed) +
-                     t2(mean_temp, sunlight_proportion) +
-                     (1 | view_id) +
-                     ar(time = datetime, gr = view_id, p = 1))
-)
+# Define temperature model formula
+temp_formula <- bf(total_butterflies ~ s(abundance_t_minus_1, k = 10) +
+                   s(mean_temp, k = 10) +
+                   (1 | view_id) +
+                   ar(time = datetime, gr = view_id, p = 1))
 
-# File names for caching
-files_240m <- paste0("brm_240m_", names(models_240m), ".rds")
+files_temp <- paste0(file_prefix, "brm_", names(datasets), "_temp.rds")
 
-# Run all models in parallel
-cat("Fitting", length(models_240m), "models in parallel...\n")
-results_240m <- future_map2(
-    models_240m, files_240m,
-    ~fit_brm(.x, data = data_240m_brms, file = .y),
+# Run temperature models for all lag intervals in parallel
+results_temp <- future_map2(
+    datasets, files_temp,
+    ~fit_brm(temp_formula, data = .x, file = .y),
     .options = furrr_options(seed = TRUE),
     .progress = TRUE
 )
 
-# Assign to individual objects for backward compatibility
-names(results_240m) <- paste0("brm_240m_", names(models_240m))
-list2env(results_240m, envir = .GlobalEnv)
+# Assign to individual objects
+names(results_temp) <- paste0("brm_", names(datasets), "_temp")
+list2env(results_temp, envir = .GlobalEnv)
 
-cat("4-hour lag models complete!\n")
+cat("Temperature models complete!\n")
+```
+
+### Additive Models (All Lag Intervals)
+
+```{r models-additive}
+cat("\n=== FITTING ADDITIVE MODELS ACROSS ALL LAG INTERVALS ===\n")
+cat("Running 3 models in parallel (30min, 2hr, 4hr)...\n\n")
+
+# Define additive model formula
+additive_formula <- bf(total_butterflies ~ s(abundance_t_minus_1, k = 10) +
+                       s(mean_wind_speed, k = 10) +
+                       s(mean_temp, k = 10) +
+                       s(sunlight_proportion, k = 10) +
+                       (1 | view_id) +
+                       ar(time = datetime, gr = view_id, p = 1))
+
+files_additive <- paste0(file_prefix, "brm_", names(datasets), "_additive.rds")
+
+# Run additive models for all lag intervals in parallel
+results_additive <- future_map2(
+    datasets, files_additive,
+    ~fit_brm(additive_formula, data = .x, file = .y),
+    .options = furrr_options(seed = TRUE),
+    .progress = TRUE
+)
+
+# Assign to individual objects
+names(results_additive) <- paste0("brm_", names(datasets), "_additive")
+list2env(results_additive, envir = .GlobalEnv)
+
+cat("Additive models complete!\n")
+```
+
+### Interaction Models (All Lag Intervals)
+
+```{r models-interaction}
+cat("\n=== FITTING INTERACTION MODELS ACROSS ALL LAG INTERVALS ===\n")
+cat("Running 3 models in parallel (30min, 2hr, 4hr)...\n\n")
+
+# Define interaction model formula
+interaction_formula <- bf(total_butterflies ~ s(abundance_t_minus_1, k = 10) +
+                          s(mean_wind_speed, k = 10) +
+                          t2(mean_temp, sunlight_proportion, k = c(5, 5)) +
+                          (1 | view_id) +
+                          ar(time = datetime, gr = view_id, p = 1))
+
+files_interaction <- paste0(file_prefix, "brm_", names(datasets), "_interaction.rds")
+
+# Run interaction models for all lag intervals in parallel
+results_interaction <- future_map2(
+    datasets, files_interaction,
+    ~fit_brm(interaction_formula, data = .x, file = .y),
+    .options = furrr_options(seed = TRUE),
+    .progress = TRUE
+)
+
+# Assign to individual objects
+names(results_interaction) <- paste0("brm_", names(datasets), "_interaction")
+list2env(results_interaction, envir = .GlobalEnv)
+
+cat("Interaction models complete!\n")
 ```
 
 ## Model Comparison and Results
