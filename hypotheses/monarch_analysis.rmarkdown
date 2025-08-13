@@ -1,0 +1,998 @@
+---
+title: "Monarch Butterfly Abundance Analysis: Wind and Environmental Factors"
+author: "Analysis Report"
+date: "`r Sys.Date()`"
+format: 
+  html:
+    toc: true
+    toc-depth: 3
+    code-fold: false
+    code-tools: true
+---
+
+
+# Monarch Butterfly Abundance Analysis: LLM Implementation
+
+## Part 1: Setup and Data Loading
+
+
+```{r setup, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(lubridate)
+library(mgcv)
+library(lme4)
+library(corrplot)
+library(knitr)
+```
+
+```{r load-data}
+counts <- read_csv("../data/butterfly_abundance_index.csv")
+deployments <- read_csv("../data/deployments.csv")
+temp <- read_csv("../data/temperature_data_2023.csv")
+wind <- read_csv("../data/wind_all.csv")
+
+cat("Data loaded successfully\n")
+cat("Counts rows:", nrow(counts), "\n")
+cat("Deployments rows:", nrow(deployments), "\n")
+cat("Temperature rows:", nrow(temp), "\n")
+cat("Wind rows:", nrow(wind), "\n")
+```
+
+
+---
+
+## Part 2: Initial Data Cleaning and Merging
+
+
+```{r data-cleaning}
+# Filter and select deployments data
+deployments_filtered <- deployments %>%
+  filter(label_status == "Complete") %>%
+  mutate(view_id = as.factor(view_id)) %>%
+  select(deployment_id, view_id, wind_meter_name)
+
+cat("Filtered deployments to", nrow(deployments_filtered), "complete records\n")
+```
+
+```{r parse-timestamps}
+# Parse timestamps in counts data
+counts_with_datetime <- counts %>%
+  mutate(
+    datetime_str = str_extract(image_filename, "\\d{14}"),
+    datetime = ymd_hms(datetime_str)
+  ) %>%
+  select(-datetime_str)
+
+cat("Parsed", sum(!is.na(counts_with_datetime$datetime)), "valid timestamps\n")
+```
+
+```{r merge-dataframes}
+# Create master dataframe
+master_df <- counts_with_datetime %>%
+  left_join(deployments_filtered, by = "deployment_id") %>%
+  left_join(temp, by = c("image_filename" = "filename"))
+
+cat("Master dataframe created with", nrow(master_df), "rows\n")
+cat("Columns:", paste(names(master_df), collapse = ", "), "\n")
+
+# Check for completeness
+complete_records <- master_df %>%
+  filter(!is.na(view_id) & !is.na(temperature) & !is.na(datetime))
+cat("Complete records with all key fields:", nrow(complete_records), "\n")
+```
+
+
+---
+
+## Part 3: The Lagged Data Preparation Function
+
+
+```{r lag-function}
+prepare_lag_data <- function(master_df, wind_df, lag_minutes) {
+  cat("Preparing data for", lag_minutes, "minute lag...\n")
+  
+  # Create time-shifted dataframes
+  df_t <- master_df %>%
+    filter(!is.na(datetime) & !is.na(view_id))
+  
+  df_t_lag <- df_t %>%
+    rename(
+      abundance_t_minus_1 = total_butterflies,
+      datetime_t_minus_1 = datetime,
+      butterflies_sun_t_minus_1 = butterflies_direct_sun,
+      temperature_t_minus_1 = temperature
+    ) %>%
+    select(view_id, datetime_t_minus_1, abundance_t_minus_1, 
+           butterflies_sun_t_minus_1, temperature_t_minus_1)
+  
+  # Perform sliding window join
+  # First add the expected datetime to df_t_lag
+  df_t_lag <- df_t_lag %>%
+    mutate(datetime_expected = datetime_t_minus_1 + minutes(lag_minutes))
+  
+  final_df <- df_t %>%
+    left_join(
+      df_t_lag,
+      by = c("view_id" = "view_id", "datetime" = "datetime_expected")
+    )
+  
+  # Filter invalid pairs
+  final_df <- final_df %>%
+    filter(!is.na(abundance_t_minus_1)) %>%
+    filter(!(total_butterflies == 0 & abundance_t_minus_1 == 0))
+  
+  cat("Valid pairs after filtering:", nrow(final_df), "\n")
+  
+  # Calculate interval predictors more efficiently
+  cat("Calculating interval predictors...\n")
+  
+  # Function to calculate metrics for each row
+  calculate_metrics <- function(i) {
+    row <- final_df[i, ]
+    
+    # Wind metrics
+    wind_subset <- wind_df %>%
+      filter(
+        wind_meter_name == row$wind_meter_name,
+        time >= row$datetime_t_minus_1,
+        time <= row$datetime
+      )
+    
+    if (nrow(wind_subset) > 0) {
+      wind_metrics <- list(
+        mean_wind_speed = mean(wind_subset$speed, na.rm = TRUE),
+        max_wind_speed = max(wind_subset$speed, na.rm = TRUE),
+        sd_wind_speed = sd(wind_subset$speed, na.rm = TRUE),
+        gust_factor = mean(wind_subset$gust, na.rm = TRUE) / mean(wind_subset$speed, na.rm = TRUE),
+        minutes_above_2mps = sum(wind_subset$speed > 2, na.rm = TRUE)
+      )
+    } else {
+      wind_metrics <- list(
+        mean_wind_speed = NA_real_,
+        max_wind_speed = NA_real_,
+        sd_wind_speed = NA_real_,
+        gust_factor = NA_real_,
+        minutes_above_2mps = NA_real_
+      )
+    }
+    
+    # Temperature metrics
+    temp_subset <- master_df %>%
+      filter(
+        view_id == row$view_id,
+        datetime >= row$datetime_t_minus_1,
+        datetime <= row$datetime
+      )
+    
+    if (nrow(temp_subset) > 0) {
+      temp_metrics <- list(
+        mean_temp = mean(temp_subset$temperature, na.rm = TRUE),
+        max_temp = max(temp_subset$temperature, na.rm = TRUE),
+        min_temp = min(temp_subset$temperature, na.rm = TRUE),
+        sd_temp = sd(temp_subset$temperature, na.rm = TRUE)
+      )
+    } else {
+      temp_metrics <- list(
+        mean_temp = NA_real_,
+        max_temp = NA_real_,
+        min_temp = NA_real_,
+        sd_temp = NA_real_
+      )
+    }
+    
+    # Sunlight metrics
+    if (nrow(temp_subset) > 0) {
+      total_sun <- sum(temp_subset$butterflies_direct_sun, na.rm = TRUE)
+      total_count <- sum(temp_subset$total_butterflies, na.rm = TRUE)
+      if (total_count > 0) {
+        overall_prop <- total_sun / total_count
+        obs_props <- ifelse(temp_subset$total_butterflies > 0,
+                           temp_subset$butterflies_direct_sun / temp_subset$total_butterflies,
+                           NA_real_)
+        sun_metrics <- list(
+          sunlight_proportion = overall_prop,
+          max_prop_sunlight = max(obs_props, na.rm = TRUE),
+          min_prop_sunlight = min(obs_props, na.rm = TRUE),
+          sd_prop_sunlight = sd(obs_props, na.rm = TRUE)
+        )
+      } else {
+        sun_metrics <- list(
+          sunlight_proportion = NA_real_,
+          max_prop_sunlight = NA_real_,
+          min_prop_sunlight = NA_real_,
+          sd_prop_sunlight = NA_real_
+        )
+      }
+    } else {
+      sun_metrics <- list(
+        sunlight_proportion = NA_real_,
+        max_prop_sunlight = NA_real_,
+        min_prop_sunlight = NA_real_,
+        sd_prop_sunlight = NA_real_
+      )
+    }
+    
+    # Time delta
+    time_delta <- as.numeric(difftime(row$datetime, row$datetime_t_minus_1, units = "mins"))
+    
+    # Combine all metrics
+    c(wind_metrics, temp_metrics, sun_metrics, time_delta_mins = time_delta)
+  }
+  
+  # Apply the function to all rows
+  metrics_list <- lapply(1:nrow(final_df), calculate_metrics)
+  metrics_df <- do.call(rbind, lapply(metrics_list, as.data.frame))
+  
+  # Combine with original data
+  final_df_with_predictors <- cbind(final_df, metrics_df)
+  
+  # Remove rows with too many NAs in predictors
+  final_clean <- final_df_with_predictors %>%
+    filter(!is.na(mean_wind_speed) & !is.na(mean_temp))
+  
+  cat("Final dataset rows:", nrow(final_clean), "\n")
+  cat("Time delta range:", round(min(final_clean$time_delta_mins, na.rm = TRUE), 1),
+      "to", round(max(final_clean$time_delta_mins, na.rm = TRUE), 1), "minutes\n")
+  
+  return(final_clean)
+}
+```
+
+
+---
+
+## Part 4: Analysis and Modeling
+
+## 30-Minute Lag Analysis
+
+
+```{r lag-30min}
+data_30m <- prepare_lag_data(master_df, wind, lag_minutes = 30)
+```
+
+
+### Exploratory Data Analysis (30 minutes)
+
+
+```{r eda-30min}
+cat("Data structure:\n")
+glimpse(data_30m)
+
+cat("\n\nData summary:\n")
+summary(data_30m)
+```
+
+```{r collinearity-30min, fig.width=10, fig.height=10}
+# Select numeric predictors for correlation analysis
+predictors_30m <- data_30m %>%
+  select(abundance_t_minus_1, mean_wind_speed, max_wind_speed, sd_wind_speed,
+         gust_factor, minutes_above_2mps, mean_temp, max_temp, min_temp, sd_temp,
+         sunlight_proportion) %>%
+  na.omit()
+
+if (nrow(predictors_30m) > 1) {
+  # Calculate correlation matrix
+  cor_matrix_30m <- cor(predictors_30m, use = "complete.obs")
+  
+  # Check if correlation matrix has any NA/NaN/Inf values
+  if (!any(is.na(cor_matrix_30m) | is.infinite(cor_matrix_30m))) {
+    corrplot(cor_matrix_30m, method = "color", type = "upper", 
+             order = "hclust", tl.cex = 0.8, tl.col = "black",
+             addCoef.col = "black", number.cex = 0.7,
+             title = "Predictor Collinearity (30-minute lag)")
+  } else {
+    # If hclust fails, use original order
+    corrplot(cor_matrix_30m, method = "color", type = "upper", 
+             order = "original", tl.cex = 0.8, tl.col = "black",
+             addCoef.col = "black", number.cex = 0.7,
+             title = "Predictor Collinearity (30-minute lag)")
+  }
+} else {
+  cat("Not enough data for correlation analysis\n")
+}
+```
+
+
+### Model Fitting (30 minutes)
+
+
+```{r models-30min, warning=FALSE}
+# Define model formulas
+model_formulas_30m <- list(
+  "Baseline (abundance only)" = total_butterflies ~ s(abundance_t_minus_1, k = 4),
+  "Wind speed" = total_butterflies ~ s(abundance_t_minus_1, k = 4) + s(mean_wind_speed, k = 4),
+  "Temperature" = total_butterflies ~ s(abundance_t_minus_1, k = 4) + s(mean_temp, k = 4),
+  "Wind + Temperature" = total_butterflies ~ s(abundance_t_minus_1, k = 4) + 
+    s(mean_wind_speed, k = 4) + s(mean_temp, k = 4),
+  "Wind + Temp + Sunlight" = total_butterflies ~ s(abundance_t_minus_1, k = 4) + 
+    s(mean_wind_speed, k = 4) + s(mean_temp, k = 4) + s(sunlight_proportion, k = 4),
+  "Full model" = total_butterflies ~ s(abundance_t_minus_1, k = 4) + 
+    s(mean_wind_speed, k = 4) + s(mean_temp, k = 4) + 
+    s(sunlight_proportion, k = 4) + s(minutes_above_2mps, k = 4)
+)
+
+# Storage for results
+models_30m <- list()
+aic_values_30m <- numeric()
+
+# Fit each model
+for (i in seq_along(model_formulas_30m)) {
+  model_name <- names(model_formulas_30m)[i]
+  formula <- model_formulas_30m[[i]]
+  
+  cat("\n### Model", i, ":", model_name, "\n\n")
+  
+  tryCatch({
+    # Fit GAMM
+    gamm_model <- gamm(
+      formula,
+      family = nb(),
+      data = data_30m,
+      random = list(view_id = ~1),
+      correlation = corAR1(form = ~ 1 | view_id)
+    )
+    
+    # Store model
+    models_30m[[model_name]] <- gamm_model
+    aic_values_30m[model_name] <- AIC(gamm_model$lme)
+    
+    # Print summary
+    cat("Model Summary:\n")
+    print(summary(gamm_model$gam))
+    
+    # Diagnostic plots
+    cat("\n\nDiagnostic plots:\n")
+    gam.check(gamm_model$gam)
+    
+  }, error = function(e) {
+    cat("Error fitting model:", e$message, "\n")
+    aic_values_30m[model_name] <- NA
+  })
+}
+```
+
+```{r model-comparison-30min}
+# Model comparison table
+comparison_30m <- data.frame(
+  Model = names(aic_values_30m),
+  AIC = round(aic_values_30m, 2)
+) %>%
+  arrange(AIC)
+
+cat("\n### Model Comparison (30-minute lag)\n")
+kable(comparison_30m)
+```
+
+
+---
+
+## 1-Hour Lag Analysis
+
+
+```{r lag-60min}
+data_60m <- prepare_lag_data(master_df, wind, lag_minutes = 60)
+```
+
+
+### Exploratory Data Analysis (1 hour)
+
+
+```{r eda-60min}
+cat("Data structure:\n")
+glimpse(data_60m)
+
+cat("\n\nData summary:\n")
+summary(data_60m)
+```
+
+```{r collinearity-60min, fig.width=10, fig.height=10}
+# Select numeric predictors for correlation analysis
+predictors_60m <- data_60m %>%
+  select(abundance_t_minus_1, mean_wind_speed, max_wind_speed, sd_wind_speed,
+         gust_factor, minutes_above_2mps, mean_temp, max_temp, min_temp, sd_temp,
+         sunlight_proportion) %>%
+  na.omit()
+
+if (nrow(predictors_60m) > 1) {
+  cor_matrix_60m <- cor(predictors_60m, use = "complete.obs")
+  if (!any(is.na(cor_matrix_60m) | is.infinite(cor_matrix_60m))) {
+    corrplot(cor_matrix_60m, method = "color", type = "upper", 
+             order = "hclust", tl.cex = 0.8, tl.col = "black",
+             addCoef.col = "black", number.cex = 0.7,
+             title = "Predictor Collinearity (1-hour lag)")
+  } else {
+    corrplot(cor_matrix_60m, method = "color", type = "upper", 
+             order = "original", tl.cex = 0.8, tl.col = "black",
+             addCoef.col = "black", number.cex = 0.7,
+             title = "Predictor Collinearity (1-hour lag)")
+  }
+} else {
+  cat("Not enough data for correlation analysis\n")
+}
+```
+
+
+### Model Fitting (1 hour)
+
+
+```{r models-60min, warning=FALSE}
+# Use same model formulas
+model_formulas_60m <- model_formulas_30m
+
+# Storage for results
+models_60m <- list()
+aic_values_60m <- numeric()
+
+# Fit each model
+for (i in seq_along(model_formulas_60m)) {
+  model_name <- names(model_formulas_60m)[i]
+  formula <- model_formulas_60m[[i]]
+  
+  cat("\n### Model", i, ":", model_name, "\n\n")
+  
+  tryCatch({
+    # Fit GAMM
+    gamm_model <- gamm(
+      formula,
+      family = nb(),
+      data = data_60m,
+      random = list(view_id = ~1),
+      correlation = corAR1(form = ~ 1 | view_id)
+    )
+    
+    # Store model
+    models_60m[[model_name]] <- gamm_model
+    aic_values_60m[model_name] <- AIC(gamm_model$lme)
+    
+    # Print summary
+    cat("Model Summary:\n")
+    print(summary(gamm_model$gam))
+    
+    # Diagnostic plots
+    cat("\n\nDiagnostic plots:\n")
+    gam.check(gamm_model$gam)
+    
+  }, error = function(e) {
+    cat("Error fitting model:", e$message, "\n")
+    aic_values_60m[model_name] <- NA
+  })
+}
+```
+
+```{r model-comparison-60min}
+# Model comparison table
+comparison_60m <- data.frame(
+  Model = names(aic_values_60m),
+  AIC = round(aic_values_60m, 2)
+) %>%
+  arrange(AIC)
+
+cat("\n### Model Comparison (1-hour lag)\n")
+kable(comparison_60m)
+```
+
+
+---
+
+## 2-Hour Lag Analysis
+
+
+```{r lag-120min}
+data_120m <- prepare_lag_data(master_df, wind, lag_minutes = 120)
+```
+
+
+### Exploratory Data Analysis (2 hours)
+
+
+```{r eda-120min}
+cat("Data structure:\n")
+glimpse(data_120m)
+
+cat("\n\nData summary:\n")
+summary(data_120m)
+```
+
+```{r collinearity-120min, fig.width=10, fig.height=10}
+# Select numeric predictors for correlation analysis
+predictors_120m <- data_120m %>%
+  select(abundance_t_minus_1, mean_wind_speed, max_wind_speed, sd_wind_speed,
+         gust_factor, minutes_above_2mps, mean_temp, max_temp, min_temp, sd_temp,
+         sunlight_proportion) %>%
+  na.omit()
+
+if (nrow(predictors_120m) > 1) {
+  cor_matrix_120m <- cor(predictors_120m, use = "complete.obs")
+  if (!any(is.na(cor_matrix_120m) | is.infinite(cor_matrix_120m))) {
+    corrplot(cor_matrix_120m, method = "color", type = "upper", 
+             order = "hclust", tl.cex = 0.8, tl.col = "black",
+             addCoef.col = "black", number.cex = 0.7,
+             title = "Predictor Collinearity (2-hour lag)")
+  } else {
+    corrplot(cor_matrix_120m, method = "color", type = "upper", 
+             order = "original", tl.cex = 0.8, tl.col = "black",
+             addCoef.col = "black", number.cex = 0.7,
+             title = "Predictor Collinearity (2-hour lag)")
+  }
+} else {
+  cat("Not enough data for correlation analysis\n")
+}
+```
+
+
+### Model Fitting (2 hours)
+
+
+```{r models-120min, warning=FALSE}
+# Use same model formulas
+model_formulas_120m <- model_formulas_30m
+
+# Storage for results
+models_120m <- list()
+aic_values_120m <- numeric()
+
+# Fit each model
+for (i in seq_along(model_formulas_120m)) {
+  model_name <- names(model_formulas_120m)[i]
+  formula <- model_formulas_120m[[i]]
+  
+  cat("\n### Model", i, ":", model_name, "\n\n")
+  
+  tryCatch({
+    # Fit GAMM
+    gamm_model <- gamm(
+      formula,
+      family = nb(),
+      data = data_120m,
+      random = list(view_id = ~1),
+      correlation = corAR1(form = ~ 1 | view_id)
+    )
+    
+    # Store model
+    models_120m[[model_name]] <- gamm_model
+    aic_values_120m[model_name] <- AIC(gamm_model$lme)
+    
+    # Print summary
+    cat("Model Summary:\n")
+    print(summary(gamm_model$gam))
+    
+    # Diagnostic plots
+    cat("\n\nDiagnostic plots:\n")
+    gam.check(gamm_model$gam)
+    
+  }, error = function(e) {
+    cat("Error fitting model:", e$message, "\n")
+    aic_values_120m[model_name] <- NA
+  })
+}
+```
+
+```{r model-comparison-120min}
+# Model comparison table
+comparison_120m <- data.frame(
+  Model = names(aic_values_120m),
+  AIC = round(aic_values_120m, 2)
+) %>%
+  arrange(AIC)
+
+cat("\n### Model Comparison (2-hour lag)\n")
+kable(comparison_120m)
+```
+
+
+---
+
+## 4-Hour Lag Analysis
+
+
+```{r lag-240min}
+data_240m <- prepare_lag_data(master_df, wind, lag_minutes = 240)
+```
+
+
+### Exploratory Data Analysis (4 hours)
+
+
+```{r eda-240min}
+cat("Data structure:\n")
+glimpse(data_240m)
+
+cat("\n\nData summary:\n")
+summary(data_240m)
+```
+
+```{r collinearity-240min, fig.width=10, fig.height=10}
+# Select numeric predictors for correlation analysis
+predictors_240m <- data_240m %>%
+  select(abundance_t_minus_1, mean_wind_speed, max_wind_speed, sd_wind_speed,
+         gust_factor, minutes_above_2mps, mean_temp, max_temp, min_temp, sd_temp,
+         sunlight_proportion) %>%
+  na.omit()
+
+if (nrow(predictors_240m) > 1) {
+  cor_matrix_240m <- cor(predictors_240m, use = "complete.obs")
+  if (!any(is.na(cor_matrix_240m) | is.infinite(cor_matrix_240m))) {
+    corrplot(cor_matrix_240m, method = "color", type = "upper", 
+             order = "hclust", tl.cex = 0.8, tl.col = "black",
+             addCoef.col = "black", number.cex = 0.7,
+             title = "Predictor Collinearity (4-hour lag)")
+  } else {
+    corrplot(cor_matrix_240m, method = "color", type = "upper", 
+             order = "original", tl.cex = 0.8, tl.col = "black",
+             addCoef.col = "black", number.cex = 0.7,
+             title = "Predictor Collinearity (4-hour lag)")
+  }
+} else {
+  cat("Not enough data for correlation analysis\n")
+}
+```
+
+
+### Model Fitting (4 hours)
+
+
+```{r models-240min, warning=FALSE}
+# Use same model formulas
+model_formulas_240m <- model_formulas_30m
+
+# Storage for results
+models_240m <- list()
+aic_values_240m <- numeric()
+
+# Fit each model
+for (i in seq_along(model_formulas_240m)) {
+  model_name <- names(model_formulas_240m)[i]
+  formula <- model_formulas_240m[[i]]
+  
+  cat("\n### Model", i, ":", model_name, "\n\n")
+  
+  tryCatch({
+    # Fit GAMM
+    gamm_model <- gamm(
+      formula,
+      family = nb(),
+      data = data_240m,
+      random = list(view_id = ~1),
+      correlation = corAR1(form = ~ 1 | view_id)
+    )
+    
+    # Store model
+    models_240m[[model_name]] <- gamm_model
+    aic_values_240m[model_name] <- AIC(gamm_model$lme)
+    
+    # Print summary
+    cat("Model Summary:\n")
+    print(summary(gamm_model$gam))
+    
+    # Diagnostic plots
+    cat("\n\nDiagnostic plots:\n")
+    gam.check(gamm_model$gam)
+    
+  }, error = function(e) {
+    cat("Error fitting model:", e$message, "\n")
+    aic_values_240m[model_name] <- NA
+  })
+}
+```
+
+```{r model-comparison-240min}
+# Model comparison table
+comparison_240m <- data.frame(
+  Model = names(aic_values_240m),
+  AIC = round(aic_values_240m, 2)
+) %>%
+  arrange(AIC)
+
+cat("\n### Model Comparison (4-hour lag)\n")
+kable(comparison_240m)
+```
+
+
+---
+
+## Part 5: Full Day Lag Analysis
+
+
+```{r full-day-prep}
+cat("Preparing full day lag data...\n")
+
+# Group by view_id and date
+full_day_data <- master_df %>%
+  filter(!is.na(datetime) & !is.na(view_id)) %>%
+  mutate(date = as.Date(datetime)) %>%
+  group_by(view_id, date) %>%
+  arrange(datetime) %>%
+  mutate(
+    # Find first observation with butterflies > 0
+    has_butterflies = total_butterflies > 0,
+    is_first_with_butterflies = has_butterflies & !lag(has_butterflies, default = FALSE)
+  ) %>%
+  filter(any(is_first_with_butterflies)) %>%  # Keep only days with at least one butterfly observation
+  summarise(
+    # t-1 observation (first with butterflies)
+    datetime_t_minus_1 = datetime[which(is_first_with_butterflies)[1]],
+    abundance_t_minus_1 = total_butterflies[which(is_first_with_butterflies)[1]],
+    
+    # t observation (last of day)
+    datetime = last(datetime),
+    total_butterflies = last(total_butterflies),
+    
+    # Keep wind meter name for joining
+    wind_meter_name = first(wind_meter_name),
+    
+    .groups = "drop"
+  ) %>%
+  # Calculate time delta and filter
+  mutate(
+    time_delta_hours = as.numeric(difftime(datetime, datetime_t_minus_1, units = "hours"))
+  ) %>%
+  filter(time_delta_hours > 4)
+
+cat("Full day pairs found:", nrow(full_day_data), "\n")
+cat("Time delta range:", round(min(full_day_data$time_delta_hours), 1), 
+    "to", round(max(full_day_data$time_delta_hours), 1), "hours\n")
+
+# Calculate environmental predictors for full day intervals
+full_day_with_predictors <- full_day_data %>%
+  rowwise() %>%
+  mutate(
+    # Wind metrics
+    wind_data = list({
+      wind_subset <- wind %>%
+        filter(
+          wind_meter_name == .data$wind_meter_name,
+          time >= datetime_t_minus_1,
+          time <= datetime
+        )
+      if (nrow(wind_subset) > 0) {
+        list(
+          mean_wind_speed = mean(wind_subset$speed, na.rm = TRUE),
+          max_wind_speed = max(wind_subset$speed, na.rm = TRUE),
+          sd_wind_speed = sd(wind_subset$speed, na.rm = TRUE),
+          gust_factor = mean(wind_subset$gust, na.rm = TRUE) / mean(wind_subset$speed, na.rm = TRUE),
+          minutes_above_2mps = sum(wind_subset$speed > 2, na.rm = TRUE)
+        )
+      } else {
+        list(
+          mean_wind_speed = NA_real_,
+          max_wind_speed = NA_real_,
+          sd_wind_speed = NA_real_,
+          gust_factor = NA_real_,
+          minutes_above_2mps = NA_real_
+        )
+      }
+    }),
+    mean_wind_speed = wind_data$mean_wind_speed,
+    max_wind_speed = wind_data$max_wind_speed,
+    sd_wind_speed = wind_data$sd_wind_speed,
+    gust_factor = wind_data$gust_factor,
+    minutes_above_2mps = wind_data$minutes_above_2mps,
+    
+    # Temperature metrics
+    temp_data = list({
+      temp_subset <- master_df %>%
+        filter(
+          view_id == .data$view_id,
+          datetime >= datetime_t_minus_1,
+          datetime <= .data$datetime
+        )
+      if (nrow(temp_subset) > 0) {
+        list(
+          mean_temp = mean(temp_subset$temperature, na.rm = TRUE),
+          max_temp = max(temp_subset$temperature, na.rm = TRUE),
+          min_temp = min(temp_subset$temperature, na.rm = TRUE),
+          sd_temp = sd(temp_subset$temperature, na.rm = TRUE)
+        )
+      } else {
+        list(
+          mean_temp = NA_real_,
+          max_temp = NA_real_,
+          min_temp = NA_real_,
+          sd_temp = NA_real_
+        )
+      }
+    }),
+    mean_temp = temp_data$mean_temp,
+    max_temp = temp_data$max_temp,
+    min_temp = temp_data$min_temp,
+    sd_temp = temp_data$sd_temp,
+    
+    # Sunlight metrics
+    sun_data = list({
+      sun_subset <- master_df %>%
+        filter(
+          view_id == .data$view_id,
+          datetime >= datetime_t_minus_1,
+          datetime <= .data$datetime
+        )
+      if (nrow(sun_subset) > 0) {
+        total_sun <- sum(sun_subset$butterflies_direct_sun, na.rm = TRUE)
+        total_count <- sum(sun_subset$total_butterflies, na.rm = TRUE)
+        if (total_count > 0) {
+          overall_prop <- total_sun / total_count
+          # Calculate per-observation proportions
+          obs_props <- ifelse(sun_subset$total_butterflies > 0,
+                             sun_subset$butterflies_direct_sun / sun_subset$total_butterflies,
+                             NA_real_)
+          list(
+            sunlight_proportion = overall_prop,
+            max_prop = max(obs_props, na.rm = TRUE),
+            min_prop = min(obs_props, na.rm = TRUE),
+            sd_prop = sd(obs_props, na.rm = TRUE)
+          )
+        } else {
+          list(
+            sunlight_proportion = NA_real_,
+            max_prop = NA_real_,
+            min_prop = NA_real_,
+            sd_prop = NA_real_
+          )
+        }
+      } else {
+        list(
+          sunlight_proportion = NA_real_,
+          max_prop = NA_real_,
+          min_prop = NA_real_,
+          sd_prop = NA_real_
+        )
+      }
+    }),
+    sunlight_proportion = sun_data$sunlight_proportion,
+    max_prop_sunlight = sun_data$max_prop,
+    min_prop_sunlight = sun_data$min_prop,
+    sd_prop_sunlight = sun_data$sd_prop
+  ) %>%
+  ungroup() %>%
+  select(-wind_data, -temp_data, -sun_data)
+
+# Filter for complete cases
+data_full_day <- full_day_with_predictors %>%
+  filter(!is.na(mean_wind_speed) & !is.na(mean_temp))
+
+cat("Final full day dataset rows:", nrow(data_full_day), "\n")
+```
+
+
+### Exploratory Data Analysis (Full Day)
+
+
+```{r eda-full-day}
+cat("Data structure:\n")
+glimpse(data_full_day)
+
+cat("\n\nData summary:\n")
+summary(data_full_day)
+```
+
+```{r collinearity-full-day, fig.width=10, fig.height=10}
+# Select numeric predictors for correlation analysis
+predictors_full_day <- data_full_day %>%
+  select(abundance_t_minus_1, mean_wind_speed, max_wind_speed, sd_wind_speed,
+         gust_factor, minutes_above_2mps, mean_temp, max_temp, min_temp, sd_temp,
+         sunlight_proportion) %>%
+  na.omit()
+
+if (nrow(predictors_full_day) > 1) {
+  cor_matrix_full_day <- cor(predictors_full_day, use = "complete.obs")
+  if (!any(is.na(cor_matrix_full_day) | is.infinite(cor_matrix_full_day))) {
+    corrplot(cor_matrix_full_day, method = "color", type = "upper", 
+             order = "hclust", tl.cex = 0.8, tl.col = "black",
+             addCoef.col = "black", number.cex = 0.7,
+             title = "Predictor Collinearity (Full Day lag)")
+  } else {
+    corrplot(cor_matrix_full_day, method = "color", type = "upper", 
+             order = "original", tl.cex = 0.8, tl.col = "black",
+             addCoef.col = "black", number.cex = 0.7,
+             title = "Predictor Collinearity (Full Day lag)")
+  }
+} else {
+  cat("Not enough data for correlation analysis\n")
+}
+```
+
+
+### Model Fitting (Full Day)
+
+
+```{r models-full-day, warning=FALSE}
+# Use same model formulas
+model_formulas_full_day <- model_formulas_30m
+
+# Storage for results
+models_full_day <- list()
+aic_values_full_day <- numeric()
+
+# Fit each model
+for (i in seq_along(model_formulas_full_day)) {
+  model_name <- names(model_formulas_full_day)[i]
+  formula <- model_formulas_full_day[[i]]
+  
+  cat("\n### Model", i, ":", model_name, "\n\n")
+  
+  tryCatch({
+    # Fit GAMM
+    gamm_model <- gamm(
+      formula,
+      family = nb(),
+      data = data_full_day,
+      random = list(view_id = ~1),
+      correlation = corAR1(form = ~ 1 | view_id)
+    )
+    
+    # Store model
+    models_full_day[[model_name]] <- gamm_model
+    aic_values_full_day[model_name] <- AIC(gamm_model$lme)
+    
+    # Print summary
+    cat("Model Summary:\n")
+    print(summary(gamm_model$gam))
+    
+    # Diagnostic plots
+    cat("\n\nDiagnostic plots:\n")
+    gam.check(gamm_model$gam)
+    
+  }, error = function(e) {
+    cat("Error fitting model:", e$message, "\n")
+    aic_values_full_day[model_name] <- NA
+  })
+}
+```
+
+```{r model-comparison-full-day}
+# Model comparison table
+comparison_full_day <- data.frame(
+  Model = names(aic_values_full_day),
+  AIC = round(aic_values_full_day, 2)
+) %>%
+  arrange(AIC)
+
+cat("\n### Model Comparison (Full Day lag)\n")
+kable(comparison_full_day)
+```
+
+
+---
+
+## Final Summary
+
+
+```{r final-summary}
+cat("Analysis Complete\n")
+cat("=================\n\n")
+
+# Combine all AIC comparisons
+all_comparisons <- bind_rows(
+  comparison_30m %>% mutate(Lag = "30 minutes"),
+  comparison_60m %>% mutate(Lag = "1 hour"),
+  comparison_120m %>% mutate(Lag = "2 hours"),
+  comparison_240m %>% mutate(Lag = "4 hours"),
+  comparison_full_day %>% mutate(Lag = "Full day")
+) %>%
+  select(Lag, Model, AIC) %>%
+  pivot_wider(names_from = Lag, values_from = AIC)
+
+cat("AIC Values Across All Time Lags:\n")
+kable(all_comparisons, digits = 2)
+
+# Find best model for each lag
+best_models <- data.frame(
+  Lag = c("30 minutes", "1 hour", "2 hours", "4 hours", "Full day"),
+  Best_Model = c(
+    comparison_30m$Model[1],
+    comparison_60m$Model[1],
+    comparison_120m$Model[1],
+    comparison_240m$Model[1],
+    comparison_full_day$Model[1]
+  ),
+  Best_AIC = c(
+    comparison_30m$AIC[1],
+    comparison_60m$AIC[1],
+    comparison_120m$AIC[1],
+    comparison_240m$AIC[1],
+    comparison_full_day$AIC[1]
+  )
+)
+
+cat("\n\nBest Model for Each Time Lag:\n")
+kable(best_models, digits = 2)
+```
