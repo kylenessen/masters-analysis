@@ -278,7 +278,7 @@ my_priors <- c(
 CHAINS <- 4 # standard for diagnostics
 CORES <- 4 # run all 4 chains in parallel
 # THREADS disabled due to AR terms
-ITER <- 2000 # reduced for faster iteration
+ITER <- 4000 
 WARMUP <- 1000
 SEED <- 20250812
 
