@@ -224,6 +224,60 @@ prepare_lag_data <- function(master_df, wind_df, lag_minutes) {
         group_by(view_id) %>%
         mutate(time_index = row_number()) %>%
         ungroup()
+    
+    # Add GAM and LOESS smoothed predictions
+    cat("Computing GAM and LOESS smoothed predictions...\n")
+    
+    # GAM smoothed predictions
+    final_out <- final_out %>%
+        group_by(view_id) %>%
+        do({
+            if (nrow(.) >= 10) {  # Need minimum observations for smoothing
+                tryCatch({
+                    # GAM smoothing
+                    gam_mod <- gam(total_butterflies ~ s(as.numeric(datetime)), 
+                                   data = ., method = "REML")
+                    gam_fitted <- predict(gam_mod, newdata = .)
+                    
+                    # LOESS smoothing
+                    if (nrow(.) >= 3) {
+                        loess_fitted <- predict(loess(total_butterflies ~ as.numeric(datetime), 
+                                                     data = ., span = 0.3), newdata = .)
+                    } else {
+                        loess_fitted <- .$total_butterflies
+                    }
+                    
+                    data.frame(., 
+                              gam_fitted_count = gam_fitted,
+                              loess_fitted_count = loess_fitted)
+                }, error = function(e) {
+                    cat("Warning: Could not fit smoothers for view_id", .$view_id[1], "\n")
+                    data.frame(., 
+                              gam_fitted_count = .$total_butterflies,
+                              loess_fitted_count = .$total_butterflies)
+                })
+            } else {
+                # Too few observations - use raw counts
+                data.frame(., 
+                          gam_fitted_count = .$total_butterflies,
+                          loess_fitted_count = .$total_butterflies)
+            }
+        }) %>%
+        ungroup()
+    
+    # Compute differences from smoothed predictions and add t-1 fitted values
+    final_out <- final_out %>%
+        group_by(view_id) %>%
+        arrange(datetime) %>%
+        mutate(
+            gam_fitted_count_t_minus_1 = lag(gam_fitted_count),
+            loess_fitted_count_t_minus_1 = lag(loess_fitted_count),
+            gam_pred_diff = gam_fitted_count - lag(gam_fitted_count),
+            loess_pred_diff = loess_fitted_count - lag(loess_fitted_count),
+            gam_log_diff = log((gam_fitted_count + 0.1) / (lag(gam_fitted_count) + 0.1)),
+            loess_log_diff = log((loess_fitted_count + 0.1) / (lag(loess_fitted_count) + 0.1))
+        ) %>%
+        ungroup()
 
     cat("Final dataset rows:", nrow(final_out), "\n")
     if (nrow(final_out) > 0) {
