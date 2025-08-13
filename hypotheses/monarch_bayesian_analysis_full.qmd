@@ -18,12 +18,20 @@ library(lubridate)
 library(knitr)
 library(bayesplot)
 library(data.table) # high-performance joins/aggregations
+library(future)      # parallel processing
+library(furrr)       # parallel purrr functions
 
-# Use CmdStanR backend for performance (chains + within-chain threads)
+# Use CmdStanR backend for performance
 options(brms.backend = "cmdstanr")
+
+# Setup parallel processing for 24-core machine
+# Reserve 4 cores per model, allowing 5 models to run simultaneously
+# Keep some cores free for system processes
+plan(multisession, workers = 20)  # Use 20 cores total
 
 cat("Bayesian GAM Analysis Setup Complete\n")
 cat("Backend:", getOption("brms.backend"), "\n")
+cat("Parallel workers:", nbrOfWorkers(), "\n")
 ```
 
 ```{r load-data, message=FALSE}
@@ -265,11 +273,12 @@ my_priors <- c(
 )
 
 # Parallelization plan for a 24-core machine
-# Since threading is disabled with AR models, maximize parallel chains
+# Since threading is disabled with AR models, we run all chains in parallel
+# With 24 cores, we could run 6 models simultaneously (4 cores each)
 CHAINS <- 4 # standard for diagnostics
-PCHAINS <- 4 # run all 4 chains in parallel (uses 4 cores)
+CORES <- 4 # run all 4 chains in parallel
 # THREADS disabled due to AR terms
-ITER <- 4000 # full sampling
+ITER <- 2000 # reduced for faster iteration
 WARMUP <- 1000
 SEED <- 20250812
 
@@ -278,9 +287,11 @@ ctrl <- list(adapt_delta = 0.9, max_treedepth = 12)
 cat("Parallel plan (24-core machine):\n")
 cat(
     "  chains =", CHAINS,
-    "| parallel_chains =", PCHAINS,
-    "| cores used =", PCHAINS, "(threading disabled with AR models)\n"
+    "| cores per model =", CORES,
+    "| potential parallel models =", floor(24/CORES), "\n"
 )
+cat("Note: With AR terms, within-chain threading is disabled\n")
+cat("Consider using future/furrr to run multiple models in parallel\n")
 
 # Helper to standardize common brms args
 # Note: Threading disabled due to AR terms in models
@@ -290,7 +301,7 @@ brms_common <- list(
     iter            = ITER,
     warmup          = WARMUP,
     chains          = CHAINS,
-    cores           = PCHAINS,  # Use cores instead of parallel_chains for cmdstanr
+    cores           = CORES,  # Use all 4 cores for 4 chains
     # threads       = threading(THREADS), # Disabled - not supported with AR models
     seed            = SEED,
     backend         = "cmdstanr",
@@ -341,62 +352,65 @@ cat("4-hour:   ", nrow(data_240m_brms), "observations\n")
 
 ## Model Fitting
 
+### Option: Run All Models Simultaneously
+
+```{r run-all-models-option, eval=FALSE}
+# OPTIONAL: Run all 15 models at once (requires sufficient memory)
+# This would use 15 * 4 = 60 cores, so we'll stick with sequential batches
+# But if you have sufficient RAM and want maximum speed, you could:
+# plan(multisession, workers = 15)  # Then set cores = 1 in brms_common
+```
+
 ### 30-Minute Lag Models
 
 ```{r models-30min}
-cat("\nStarting 30-Minute Lag Models...\n")
+cat("\nStarting 30-Minute Lag Models (Parallel Execution)...\n")
 
-# 1) Baseline
-brm_30m_base <- fit_brm(
-    bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
-        (1 | view_id) +
-        ar(time = datetime, gr = view_id, p = 1)),
-    data = data_30m_brms,
-    file = "brm_30m_base.rds"
+# Define model specifications
+models_30m <- list(
+    base = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
+              (1 | view_id) +
+              ar(time = datetime, gr = view_id, p = 1)),
+    
+    wind = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
+              s(mean_wind_speed) +
+              (1 | view_id) +
+              ar(time = datetime, gr = view_id, p = 1)),
+    
+    temp = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
+              s(mean_temp) +
+              (1 | view_id) +
+              ar(time = datetime, gr = view_id, p = 1)),
+    
+    additive = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
+                  s(mean_wind_speed) +
+                  s(mean_temp) +
+                  s(sunlight_proportion) +
+                  (1 | view_id) +
+                  ar(time = datetime, gr = view_id, p = 1)),
+    
+    interaction = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
+                     s(mean_wind_speed) +
+                     t2(mean_temp, sunlight_proportion) +
+                     (1 | view_id) +
+                     ar(time = datetime, gr = view_id, p = 1))
 )
 
-# 2) Wind only
-brm_30m_wind <- fit_brm(
-    bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
-        s(mean_wind_speed) +
-        (1 | view_id) +
-        ar(time = datetime, gr = view_id, p = 1)),
-    data = data_30m_brms,
-    file = "brm_30m_wind.rds"
+# File names for caching
+files_30m <- paste0("brm_30m_", names(models_30m), ".rds")
+
+# Run all models in parallel
+cat("Fitting", length(models_30m), "models in parallel...\n")
+results_30m <- future_map2(
+    models_30m, files_30m,
+    ~fit_brm(.x, data = data_30m_brms, file = .y),
+    .options = furrr_options(seed = TRUE),
+    .progress = TRUE
 )
 
-# 3) Temperature only
-brm_30m_temp <- fit_brm(
-    bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
-        s(mean_temp) +
-        (1 | view_id) +
-        ar(time = datetime, gr = view_id, p = 1)),
-    data = data_30m_brms,
-    file = "brm_30m_temp.rds"
-)
-
-# 4) Additive
-brm_30m_additive <- fit_brm(
-    bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
-        s(mean_wind_speed) +
-        s(mean_temp) +
-        s(sunlight_proportion) +
-        (1 | view_id) +
-        ar(time = datetime, gr = view_id, p = 1)),
-    data = data_30m_brms,
-    file = "brm_30m_additive.rds"
-)
-
-# 5) Temp × Sunlight interaction
-brm_30m_interaction <- fit_brm(
-    bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
-        s(mean_wind_speed) +
-        t2(mean_temp, sunlight_proportion) +
-        (1 | view_id) +
-        ar(time = datetime, gr = view_id, p = 1)),
-    data = data_30m_brms,
-    file = "brm_30m_interaction.rds"
-)
+# Assign to individual objects for backward compatibility
+names(results_30m) <- paste0("brm_30m_", names(models_30m))
+list2env(results_30m, envir = .GlobalEnv)
 
 cat("30-minute lag models complete!\n")
 ```
@@ -404,54 +418,53 @@ cat("30-minute lag models complete!\n")
 ### 2-Hour Lag Models
 
 ```{r models-120min}
-cat("\nStarting 2-Hour Lag Models...\n")
+cat("\nStarting 2-Hour Lag Models (Parallel Execution)...\n")
 
-brm_120m_base <- fit_brm(
-    bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
-        (1 | view_id) +
-        ar(time = datetime, gr = view_id, p = 1)),
-    data = data_120m_brms,
-    file = "brm_120m_base.rds"
+# Define model specifications (same structure, different data)
+models_120m <- list(
+    base = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
+              (1 | view_id) +
+              ar(time = datetime, gr = view_id, p = 1)),
+    
+    wind = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
+              s(mean_wind_speed) +
+              (1 | view_id) +
+              ar(time = datetime, gr = view_id, p = 1)),
+    
+    temp = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
+              s(mean_temp) +
+              (1 | view_id) +
+              ar(time = datetime, gr = view_id, p = 1)),
+    
+    additive = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
+                  s(mean_wind_speed) +
+                  s(mean_temp) +
+                  s(sunlight_proportion) +
+                  (1 | view_id) +
+                  ar(time = datetime, gr = view_id, p = 1)),
+    
+    interaction = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
+                     s(mean_wind_speed) +
+                     t2(mean_temp, sunlight_proportion) +
+                     (1 | view_id) +
+                     ar(time = datetime, gr = view_id, p = 1))
 )
 
-brm_120m_wind <- fit_brm(
-    bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
-        s(mean_wind_speed) +
-        (1 | view_id) +
-        ar(time = datetime, gr = view_id, p = 1)),
-    data = data_120m_brms,
-    file = "brm_120m_wind.rds"
+# File names for caching
+files_120m <- paste0("brm_120m_", names(models_120m), ".rds")
+
+# Run all models in parallel
+cat("Fitting", length(models_120m), "models in parallel...\n")
+results_120m <- future_map2(
+    models_120m, files_120m,
+    ~fit_brm(.x, data = data_120m_brms, file = .y),
+    .options = furrr_options(seed = TRUE),
+    .progress = TRUE
 )
 
-brm_120m_temp <- fit_brm(
-    bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
-        s(mean_temp) +
-        (1 | view_id) +
-        ar(time = datetime, gr = view_id, p = 1)),
-    data = data_120m_brms,
-    file = "brm_120m_temp.rds"
-)
-
-brm_120m_additive <- fit_brm(
-    bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
-        s(mean_wind_speed) +
-        s(mean_temp) +
-        s(sunlight_proportion) +
-        (1 | view_id) +
-        ar(time = datetime, gr = view_id, p = 1)),
-    data = data_120m_brms,
-    file = "brm_120m_additive.rds"
-)
-
-brm_120m_interaction <- fit_brm(
-    bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
-        s(mean_wind_speed) +
-        t2(mean_temp, sunlight_proportion) +
-        (1 | view_id) +
-        ar(time = datetime, gr = view_id, p = 1)),
-    data = data_120m_brms,
-    file = "brm_120m_interaction.rds"
-)
+# Assign to individual objects for backward compatibility
+names(results_120m) <- paste0("brm_120m_", names(models_120m))
+list2env(results_120m, envir = .GlobalEnv)
 
 cat("2-hour lag models complete!\n")
 ```
@@ -459,54 +472,53 @@ cat("2-hour lag models complete!\n")
 ### 4-Hour Lag Models
 
 ```{r models-240min}
-cat("\nStarting 4-Hour Lag Models...\n")
+cat("\nStarting 4-Hour Lag Models (Parallel Execution)...\n")
 
-brm_240m_base <- fit_brm(
-    bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
-        (1 | view_id) +
-        ar(time = datetime, gr = view_id, p = 1)),
-    data = data_240m_brms,
-    file = "brm_240m_base.rds"
+# Define model specifications (same structure, different data)
+models_240m <- list(
+    base = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
+              (1 | view_id) +
+              ar(time = datetime, gr = view_id, p = 1)),
+    
+    wind = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
+              s(mean_wind_speed) +
+              (1 | view_id) +
+              ar(time = datetime, gr = view_id, p = 1)),
+    
+    temp = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
+              s(mean_temp) +
+              (1 | view_id) +
+              ar(time = datetime, gr = view_id, p = 1)),
+    
+    additive = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
+                  s(mean_wind_speed) +
+                  s(mean_temp) +
+                  s(sunlight_proportion) +
+                  (1 | view_id) +
+                  ar(time = datetime, gr = view_id, p = 1)),
+    
+    interaction = bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
+                     s(mean_wind_speed) +
+                     t2(mean_temp, sunlight_proportion) +
+                     (1 | view_id) +
+                     ar(time = datetime, gr = view_id, p = 1))
 )
 
-brm_240m_wind <- fit_brm(
-    bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
-        s(mean_wind_speed) +
-        (1 | view_id) +
-        ar(time = datetime, gr = view_id, p = 1)),
-    data = data_240m_brms,
-    file = "brm_240m_wind.rds"
+# File names for caching
+files_240m <- paste0("brm_240m_", names(models_240m), ".rds")
+
+# Run all models in parallel
+cat("Fitting", length(models_240m), "models in parallel...\n")
+results_240m <- future_map2(
+    models_240m, files_240m,
+    ~fit_brm(.x, data = data_240m_brms, file = .y),
+    .options = furrr_options(seed = TRUE),
+    .progress = TRUE
 )
 
-brm_240m_temp <- fit_brm(
-    bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
-        s(mean_temp) +
-        (1 | view_id) +
-        ar(time = datetime, gr = view_id, p = 1)),
-    data = data_240m_brms,
-    file = "brm_240m_temp.rds"
-)
-
-brm_240m_additive <- fit_brm(
-    bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
-        s(mean_wind_speed) +
-        s(mean_temp) +
-        s(sunlight_proportion) +
-        (1 | view_id) +
-        ar(time = datetime, gr = view_id, p = 1)),
-    data = data_240m_brms,
-    file = "brm_240m_additive.rds"
-)
-
-brm_240m_interaction <- fit_brm(
-    bf(total_butterflies ~ s(abundance_t_minus_1, k = 20) +
-        s(mean_wind_speed) +
-        t2(mean_temp, sunlight_proportion) +
-        (1 | view_id) +
-        ar(time = datetime, gr = view_id, p = 1)),
-    data = data_240m_brms,
-    file = "brm_240m_interaction.rds"
-)
+# Assign to individual objects for backward compatibility
+names(results_240m) <- paste0("brm_240m_", names(models_240m))
+list2env(results_240m, envir = .GlobalEnv)
 
 cat("4-hour lag models complete!\n")
 ```
