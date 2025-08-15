@@ -1,10 +1,9 @@
 ---
 title: "Wind Effects on Butterfly Abundance - GAMM Analysis"
-format: html
+format: pdf
 ---
 
 ```{r setup}
-library(mgcv)
 library(tidyverse)
 library(broom)
 library(gratia)
@@ -12,6 +11,7 @@ library(performance)
 library(DHARMa)
 library(ggeffects)
 library(here)
+library(mgcv) # Load mgcv last to avoid conflicts
 
 theme_set(theme_minimal())
 ```
@@ -53,39 +53,41 @@ df_model <- df_full %>%
   na.omit()
 
 # Define the models
-k_val <- 20
+k_val <- 25
+
+# Note: After changing AR_start to factor, all models need to be rerun
+# to avoid errors with ggpredict()
 
 # Model 1: Null Model
-m_null <- bam(total_butterflies ~ mgcv::s(day_id, bs = "re") + mgcv::s(Observer, bs = "re"),
+m_null <- bam(total_butterflies ~ s(day_id, bs = "re") + s(Observer, bs = "re"),
               data = df_model,
               family = tw(),
               method = "fREML",
-              discrete = TRUE,
               AR.start = df_model$AR_start)
 
 # Model 2: Single Predictor Models
-m_temp <- bam(total_butterflies ~ mgcv::s(temperature, k = k_val) + mgcv::s(day_id, bs = "re") + mgcv::s(Observer, bs = "re"),
+m_temp <- bam(total_butterflies ~ s(temperature, k = k_val) + s(day_id, bs = "re") + s(Observer, bs = "re"),
               data = df_model,
               family = tw(),
               method = "fREML",
               discrete = TRUE,
               AR.start = df_model$AR_start)
 
-m_wind <- bam(total_butterflies ~ mgcv::s(wind_mean, k = k_val) + mgcv::s(day_id, bs = "re") + mgcv::s(Observer, bs = "re"),
+m_wind <- bam(total_butterflies ~ s(wind_mean, k = k_val) + s(day_id, bs = "re") + s(Observer, bs = "re"),
               data = df_model,
               family = tw(),
               method = "fREML",
               discrete = TRUE,
               AR.start = df_model$AR_start)
 
-m_sun <- bam(total_butterflies ~ mgcv::s(butterflies_direct_sun, k = k_val) + mgcv::s(day_id, bs = "re") + mgcv::s(Observer, bs = "re"),
+m_sun <- bam(total_butterflies ~ s(butterflies_direct_sun, k = k_val) + s(day_id, bs = "re") + s(Observer, bs = "re"),
              data = df_model,
              family = tw(),
              method = "fREML",
              discrete = TRUE,
              AR.start = df_model$AR_start)
 
-m_time <- bam(total_butterflies ~ mgcv::s(time_above_threshold, k = k_val) + mgcv::s(day_id, bs = "re") + mgcv::s(Observer, bs = "re"),
+m_time <- bam(total_butterflies ~ s(time_above_threshold, k = k_val) + s(day_id, bs = "re") + s(Observer, bs = "re"),
               data = df_model,
               family = tw(),
               method = "fREML",
@@ -93,12 +95,12 @@ m_time <- bam(total_butterflies ~ mgcv::s(time_above_threshold, k = k_val) + mgc
               AR.start = df_model$AR_start)
 
 # Model 3: Additive Model
-m_additive <- bam(total_butterflies ~ mgcv::s(temperature, k = k_val) +
-                                    mgcv::s(wind_mean, k = k_val) +
-                                    mgcv::s(butterflies_direct_sun, k = k_val) +
-                                    mgcv::s(time_above_threshold, k = k_val) +
-                                    mgcv::s(day_id, bs = "re") +
-                                    mgcv::s(Observer, bs = "re"),
+m_additive <- bam(total_butterflies ~ s(temperature, k = k_val) +
+                                    s(wind_mean, k = k_val) +
+                                    s(butterflies_direct_sun, k = k_val) +
+                                    s(time_above_threshold, k = k_val) +
+                                    s(day_id, bs = "re") +
+                                    s(Observer, bs = "re"),
                   data = df_model,
                   family = tw(),
                   method = "fREML",
@@ -106,13 +108,13 @@ m_additive <- bam(total_butterflies ~ mgcv::s(temperature, k = k_val) +
                   AR.start = df_model$AR_start)
 
 # Model 4: Additive + Interaction Models
-m_int_temp_wind <- bam(total_butterflies ~ mgcv::s(temperature, k = k_val) +
-                                          mgcv::s(wind_mean, k = k_val) +
-                                          mgcv::s(butterflies_direct_sun, k = k_val) +
-                                          mgcv::s(time_above_threshold, k = k_val) +
-                                          mgcv::ti(temperature, wind_mean, k = 10) +
-                                          mgcv::s(day_id, bs = "re") +
-                                          mgcv::s(Observer, bs = "re"),
+m_int_temp_wind <- bam(total_butterflies ~ s(temperature, k = k_val) +
+                                          s(wind_mean, k = k_val) +
+                                          s(butterflies_direct_sun, k = k_val) +
+                                          s(time_above_threshold, k = k_val) +
+                                          ti(temperature, wind_mean, k = 10) +
+                                          s(day_id, bs = "re") +
+                                          s(Observer, bs = "re"),
                        data = df_model,
                        family = tw(),
                        method = "fREML",
@@ -122,7 +124,7 @@ m_int_temp_wind <- bam(total_butterflies ~ mgcv::s(temperature, k = k_val) +
 # We can now inspect these models.
 ```
 
-```{r model-diagnostics}
+```{r model-diagnostics, fig.width=8, fig.height=6}
 # Model Diagnostics
 
 # 1. Check for concurvity in the more complex models
@@ -130,30 +132,57 @@ m_int_temp_wind <- bam(total_butterflies ~ mgcv::s(temperature, k = k_val) +
 # High values (close to 1) can be problematic.
 concurvity(m_additive, full = FALSE)
 concurvity(m_int_temp_wind, full = FALSE)
+```
 
-# 2. Use gam.check() for standard diagnostics
+```{r gam-check-additive, fig.width=8, fig.height=6}
+# 2. Use gam.check() for standard diagnostics - Additive Model
 # This provides k-checks (are basis dimensions adequate?) and residual plots.
-par(mfrow = c(2, 2))
 gam.check(m_additive)
+```
 
-par(mfrow = c(2, 2))
+```{r gam-check-interaction, fig.width=8, fig.height=6}
+# gam.check() for interaction model
 gam.check(m_int_temp_wind)
-dev.off()
+```
 
-# 3. Use DHARMa for more advanced residual diagnostics
+```{r dharma-additive, fig.width=8, fig.height=6}
+# 3. Use DHARMa for more advanced residual diagnostics - Additive Model
 # This simulates residuals from the fitted model and compares them to the observed residuals.
-# It's a very powerful method for complex models like GAMMs.
-
-# For m_additive
 sim_res_additive <- simulateResiduals(fittedModel = m_additive, n = 250)
 plot(sim_res_additive)
+```
 
-# For m_int_temp_wind
+```{r dharma-interaction, fig.width=8, fig.height=6}
+# DHARMa diagnostics for interaction model
 sim_res_int <- simulateResiduals(fittedModel = m_int_temp_wind, n = 250)
 plot(sim_res_int)
+```
 
+```{r acf-plots, fig.width=8, fig.height=8}
+# 4. Check for temporal autocorrelation using ACF plots
+# This is crucial for time series data to ensure residuals are not autocorrelated
 
-# 4. Compare models using AIC
+library(gridExtra)
+library(grid)
+
+# Create ACF plots using base R but arrange with grid
+# ACF for additive model
+acf_add <- acf(residuals(m_additive), plot = FALSE, main = "ACF - Additive Model")
+pacf_add <- pacf(residuals(m_additive), plot = FALSE, main = "PACF - Additive Model")
+
+# ACF for interaction model  
+acf_int <- acf(residuals(m_int_temp_wind), plot = FALSE, main = "ACF - Interaction Model")
+pacf_int <- pacf(residuals(m_int_temp_wind), plot = FALSE, main = "PACF - Interaction Model")
+
+# Plot ACF results
+plot(acf_add, main = "ACF - Additive Model")
+plot(pacf_add, main = "PACF - Additive Model")
+plot(acf_int, main = "ACF - Interaction Model")
+plot(pacf_int, main = "PACF - Interaction Model")
+```
+
+```{r model-comparison}
+# 5. Compare models using AIC
 # Create a list of models
 model_list <- list(
   null = m_null,
@@ -178,7 +207,7 @@ aic_table <- tibble(
 print(aic_table)
 ```
 
-```{r plot-best-model}
+```{r plot-all-effects, fig.width=10, fig.height=8}
 # --- Plotting the Best Model ---
 
 # The model with the lowest AIC is `m_int_temp_wind`.
@@ -188,37 +217,54 @@ print(aic_table)
 # `gratia::draw()` is excellent for this. `scales = "free"` allows each plot
 # to have its own y-axis scale.
 draw(m_int_temp_wind, scales = "free")
+```
 
+```{r plot-temperature, fig.width=8, fig.height=6}
 # 2. Plot individual effects for more detail
 
 # Main effect of Temperature
 draw(m_int_temp_wind, select = "s(temperature)")
+```
 
+```{r plot-wind, fig.width=8, fig.height=6}
 # Main effect of Wind
 draw(m_int_temp_wind, select = "s(wind_mean)")
+```
 
+```{r plot-sun, fig.width=8, fig.height=6}
 # Main effect of Sun
 draw(m_int_temp_wind, select = "s(butterflies_direct_sun)")
+```
 
+```{r plot-time-threshold, fig.width=8, fig.height=6}
 # Main effect of Time Above Threshold
 draw(m_int_temp_wind, select = "s(time_above_threshold)")
+```
 
-
+```{r plot-interaction, fig.width=8, fig.height=6}
 # 3. Visualize the interaction between Temperature and Wind
 
 # Option A: A 2D heatmap of the interaction surface using gratia
 draw(m_int_temp_wind, select = "ti(temperature,wind_mean)")
+```
 
+```{r plot-conditional-effects, fig.width=8, fig.height=6}
 # Option B: Using ggeffects to plot conditional effects.
 # This shows the effect of temperature at different levels of wind speed.
 # It can sometimes be easier to interpret.
 library(ggeffects)
-ggpredict(m_int_temp_wind, terms = c("temperature", "wind_mean")) %>% plot()
+# Note: ggpredict has issues with logical AR_start, so we use typical values
+#ggpredict(m_int_temp_wind, terms = c("temperature", "wind_mean"), 
+#          typical = "mean") %>% plot()
+```
 
-
+```{r plot-random-day, fig.width=8, fig.height=6}
 # 4. Visualize the random effects
 # This can help understand the variation among days and observers.
 draw(m_int_temp_wind, select = "s(day_id)")
+```
+
+```{r plot-random-observer, fig.width=8, fig.height=6}
 draw(m_int_temp_wind, select = "s(Observer)")
 ```
 
