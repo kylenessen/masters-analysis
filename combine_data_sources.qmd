@@ -70,6 +70,12 @@ analysis_df <- butterfly_abundance %>%
     temperature_data %>%
       select(filename, temperature),
     by = c("image_filename" = "filename")
+  ) %>%
+  left_join(
+    deployments %>%
+      select(deployment_id, wind_meter_name, Deployed_time, Recovered_time, 
+             horizontal_dist_to_cluster_m, height_m, youtube_url, Observer, view_id),
+    by = "deployment_id"
   )
 
 # Check for any missing temperature values
@@ -78,6 +84,13 @@ missing_temp <- analysis_df %>%
   nrow()
 
 cat("Records missing temperature data:", missing_temp, "\n")
+
+# Check deployment metadata join
+n_deployments <- analysis_df %>%
+  distinct(deployment_id) %>%
+  nrow()
+
+cat("Number of unique deployments in analysis_df:", n_deployments, "\n")
 
 # Summary of combined data
 glimpse(analysis_df)
