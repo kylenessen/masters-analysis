@@ -28,137 +28,143 @@ json_files <- list.files(deploy_dir, pattern = "\\.json$", full.names = TRUE)
 
 # Null-coalescing helper
 or_else <- function(x, default) {
-  if (is.null(x)) default else x
+    if (is.null(x)) default else x
 }
 
 # Vectorized count value mapping
 count_min_value_vec <- function(x) {
-  # Initialize result vector
-  result <- rep(NA_real_, length(x))
-  
-  # Handle NULL and NA values
-  null_mask <- sapply(x, is.null)
-  result[null_mask] <- NA_real_
-  
-  # Process non-NULL values
-  non_null <- which(!null_mask)
-  if (length(non_null) == 0) return(result)
-  
-  x_non_null <- x[non_null]
-  
-  # Handle numeric values directly (vectorized)
-  is_num <- sapply(x_non_null, is.numeric)
-  num_idx <- non_null[is_num]
-  if (length(num_idx) > 0) {
-    result[num_idx] <- as.numeric(unlist(x_non_null[is_num]))
-  }
-  
-  # Process non-numeric values
-  char_idx <- non_null[!is_num]
-  if (length(char_idx) == 0) return(result)
-  
-  chars <- trimws(as.character(unlist(x_non_null[!is_num])))
-  char_result <- rep(NA_real_, length(chars))
-  
-  # Exact zero
-  char_result[chars == "0"] <- 0
-  
-  # Range patterns (e.g., "1-9", "10-99")
-  range_match <- str_match(chars, "^(\\d+)-(\\d+)$")
-  has_range <- !is.na(range_match[,1])
-  char_result[has_range] <- as.numeric(range_match[has_range, 2])
-  
-  # Plus patterns (e.g., "1000+")
-  plus_match <- str_match(chars, "^(\\d+)\\+$")
-  has_plus <- !is.na(plus_match[,1])
-  char_result[has_plus] <- as.numeric(plus_match[has_plus, 2])
-  
-  # Try numeric coercion for remaining
-  remaining <- is.na(char_result) & chars != ""
-  if (any(remaining)) {
-    suppressWarnings({
-      nums <- as.numeric(chars[remaining])
-    })
-    char_result[remaining] <- nums
-  }
-  
-  result[char_idx] <- char_result
-  return(result)
+    # Initialize result vector
+    result <- rep(NA_real_, length(x))
+
+    # Handle NULL and NA values
+    null_mask <- sapply(x, is.null)
+    result[null_mask] <- NA_real_
+
+    # Process non-NULL values
+    non_null <- which(!null_mask)
+    if (length(non_null) == 0) {
+        return(result)
+    }
+
+    x_non_null <- x[non_null]
+
+    # Handle numeric values directly (vectorized)
+    is_num <- sapply(x_non_null, is.numeric)
+    num_idx <- non_null[is_num]
+    if (length(num_idx) > 0) {
+        result[num_idx] <- as.numeric(unlist(x_non_null[is_num]))
+    }
+
+    # Process non-numeric values
+    char_idx <- non_null[!is_num]
+    if (length(char_idx) == 0) {
+        return(result)
+    }
+
+    chars <- trimws(as.character(unlist(x_non_null[!is_num])))
+    char_result <- rep(NA_real_, length(chars))
+
+    # Exact zero
+    char_result[chars == "0"] <- 0
+
+    # Range patterns (e.g., "1-9", "10-99")
+    range_match <- str_match(chars, "^(\\d+)-(\\d+)$")
+    has_range <- !is.na(range_match[, 1])
+    char_result[has_range] <- as.numeric(range_match[has_range, 2])
+
+    # Plus patterns (e.g., "1000+")
+    plus_match <- str_match(chars, "^(\\d+)\\+$")
+    has_plus <- !is.na(plus_match[, 1])
+    char_result[has_plus] <- as.numeric(plus_match[has_plus, 2])
+
+    # Try numeric coercion for remaining
+    remaining <- is.na(char_result) & chars != ""
+    if (any(remaining)) {
+        suppressWarnings({
+            nums <- as.numeric(chars[remaining])
+        })
+        char_result[remaining] <- nums
+    }
+
+    result[char_idx] <- char_result
+    return(result)
 }
 
 extract_cells_df <- function(cells) {
-  if (is.null(cells) || length(cells) == 0) return(tibble())
-  
-  # cells is a named list of cell_ij -> list(count=..., directSun/sunlight=...)
-  keys <- names(cells)
-  vals <- cells
-  
-  # Extract all values at once
-  counts <- map(vals, ~ or_else(.x[["count"]], NA))
-  
-  # Vectorized direct_sun extraction
-  direct_sun <- map_lgl(vals, function(.x) {
-    if (!is.null(.x[["directSun"]])) {
-      isTRUE(.x[["directSun"]])
-    } else if (!is.null(.x[["sunlight"]])) {
-      isTRUE(.x[["sunlight"]])
-    } else {
-      FALSE
+    if (is.null(cells) || length(cells) == 0) {
+        return(tibble())
     }
-  })
-  
-  tibble(
-    cell = keys,
-    count_raw = counts,
-    direct_sun = direct_sun,
-    count_min = count_min_value_vec(counts)
-  )
+
+    # cells is a named list of cell_ij -> list(count=..., directSun/sunlight=...)
+    keys <- names(cells)
+    vals <- cells
+
+    # Extract all values at once
+    counts <- map(vals, ~ or_else(.x[["count"]], NA))
+
+    # Vectorized direct_sun extraction
+    direct_sun <- map_lgl(vals, function(.x) {
+        if (!is.null(.x[["directSun"]])) {
+            isTRUE(.x[["directSun"]])
+        } else if (!is.null(.x[["sunlight"]])) {
+            isTRUE(.x[["sunlight"]])
+        } else {
+            FALSE
+        }
+    })
+
+    tibble(
+        cell = keys,
+        count_raw = counts,
+        direct_sun = direct_sun,
+        count_min = count_min_value_vec(counts)
+    )
 }
 
 parse_deployment <- function(file) {
-  deployment_id <- tools::file_path_sans_ext(basename(file))
-  x <- jsonlite::read_json(file, simplifyVector = FALSE)
-  
-  # Determine structure
-  if (is.list(x) && !is.null(x$classifications)) {
-    cls <- x$classifications
-  } else {
-    cls <- x
-  }
-  
-  if (length(cls) == 0) {
-    return(tibble(
-      deployment_id = deployment_id,
-      image_filename = NA_character_,
-      total_butterflies = NA_real_,
-      butterflies_direct_sun = NA_real_
-    ))
-  }
-  
-  # Build data frame all at once using list columns
-  im_names <- names(cls)
-  
-  res <- tibble(
-    deployment_id = deployment_id,
-    image_filename = im_names,
-    im_obj = cls
-  ) %>%
-    # Filter out night frames
-    filter(!map_lgl(im_obj, ~ isTRUE(or_else(.x[["isNight"]], FALSE)))) %>%
-    mutate(
-      # Extract cells data
-      cells_df = map(im_obj, ~ extract_cells_df(or_else(.x$cells, NULL))),
-      # Calculate totals
-      total_butterflies = map_dbl(cells_df, function(df) {
-        if(nrow(df) == 0) NA_real_ else sum(df$count_min, na.rm = TRUE)
-      }),
-      butterflies_direct_sun = map_dbl(cells_df, function(df) {
-        if(nrow(df) == 0) NA_real_ else sum(df$count_min[df$direct_sun], na.rm = TRUE)
-      })
+    deployment_id <- tools::file_path_sans_ext(basename(file))
+    x <- jsonlite::read_json(file, simplifyVector = FALSE)
+
+    # Determine structure
+    if (is.list(x) && !is.null(x$classifications)) {
+        cls <- x$classifications
+    } else {
+        cls <- x
+    }
+
+    if (length(cls) == 0) {
+        return(tibble(
+            deployment_id = deployment_id,
+            image_filename = NA_character_,
+            total_butterflies = NA_real_,
+            butterflies_direct_sun = NA_real_
+        ))
+    }
+
+    # Build data frame all at once using list columns
+    im_names <- names(cls)
+
+    res <- tibble(
+        deployment_id = deployment_id,
+        image_filename = im_names,
+        im_obj = cls
     ) %>%
-    select(-im_obj, -cells_df)
-  
-  res
+        # Filter out night frames
+        filter(!map_lgl(im_obj, ~ isTRUE(or_else(.x[["isNight"]], FALSE)))) %>%
+        mutate(
+            # Extract cells data
+            cells_df = map(im_obj, ~ extract_cells_df(or_else(.x$cells, NULL))),
+            # Calculate totals
+            total_butterflies = map_dbl(cells_df, function(df) {
+                if (nrow(df) == 0) NA_real_ else sum(df$count_min, na.rm = TRUE)
+            }),
+            butterflies_direct_sun = map_dbl(cells_df, function(df) {
+                if (nrow(df) == 0) NA_real_ else sum(df$count_min[df$direct_sun], na.rm = TRUE)
+            })
+        ) %>%
+        select(-im_obj, -cells_df)
+
+    res
 }
 
 # Set up parallel processing (adjust workers based on your system)
@@ -166,17 +172,17 @@ plan(multisession, workers = min(4, length(json_files)))
 
 # Parse all deployments in parallel
 abundance_index <- future_map_dfr(json_files, function(f) {
-  tryCatch(parse_deployment(f), error = function(e) {
-    warning(sprintf("Failed to parse %s: %s", f, conditionMessage(e)))
-    tibble(
-      deployment_id = tools::file_path_sans_ext(basename(f)),
-      image_filename = NA_character_,
-      total_butterflies = NA_real_,
-      butterflies_direct_sun = NA_real_
-    )
-  })
+    tryCatch(parse_deployment(f), error = function(e) {
+        warning(sprintf("Failed to parse %s: %s", f, conditionMessage(e)))
+        tibble(
+            deployment_id = tools::file_path_sans_ext(basename(f)),
+            image_filename = NA_character_,
+            total_butterflies = NA_real_,
+            butterflies_direct_sun = NA_real_
+        )
+    })
 }, .options = furrr_options(seed = TRUE)) %>%
-  arrange(deployment_id, image_filename)
+    arrange(deployment_id, image_filename)
 
 # Close parallel workers
 plan(sequential)
@@ -187,57 +193,146 @@ abundance_index
 parse_ts <- function(s) as.POSIXct(strptime(s, "%Y%m%d%H%M%S", tz = "UTC"))
 
 night_periods <- list(
-  SC1 = list(
-    list(start = "20231117174001", end = "20231118062001"),
-    list(start = "20231118172501", end = "20231119061501"),
-    list(start = "20231119171001", end = "20231120062001")
-  ),
-  SC2 = list(
-    list(start = "20231117172501", end = "20231118062001"),
-    list(start = "20231118171501", end = "20231119061501")
-  )
+    SC1 = list(
+        list(start = "20231117174001", end = "20231118062001"),
+        list(start = "20231118172501", end = "20231119061501"),
+        list(start = "20231119171001", end = "20231120062001")
+    ),
+    SC2 = list(
+        list(start = "20231117172501", end = "20231118062001"),
+        list(start = "20231118171501", end = "20231119061501")
+    )
 )
 
 # Pre-compute intervals
 night_intervals <- map(night_periods, function(periods) {
-  map(periods, ~ list(
-    start = parse_ts(.x$start),
-    end = parse_ts(.x$end)
-  ))
+    map(periods, ~ list(
+        start = parse_ts(.x$start),
+        end = parse_ts(.x$end)
+    ))
 })
 
 # Vectorized night checking
 is_night_vec <- function(ids, timestamps) {
-  result <- rep(FALSE, length(ids))
-  
-  for (dep_id in names(night_intervals)) {
-    mask <- ids == dep_id & !is.na(timestamps)
-    if (!any(mask)) next
-    
-    dep_ts <- timestamps[mask]
-    is_night_mask <- rep(FALSE, sum(mask))
-    
-    for (period in night_intervals[[dep_id]]) {
-      is_night_mask <- is_night_mask | (dep_ts >= period$start & dep_ts <= period$end)
+    result <- rep(FALSE, length(ids))
+
+    for (dep_id in names(night_intervals)) {
+        mask <- ids == dep_id & !is.na(timestamps)
+        if (!any(mask)) next
+
+        dep_ts <- timestamps[mask]
+        is_night_mask <- rep(FALSE, sum(mask))
+
+        for (period in night_intervals[[dep_id]]) {
+            is_night_mask <- is_night_mask | (dep_ts >= period$start & dep_ts <= period$end)
+        }
+
+        result[mask] <- is_night_mask
     }
-    
-    result[mask] <- is_night_mask
-  }
-  
-  result
+
+    result
 }
 
 # Apply filters with vectorized operations
 abundance_index_filtered <- abundance_index %>%
-  mutate(
-    timestamp_str = stringr::str_match(tidyr::replace_na(image_filename, ""), ".*_(\\d{14})")[, 2],
-    timestamp = parse_ts(timestamp_str)
-  ) %>%
-  filter(!is.na(timestamp)) %>%
-  # Vectorized night filtering for SC1/SC2
-  filter(!is_night_vec(deployment_id, timestamp)) %>%
-  # Vectorized minute filtering for SC1/SC2 downsampling
-  filter(!(deployment_id %in% c("SC1", "SC2") & (lubridate::minute(timestamp) %% 30 != 0)))
+    mutate(
+        timestamp_str = stringr::str_match(tidyr::replace_na(image_filename, ""), ".*_(\\d{14})")[, 2],
+        timestamp = parse_ts(timestamp_str)
+    ) %>%
+    filter(!is.na(timestamp)) %>%
+    # Vectorized night filtering for SC1/SC2
+    filter(!is_night_vec(deployment_id, timestamp)) %>%
+    # Vectorized minute filtering for SC1/SC2 downsampling
+    filter(!(deployment_id %in% c("SC1", "SC2") & (lubridate::minute(timestamp) %% 30 != 0))) %>%
+    # Add day_id column - combining deployment_id and date
+    mutate(
+        date = as.Date(timestamp),
+        day_id = paste0(deployment_id, "-", format(date, "%Y%m%d"))
+    )
+
+# Add complete_day column - only TRUE for middle days with records before AND after
+# First get unique days per deployment
+unique_days_per_deployment <- abundance_index_filtered %>%
+    group_by(deployment_id, day_id, date) %>%
+    summarise(n = n(), .groups = "drop") %>%
+    group_by(deployment_id) %>%
+    arrange(date) %>%  # Sort by actual date, not day_id string
+    mutate(
+        # For each unique day, check if there's a day before and after
+        prev_date = lag(date),
+        next_date = lead(date),
+        has_prev = !is.na(prev_date),
+        has_next = !is.na(next_date),
+        # Mark as complete only if it has both
+        complete_day = has_prev & has_next
+    ) %>%
+    select(deployment_id, day_id, complete_day)
+
+# Join back to main dataset
+abundance_index_filtered <- abundance_index_filtered %>%
+    left_join(unique_days_per_deployment, by = c("deployment_id", "day_id"))
+```
+
+```{r}
+#| label: complete-day-summary
+#| echo: true
+# Summary of complete vs partial days
+day_summary <- abundance_index_filtered %>%
+    group_by(deployment_id, day_id, complete_day) %>%
+    summarise(
+        n_observations = n(),
+        first_time = min(timestamp),
+        last_time = max(timestamp),
+        duration_hours = as.numeric(difftime(last_time, first_time, units = "hours")),
+        .groups = "drop"
+    )
+
+# Print summary statistics
+cat("Complete vs Partial Days Summary:\n")
+day_summary %>%
+    group_by(complete_day) %>%
+    summarise(
+        n_days = n(),
+        mean_obs = mean(n_observations),
+        median_obs = median(n_observations),
+        mean_duration = mean(duration_hours),
+        .groups = "drop"
+    ) %>%
+    print()
+
+# Debugging: check if any complete days exist
+cat("\nNumber of complete days:", sum(day_summary$complete_day, na.rm = TRUE), "\n")
+cat("Total days in dataset:", nrow(day_summary), "\n")
+
+# Show example of day sequence per deployment
+cat("\nExample day sequences (first 3 deployments):\n")
+unique_days_per_deployment %>%
+    group_by(deployment_id) %>%
+    slice(1:5) %>%  # Show first 5 days per deployment
+    ungroup() %>%
+    head(15) %>%
+    print()
+cat("\n")
+
+# Histogram of observations per day for complete days only
+complete_days_only <- day_summary %>%
+    filter(complete_day == TRUE)
+
+# Only plot if there are complete days
+if (nrow(complete_days_only) > 0) {
+    p <- ggplot(complete_days_only, aes(x = n_observations)) +
+        geom_histogram(bins = 30, fill = "steelblue", color = "black", alpha = 0.7) +
+        labs(
+            title = "Distribution of Observations per Day (Complete Days Only)",
+            x = "Number of Observations",
+            y = "Count of Days"
+        ) +
+        theme_minimal() +
+        theme(plot.title = element_text(hjust = 0.5))
+    print(p)
+} else {
+    cat("No complete days found in the dataset (days with records both before and after).\n")
+}
 ```
 
 ```{r}
@@ -255,17 +350,17 @@ abundance_index_ts <- abundance_index_filtered
 
 deployments <- sort(unique(abundance_index_ts$deployment_id))
 for (dep in deployments) {
-  df <- dplyr::filter(abundance_index_ts, deployment_id == dep)
-  if (nrow(df) == 0) next
-  p <- ggplot(df, aes(x = timestamp, y = total_butterflies)) +
-    geom_point(size = 0.7) +
-    labs(
-      title = paste("Butterfly abundance timeseries -", dep),
-      x = "Timestamp",
-      y = "Total butterflies"
-    ) +
-    theme_minimal()
-  print(p)
+    df <- dplyr::filter(abundance_index_ts, deployment_id == dep)
+    if (nrow(df) == 0) next
+    p <- ggplot(df, aes(x = timestamp, y = total_butterflies)) +
+        geom_point(size = 0.7) +
+        labs(
+            title = paste("Butterfly abundance timeseries -", dep),
+            x = "Timestamp",
+            y = "Total butterflies"
+        ) +
+        theme_minimal()
+    print(p)
 }
 ```
 
@@ -273,10 +368,53 @@ for (dep in deployments) {
 #| label: save-csv
 #| eval: false
 # Optionally save to CSV for downstream analyses
-#readr::write_csv(abundance_index_filtered, "data/butterfly_abundance_index.csv")
+# readr::write_csv(abundance_index_filtered, "data/butterfly_abundance_index.csv")
 ```
 
 ```{r}
 #| label: methods-note
 cat("Abundance index computed using conservative category minima: 1 for '1-9', 10 for '10-99', 100 for '100-999', and lower bound for any 'N+' values.")
+```
+
+```{r}
+#| label: diagnostic-timeseries
+#| fig-cap: "Diagnostic: Timeseries for each day_id"
+#| echo: true
+
+# Diagnostic plots - one timeseries per day_id
+cat("Generating diagnostic timeseries plots for each day_id...\n\n")
+
+# Get all unique day_ids sorted
+all_day_ids <- unique(abundance_index_filtered$day_id) %>% sort()
+
+# Show summary first
+cat("Total unique day_ids:", length(all_day_ids), "\n")
+cat("Plotting each day_id individually...\n\n")
+
+# Plot each day_id
+for (did in all_day_ids) {
+    df_day <- abundance_index_filtered %>%
+        filter(day_id == did)
+    
+    # Get stats for this day
+    n_obs <- nrow(df_day)
+    duration_hours <- as.numeric(difftime(max(df_day$timestamp), 
+                                          min(df_day$timestamp), 
+                                          units = "hours"))
+    
+    p <- ggplot(df_day, aes(x = timestamp, y = total_butterflies)) +
+        geom_point(size = 1.5, alpha = 0.7) +
+        geom_line(alpha = 0.3) +
+        labs(
+            title = paste0("Day: ", did, 
+                          " (n=", n_obs, 
+                          ", duration=", round(duration_hours, 1), "h)"),
+            x = "Timestamp",
+            y = "Total butterflies"
+        ) +
+        theme_minimal() +
+        theme(plot.title = element_text(size = 10))
+    
+    print(p)
+}
 ```
