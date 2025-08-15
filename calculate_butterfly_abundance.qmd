@@ -393,6 +393,88 @@ cat("Generating diagnostic timeseries plots for each day_id...\n\n")
 
 # Get all unique day_ids sorted
 all_day_ids <- abundance_index_filtered %>%
+    filter(complete_day == FALSE) %>%
+    pull(day_id) %>%
+    unique() %>%
+    sort()
+
+# Show summary first
+cat("Total unique day_ids:", length(all_day_ids), "\n")
+cat("Plotting each day_id individually...\n\n")
+
+# Plot each day_id
+for (did in all_day_ids) {
+    df_day <- abundance_index_filtered %>%
+        filter(day_id == did)
+
+    # Get stats for this day
+    n_obs <- nrow(df_day)
+    duration_hours <- as.numeric(difftime(max(df_day$timestamp),
+        min(df_day$timestamp),
+        units = "hours"
+    ))
+
+    p <- ggplot(df_day, aes(x = timestamp, y = total_butterflies)) +
+        geom_point(size = 1.5, alpha = 0.7) +
+        geom_line(alpha = 0.3) +
+        labs(
+            title = paste0(
+                "Day: ", did,
+                " (n=", n_obs,
+                ", duration=", round(duration_hours, 1), "h)"
+            ),
+            x = "Timestamp",
+            y = "Total butterflies"
+        ) +
+        theme_minimal() +
+        theme(plot.title = element_text(size = 10))
+
+    print(p)
+}
+```
+
+```{r}
+#| label: patch-complete-days
+#| echo: true
+
+# Manually patch complete_day for specific day_ids that were incorrectly classified
+days_to_patch <- c("SC1-20231120", "SC10-20240106", "SC10-20240131", "SC9-20240129")
+
+cat("Patching complete_day values for:", paste(days_to_patch, collapse = ", "), "\n")
+
+# Update complete_day to TRUE for these specific day_ids
+abundance_index_filtered <- abundance_index_filtered %>%
+    mutate(
+        complete_day = case_when(
+            day_id %in% days_to_patch ~ TRUE,
+            TRUE ~ complete_day
+        )
+    )
+
+# Also update the unique_days_per_deployment dataframe
+unique_days_per_deployment <- unique_days_per_deployment %>%
+    mutate(
+        complete_day = case_when(
+            day_id %in% days_to_patch ~ TRUE,
+            TRUE ~ complete_day
+        )
+    )
+
+cat("Patch applied successfully.\n")
+```
+
+
+
+```{r}
+#| label: diagnostic-timeseries
+#| fig-cap: "Diagnostic: Timeseries for each day_id"
+#| echo: true
+
+# Diagnostic plots - one timeseries per day_id
+cat("Generating diagnostic timeseries plots for each day_id...\n\n")
+
+# Get all unique day_ids sorted
+all_day_ids <- abundance_index_filtered %>%
     filter(complete_day == TRUE) %>%
     pull(day_id) %>%
     unique() %>%
