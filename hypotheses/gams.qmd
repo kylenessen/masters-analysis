@@ -500,213 +500,100 @@ if (nrow(data_120m) > 0) {
 }
 ```
 
+## Time Series Plots by Deployment
+
+```{r}
+# Create time series plots of butterfly counts for each deployment
+library(scales)
+
+# Function to create time series plots by deployment
+create_time_series_plots <- function(data, dataset_name) {
+    cat(paste0("\n=== TIME SERIES PLOTS FOR: ", dataset_name, " ===\n"))
+    
+    if (nrow(data) == 0) {
+        cat("No data available for plotting\n")
+        return(NULL)
+    }
+    
+    # Get deployment info for better labels
+    deployment_info <- data %>%
+        select(view_id, wind_meter_name) %>%
+        distinct() %>%
+        arrange(view_id)
+    
+    cat("Deployments in dataset:\n")
+    print(deployment_info)
+    
+    # Create individual time series plot for each deployment
+    plots <- list()
+    
+    for (i in 1:nrow(deployment_info)) {
+        vid <- deployment_info$view_id[i]
+        wm_name <- deployment_info$wind_meter_name[i]
+        
+        deployment_data <- data %>%
+            filter(view_id == vid) %>%
+            arrange(datetime)
+        
+        if (nrow(deployment_data) > 0) {
+            p <- ggplot(deployment_data, aes(x = datetime, y = total_butterflies)) +
+                geom_point(alpha = 0.6, size = 1) +
+                geom_line(alpha = 0.4) +
+                scale_x_datetime(labels = date_format("%m/%d %H:%M"), 
+                               breaks = date_breaks("1 day")) +
+                labs(
+                    title = paste0("Deployment ", vid, " (", wm_name, ")"),
+                    subtitle = paste0("n = ", nrow(deployment_data), " observations"),
+                    x = "Date/Time",
+                    y = "Total Butterflies"
+                ) +
+                theme_minimal() +
+                theme(
+                    axis.text.x = element_text(angle = 45, hjust = 1),
+                    plot.title = element_text(size = 10),
+                    plot.subtitle = element_text(size = 8)
+                )
+            
+            print(p)
+            plots[[paste0("deployment_", vid)]] <- p
+        }
+    }
+    
+    # Create a combined plot showing all deployments
+    if (length(unique(data$view_id)) <= 8) {  # Only if not too many deployments
+        combined_plot <- ggplot(data, aes(x = datetime, y = total_butterflies, color = factor(view_id))) +
+            geom_point(alpha = 0.6, size = 0.5) +
+            geom_line(alpha = 0.4) +
+            scale_x_datetime(labels = date_format("%m/%d"), 
+                           breaks = date_breaks("1 week")) +
+            labs(
+                title = paste0("All Deployments - ", dataset_name),
+                x = "Date",
+                y = "Total Butterflies",
+                color = "View ID"
+            ) +
+            theme_minimal() +
+            theme(
+                axis.text.x = element_text(angle = 45, hjust = 1),
+                legend.position = "right"
+            ) +
+            facet_wrap(~ view_id, scales = "free", ncol = 2)
+        
+        print(combined_plot)
+        plots[["combined"]] <- combined_plot
+    }
+    
+    return(plots)
+}
+
+# Create time series plots for the 30-minute lag data (most comprehensive)
+if (nrow(data_30m) > 0) {
+    ts_plots_30m <- create_time_series_plots(data_30m, "30-Minute Lag")
+}
+```
+
 ## Models
 
 ### 30 min
-```{r}
-library(nlme)
 
-# Mixed model with AR(1) correlation structure within view_id
-model_lme <- lme(
-  gam_pred_diff ~ gam_fitted_count_t_minus_1,
-  random = ~1 | view_id,
-  #correlation = corAR1(form = ~ time_index | view_id), # time_index = observation order within view
-  na.action = na.omit,
-  data = data_240m,
-  method = "REML"
-)
-
-summary(model_lme)
-
-# Diagnostics
-plot(model_lme)                   # residuals vs fitted, QQ plot
-acf(resid(model_lme, type="normalized")) # residual autocorrelation check
-
-
-```
-```{r}
-library(mgcv)
-
-data_30m$datetime_num <- as.numeric(data_30m$datetime)
-
-gam_model <- gam(
-  total_butterflies ~ 
-    s(datetime_num, k = 40) +              # smooth time trend
-    s(mean_wind_speed, k = 10) +                # smooth wind effect
-    s(mean_temp, k = 10) +                      # smooth temp effect
-    sunlight_proportion +                       # linear or smooth
-    s(view_id, bs = "re"),                      # random intercepts
-  data = data_30m,
-  method = "REML"
-)
-
-summary(gam_model)
-plot(gam_model, pages = 1, shade = TRUE)
-
-```
-```{r}
-# Ensure view_id is a factor for use as a random effect and in 'by' variables
-data_30m$view_id <- as.factor(data_30m$view_id)
-
-# Build the null model
-# Response: gam_pred_diff ~ The change in smoothed butterfly counts
-# Predictors:
-#   s(time_index, by = view_id, k = 10) -> A smooth of time, with a *different* trend for each view_id. 
-#                                          'k=10' is a reasonable starting point to prevent overfitting.
-#   gam_fitted_count_t_minus_1         -> The smoothed abundance at the previous time step (t-1). This helps
-#                                          account for whether changes are happening from a high or low baseline.
-#   s(view_id, bs = "re")              -> A random effect for view_id, which accounts for baseline differences
-#                                          in abundance between sites.
-null_model <- gam(
-  gam_pred_diff ~ s(time_index, by = view_id, k = 10) +
-                  gam_fitted_count_t_minus_1 +
-                  s(view_id, bs = "re"),
-  data = data_30m,
-  method = "REML",
-  na.action = na.omit
-)
-
-# Get the summary of the model
-summary(null_model)
-
-# Check the model diagnostics
-# This is crucial! It tells you if 'k' is large enough.
-# Look for low p-values in the output of this function.
-gam.check(null_model)
-
-# Plot the model results
-# This will show you the unique time trend for each site.
-plot(null_model, pages = 1, shade = TRUE, seWithMean = TRUE)
-```
-
-```{r}
-# Load the parallel library
-library(parallel)
-
-# Detect the number of available cores
-num_cores <- detectCores()
-
-# Create a cluster, leaving one core free for system processes
-cl <- makeCluster(num_cores - 1)
-
-# Run bam() using the cluster for parallel processing
-null_model_scat <- bam(
-  gam_pred_diff ~ s(time_index, by = view_id, k = 10) +
-                  gam_fitted_count_t_minus_1 +
-                  s(view_id, bs = "re"),
-  family = scat(link = 'identity'),
-  data = data_30m,
-  na.action = na.omit,
-  cluster = cl # Pass the cluster object here
-)
-
-# Don't forget to stop the cluster when you're done!
-stopCluster(cl)
-
-summary(null_model_scat)
-```
-
-```{r}
-# A more stable hierarchical model structure
-# s(time_index) -> The average "global" time trend across all sites.
-# s(time_index, view_id, bs = "fs") -> The "factor-smooth" interaction. This models
-#                                     how each site's trend deviates from the global
-#                                     average. This is much more stable than fitting
-#                                     totally separate smooths.
-# We'll use bam() and the gaussian family to ensure convergence first.
-
-hierarchical_model <- bam(
-  gam_pred_diff ~ s(time_index, k = 20) +
-                  s(time_index, view_id, bs = "fs", k = 5) +
-                  gam_fitted_count_t_minus_1 +
-                  s(view_id, bs = "re"),
-  family = gaussian(),
-  data = data_30m,
-  na.action = na.omit
-)
-
-# Check for convergence warnings first!
-# Then examine the summary.
-summary(hierarchical_model)
-
-# Plot the diagnostics. Is the "fan shape" in the residuals still there?
-plot(hierarchical_model, pages = 1, shade = TRUE)
-```
-
-```{r}
-# Load the parallel library
-library(parallel)
-
-# Detect the number of available CPU cores on your machine
-num_cores <- detectCores()
-
-# Create a "cluster" of processes, leaving one core free for system stability
-cl <- makeCluster(num_cores - 1)
-
-# Fit the final null model using bam() and distribute the work across the cluster
-final_null_model <- bam(
-  gam_pred_diff ~ s(time_index, k = 20) +
-                  s(time_index, view_id, bs = "fs", k = 5) +
-                  gam_fitted_count_t_minus_1 +
-                  s(view_id, bs = "re"),
-  family = scat(),
-  data = data_240m,
-  na.action = na.omit,
-  cluster = cl # Assign the cluster to the model
-)
-
-# Stop the cluster once the model has finished running
-stopCluster(cl)
-
-# Check the results
-summary(final_null_model)
-gam.check(final_null_model)
-```
-```{r}
-# 1. Create a transformed response variable using the cube root.
-#    The sign() function preserves the negative values.
-data_30m$gam_pred_diff_cubert <- sign(data_30m$gam_pred_diff) * (abs(data_30m$gam_pred_diff))^(1/3)
-
-# 2. Fit the model to this NEW response variable.
-#    Since we transformed the data, we go back to the fast and simple gaussian() family.
-#    We will also increase 'k' slightly to be safe.
-final_null_model_transformed <- bam(
-  gam_pred_diff_cubert ~ s(time_index, k = 30) +
-                         s(time_index, view_id, bs = "fs", k = 10) +
-                         gam_fitted_count_t_minus_1 +
-                         s(view_id, bs = "re"),
-  family = gaussian(),
-  data = data_30m,
-  na.action = na.omit
-)
-
-# 3. Check the diagnostics of this new model.
-summary(final_null_model_transformed)
-gam.check(final_null_model_transformed)
-```
-```{r}
-# 1. Build the full model by adding environmental predictors
-full_model <- bam(
-  gam_pred_diff_cubert ~ s(time_index, k = 30) +
-                         s(time_index, view_id, bs = "fs", k = 10) +
-                         gam_fitted_count_t_minus_1 +
-                         s(view_id, bs = "re") +
-                         # --- ADDING ENVIRONMENTAL PREDICTORS ---
-                         s(mean_wind_speed, k = 10) +
-                         s(mean_temp, k = 10) +
-                         s(sunlight_proportion, k = 5),
-  family = gaussian(),
-  data = data_30m,
-  na.action = na.omit
-)
-
-# 2. Check the summary of the full model
-# Look at the p-values for the new environmental terms.
-summary(full_model)
-```
-
-```{r}
-# Formally compare the null model to the full environmental model
-anova(final_null_model_transformed, full_model, test = "F")
-```
 
