@@ -242,8 +242,10 @@ abundance_index_filtered <- abundance_index %>%
     filter(!is.na(timestamp)) %>%
     # Vectorized night filtering for SC1/SC2
     filter(!is_night_vec(deployment_id, timestamp)) %>%
-    # Vectorized minute filtering for SC1/SC2 downsampling
+    # Downsampling: SC1/SC2 from 5-min to 30-min intervals
     filter(!(deployment_id %in% c("SC1", "SC2") & (lubridate::minute(timestamp) %% 30 != 0))) %>%
+    # Downsampling: SC12, SC9, SLC6_2 from 10-min to 30-min intervals (keep 00, 30 minutes only)
+    filter(!(deployment_id %in% c("SC12", "SC9", "SLC6_2") & !(lubridate::minute(timestamp) %in% c(0, 30)))) %>%
     # Add day_id column - combining deployment_id and date
     mutate(
         date = as.Date(timestamp),
