@@ -64,13 +64,21 @@ cat("Number of observers:", length(unique(df_model$Observer)), "\n")
 ```
 
 ```{r model-priors}
-# Set up priors for all models
-# Using weakly informative priors
-model_priors <- c(
+# Set up priors for different model types
+# Null model priors (no fixed effects or smooth terms)
+null_priors <- c(
     prior(normal(0, 2.5), class = Intercept),
-    prior(normal(0, 1), class = b),
     prior(exponential(1), class = sd),
-    prior(lkj(2), class = cor)
+    prior(normal(0, 0.5), class = ar)  # AR coefficient prior
+)
+
+# Priors for models with smooth terms
+smooth_priors <- c(
+    prior(normal(0, 2.5), class = Intercept),
+    prior(normal(0, 1), class = b),  # For parametric terms if any
+    prior(exponential(1), class = sd),
+    prior(exponential(1), class = sds),  # For smooth terms
+    prior(normal(0, 0.5), class = ar)  # AR coefficient prior
 )
 
 # Family for count data with overdispersion
@@ -135,7 +143,7 @@ m_null_wind <- brm(
     all_formulas$wind$null,
     data = df_model,
     family = family_spec,
-    prior = model_priors,
+    prior = null_priors,
     chains = n_chains,
     iter = n_iter,
     warmup = n_warmup,
@@ -149,7 +157,7 @@ m_temp_wind <- brm(
     all_formulas$wind$temp,
     data = df_model,
     family = family_spec,
-    prior = model_priors,
+    prior = smooth_priors,
     chains = n_chains,
     iter = n_iter,
     warmup = n_warmup,
@@ -163,7 +171,7 @@ m_wind <- brm(
     all_formulas$wind$wind,
     data = df_model,
     family = family_spec,
-    prior = model_priors,
+    prior = smooth_priors,
     chains = n_chains,
     iter = n_iter,
     warmup = n_warmup,
@@ -177,7 +185,7 @@ m_sun_wind <- brm(
     all_formulas$wind$sun,
     data = df_model,
     family = family_spec,
-    prior = model_priors,
+    prior = smooth_priors,
     chains = n_chains,
     iter = n_iter,
     warmup = n_warmup,
@@ -198,7 +206,7 @@ m_null_thresh <- brm(
     all_formulas$threshold$null_thresh,
     data = df_model,
     family = family_spec,
-    prior = model_priors,
+    prior = null_priors,
     chains = n_chains,
     iter = n_iter,
     warmup = n_warmup,
@@ -212,7 +220,7 @@ m_temp_thresh <- brm(
     all_formulas$threshold$temp_thresh,
     data = df_model,
     family = family_spec,
-    prior = model_priors,
+    prior = smooth_priors,
     chains = n_chains,
     iter = n_iter,
     warmup = n_warmup,
@@ -226,7 +234,7 @@ m_threshold <- brm(
     all_formulas$threshold$threshold,
     data = df_model,
     family = family_spec,
-    prior = model_priors,
+    prior = smooth_priors,
     chains = n_chains,
     iter = n_iter,
     warmup = n_warmup,
@@ -240,7 +248,7 @@ m_sun_thresh <- brm(
     all_formulas$threshold$sun_thresh,
     data = df_model,
     family = family_spec,
-    prior = model_priors,
+    prior = smooth_priors,
     chains = n_chains,
     iter = n_iter,
     warmup = n_warmup,
