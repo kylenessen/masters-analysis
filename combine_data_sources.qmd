@@ -203,3 +203,30 @@ glimpse(analysis_df)
 
 ```
 
+## Final Data Cleanup and Export
+
+```{r cleanup-export}
+# Remove rows where wind_mean is NA
+analysis_df_clean <- analysis_df %>%
+  filter(!is.na(wind_mean))
+
+cat("Rows before removing NA wind_mean:", nrow(analysis_df), "\n")
+cat("Rows after removing NA wind_mean:", nrow(analysis_df_clean), "\n")
+cat("Rows removed:", nrow(analysis_df) - nrow(analysis_df_clean), "\n")
+
+# Remove specified columns
+analysis_df_final <- analysis_df_clean %>%
+  select(-date, -complete_day, -wind_meter_name, 
+         -horizontal_dist_to_cluster_m, -height_m, 
+         -n_wind_records, -n_strong_gusts)
+
+# Check final structure
+cat("\nFinal dataset structure:\n")
+glimpse(analysis_df_final)
+
+# Export to CSV
+write_csv(analysis_df_final, here("data", "analysis_dataset_final.csv"))
+cat("\nData exported to: data/analysis_dataset_final.csv\n")
+cat("Final dataset dimensions:", nrow(analysis_df_final), "rows x", ncol(analysis_df_final), "columns\n")
+```
+
