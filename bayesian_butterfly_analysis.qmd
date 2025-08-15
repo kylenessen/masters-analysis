@@ -1,0 +1,367 @@
+---
+title: "Butterfly Abundance - Bayesian Analysis"
+format: pdf
+---
+
+```{r setup}
+library(tidyverse)
+library(brms)
+library(posterior)
+library(bayesplot)
+library(ggeffects)
+library(here)
+library(parallel)
+
+# Set up parallel processing for 24 cores
+# 4 models × 4 chains × 1 core per chain = 16 cores
+# Leave 8 cores for system processes
+options(mc.cores = 4)  # 4 chains per model
+theme_set(theme_minimal())
+
+# Set global MCMC settings
+n_iter <- 2000
+n_warmup <- 1000
+n_chains <- 4
+```
+
+```{r load-data}
+# Load the prepared data
+df <- read_csv(here("data", "analysis_dataset_final.csv"))
+
+# Check data structure
+glimpse(df)
+```
+
+```{r prepare-data}
+# Prepare data for Bayesian modeling
+df_model <- df %>%
+    select(total_butterflies, temperature, wind_mean, butterflies_direct_sun, 
+           day_id, Observer, time_above_threshold) %>%
+    mutate(
+        day_id = as.factor(day_id),
+        Observer = as.factor(Observer)
+    ) %>%
+    group_by(day_id) %>%
+    mutate(
+        time_within_day = row_number(),  # For AR(1) structure
+        AR_start = row_number() == 1
+    ) %>%
+    ungroup() %>%
+    na.omit()
+
+# Scale continuous predictors for better convergence
+df_model <- df_model %>%
+    mutate(
+        temperature_scaled = scale(temperature)[,1],
+        wind_mean_scaled = scale(wind_mean)[,1],
+        butterflies_direct_sun_scaled = scale(butterflies_direct_sun)[,1],
+        time_above_threshold_scaled = scale(time_above_threshold)[,1]
+    )
+
+cat("Dataset dimensions:", nrow(df_model), "×", ncol(df_model), "\n")
+cat("Number of days:", length(unique(df_model$day_id)), "\n")
+cat("Number of observers:", length(unique(df_model$Observer)), "\n")
+```
+
+```{r model-priors}
+# Set up priors for all models
+# Using weakly informative priors
+model_priors <- c(
+    prior(normal(0, 2.5), class = Intercept),
+    prior(normal(0, 1), class = b),
+    prior(exponential(1), class = sd),
+    prior(lkj(2), class = cor)
+)
+
+# Family for count data with overdispersion
+family_spec <- negbinomial()
+```
+
+```{r parallel-setup}
+# Function to fit models in parallel batches
+fit_bayesian_models <- function() {
+    
+    # Model formulas - Primary hypothesis set (wind_mean)
+    formulas_wind <- list(
+        null = bf(total_butterflies ~ 1 + 
+                 (1 | day_id) + (1 | Observer) + 
+                 ar(time = time_within_day, gr = day_id, p = 1)),
+        
+        temp = bf(total_butterflies ~ s(temperature_scaled, k = 10) + 
+                 (1 | day_id) + (1 | Observer) + 
+                 ar(time = time_within_day, gr = day_id, p = 1)),
+        
+        wind = bf(total_butterflies ~ s(wind_mean_scaled, k = 10) + 
+                 (1 | day_id) + (1 | Observer) + 
+                 ar(time = time_within_day, gr = day_id, p = 1)),
+        
+        sun = bf(total_butterflies ~ s(butterflies_direct_sun_scaled, k = 10) + 
+                (1 | day_id) + (1 | Observer) + 
+                ar(time = time_within_day, gr = day_id, p = 1))
+    )
+    
+    # Model formulas - Secondary hypothesis set (time_above_threshold)
+    formulas_threshold <- list(
+        null_thresh = bf(total_butterflies ~ 1 + 
+                        (1 | day_id) + (1 | Observer) + 
+                        ar(time = time_within_day, gr = day_id, p = 1)),
+        
+        temp_thresh = bf(total_butterflies ~ s(temperature_scaled, k = 10) + 
+                        (1 | day_id) + (1 | Observer) + 
+                        ar(time = time_within_day, gr = day_id, p = 1)),
+        
+        threshold = bf(total_butterflies ~ s(time_above_threshold_scaled, k = 10) + 
+                      (1 | day_id) + (1 | Observer) + 
+                      ar(time = time_within_day, gr = day_id, p = 1)),
+        
+        sun_thresh = bf(total_butterflies ~ s(butterflies_direct_sun_scaled, k = 10) + 
+                       (1 | day_id) + (1 | Observer) + 
+                       ar(time = time_within_day, gr = day_id, p = 1))
+    )
+    
+    return(list(wind = formulas_wind, threshold = formulas_threshold))
+}
+
+# Get all formulas
+all_formulas <- fit_bayesian_models()
+```
+
+```{r fit-wind-models, eval=TRUE}
+# Fit wind hypothesis models (4 models in parallel)
+cat("Fitting wind hypothesis models...\n")
+
+# Null model
+m_null_wind <- brm(
+    all_formulas$wind$null,
+    data = df_model,
+    family = family_spec,
+    prior = model_priors,
+    chains = n_chains,
+    iter = n_iter,
+    warmup = n_warmup,
+    cores = 4,
+    control = list(adapt_delta = 0.95, max_treedepth = 12),
+    file = "models/m_null_wind"
+)
+
+# Temperature model
+m_temp_wind <- brm(
+    all_formulas$wind$temp,
+    data = df_model,
+    family = family_spec,
+    prior = model_priors,
+    chains = n_chains,
+    iter = n_iter,
+    warmup = n_warmup,
+    cores = 4,
+    control = list(adapt_delta = 0.95, max_treedepth = 12),
+    file = "models/m_temp_wind"
+)
+
+# Wind model
+m_wind <- brm(
+    all_formulas$wind$wind,
+    data = df_model,
+    family = family_spec,
+    prior = model_priors,
+    chains = n_chains,
+    iter = n_iter,
+    warmup = n_warmup,
+    cores = 4,
+    control = list(adapt_delta = 0.95, max_treedepth = 12),
+    file = "models/m_wind"
+)
+
+# Sun model
+m_sun_wind <- brm(
+    all_formulas$wind$sun,
+    data = df_model,
+    family = family_spec,
+    prior = model_priors,
+    chains = n_chains,
+    iter = n_iter,
+    warmup = n_warmup,
+    cores = 4,
+    control = list(adapt_delta = 0.95, max_treedepth = 12),
+    file = "models/m_sun_wind"
+)
+
+cat("Wind hypothesis models completed.\n")
+```
+
+```{r fit-threshold-models, eval=TRUE}
+# Fit time_above_threshold hypothesis models (4 models in parallel)
+cat("Fitting time above threshold hypothesis models...\n")
+
+# Null model (threshold hypothesis)
+m_null_thresh <- brm(
+    all_formulas$threshold$null_thresh,
+    data = df_model,
+    family = family_spec,
+    prior = model_priors,
+    chains = n_chains,
+    iter = n_iter,
+    warmup = n_warmup,
+    cores = 4,
+    control = list(adapt_delta = 0.95, max_treedepth = 12),
+    file = "models/m_null_thresh"
+)
+
+# Temperature model (threshold hypothesis)
+m_temp_thresh <- brm(
+    all_formulas$threshold$temp_thresh,
+    data = df_model,
+    family = family_spec,
+    prior = model_priors,
+    chains = n_chains,
+    iter = n_iter,
+    warmup = n_warmup,
+    cores = 4,
+    control = list(adapt_delta = 0.95, max_treedepth = 12),
+    file = "models/m_temp_thresh"
+)
+
+# Threshold model
+m_threshold <- brm(
+    all_formulas$threshold$threshold,
+    data = df_model,
+    family = family_spec,
+    prior = model_priors,
+    chains = n_chains,
+    iter = n_iter,
+    warmup = n_warmup,
+    cores = 4,
+    control = list(adapt_delta = 0.95, max_treedepth = 12),
+    file = "models/m_threshold"
+)
+
+# Sun model (threshold hypothesis)
+m_sun_thresh <- brm(
+    all_formulas$threshold$sun_thresh,
+    data = df_model,
+    family = family_spec,
+    prior = model_priors,
+    chains = n_chains,
+    iter = n_iter,
+    warmup = n_warmup,
+    cores = 4,
+    control = list(adapt_delta = 0.95, max_treedepth = 12),
+    file = "models/m_sun_thresh"
+)
+
+cat("Threshold hypothesis models completed.\n")
+```
+
+```{r model-diagnostics}
+# Model diagnostics for key models
+wind_models <- list(
+    null = m_null_wind,
+    temp = m_temp_wind, 
+    wind = m_wind,
+    sun = m_sun_wind
+)
+
+threshold_models <- list(
+    null = m_null_thresh,
+    temp = m_temp_thresh,
+    threshold = m_threshold,
+    sun = m_sun_thresh
+)
+
+# Check convergence (Rhat should be < 1.01)
+cat("=== WIND MODELS CONVERGENCE ===\n")
+for(name in names(wind_models)) {
+    rhat_vals <- rhat(wind_models[[name]])
+    max_rhat <- max(rhat_vals, na.rm = TRUE)
+    cat(sprintf("%s: Max Rhat = %.3f\n", name, max_rhat))
+}
+
+cat("\n=== THRESHOLD MODELS CONVERGENCE ===\n")
+for(name in names(threshold_models)) {
+    rhat_vals <- rhat(threshold_models[[name]])
+    max_rhat <- max(rhat_vals, na.rm = TRUE)
+    cat(sprintf("%s: Max Rhat = %.3f\n", name, max_rhat))
+}
+```
+
+```{r trace-plots, fig.width=10, fig.height=6}
+# Trace plots for key parameters
+plot(m_wind, pars = c("b_Intercept", "sd_day_id__Intercept"))
+plot(m_threshold, pars = c("b_Intercept", "sd_day_id__Intercept"))
+```
+
+```{r model-comparison-wind}
+# Model comparison for wind hypothesis using LOO-CV
+wind_loo <- list(
+    null = loo(m_null_wind),
+    temp = loo(m_temp_wind),
+    wind = loo(m_wind),
+    sun = loo(m_sun_wind)
+)
+
+# Compare wind models
+wind_comparison <- loo_compare(wind_loo)
+print("=== WIND HYPOTHESIS MODEL COMPARISON ===")
+print(wind_comparison)
+
+# Model weights
+wind_weights <- model_weights(wind_loo)
+print("\nModel weights (wind hypothesis):")
+print(round(wind_weights, 3))
+```
+
+```{r model-comparison-threshold}
+# Model comparison for threshold hypothesis using LOO-CV
+threshold_loo <- list(
+    null = loo(m_null_thresh),
+    temp = loo(m_temp_thresh),
+    threshold = loo(m_threshold),
+    sun = loo(m_sun_thresh)
+)
+
+# Compare threshold models
+threshold_comparison <- loo_compare(threshold_loo)
+print("=== THRESHOLD HYPOTHESIS MODEL COMPARISON ===")
+print(threshold_comparison)
+
+# Model weights
+threshold_weights <- model_weights(threshold_loo)
+print("\nModel weights (threshold hypothesis):")
+print(round(threshold_weights, 3))
+```
+
+```{r posterior-predictive-checks, fig.width=10, fig.height=6}
+# Posterior predictive checks
+pp_check(m_wind, ndraws = 100) + 
+    ggtitle("Posterior Predictive Check: Wind Model")
+
+pp_check(m_threshold, ndraws = 100) + 
+    ggtitle("Posterior Predictive Check: Threshold Model")
+```
+
+```{r effects-plots, fig.width=10, fig.height=8}
+# Conditional effects plots
+plot(conditional_effects(m_wind), ask = FALSE)
+plot(conditional_effects(m_threshold), ask = FALSE)
+```
+
+```{r summary-stats}
+# Model summaries
+cat("=== WIND MODEL SUMMARY ===\n")
+summary(m_wind)
+
+cat("\n=== THRESHOLD MODEL SUMMARY ===\n")
+summary(m_threshold)
+```
+
+```{r save-results}
+# Save key results
+save(
+    wind_models, threshold_models,
+    wind_comparison, threshold_comparison,
+    wind_weights, threshold_weights,
+    file = "bayesian_analysis_results.RData"
+)
+
+cat("Analysis complete. Results saved to bayesian_analysis_results.RData\n")
+```

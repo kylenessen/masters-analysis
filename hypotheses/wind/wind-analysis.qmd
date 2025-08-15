@@ -25,14 +25,6 @@ df <- read_csv(here("data", "analysis_dataset_final.csv"))
 # Check data structure
 glimpse(df)
 
-# Check for missing values
-summary(df)
-
-# Check correlations among predictors
-cor_matrix <- df %>%
-  select(temperature, wind_mean, butterflies_direct_sun) %>%
-  cor(use = "complete.obs")
-print(cor_matrix)
 ```
 
 ```{r fit-models}
@@ -42,15 +34,15 @@ df_full <- df
 # Prepare data for modeling
 # Select variables, ensure correct types, create AR.start, and handle missing values
 df_model <- df_full %>%
-  select(total_butterflies, temperature, wind_mean, butterflies_direct_sun, day_id, Observer) %>%
-  mutate(
-    day_id = as.factor(day_id),
-    Observer = as.factor(Observer)
-  ) %>%
-  group_by(day_id) %>%
-  mutate(AR_start = row_number() == 1) %>%
-  ungroup() %>%
-  na.omit()
+    select(total_butterflies, temperature, wind_mean, butterflies_direct_sun, day_id, Observer) %>%
+    mutate(
+        day_id = as.factor(day_id),
+        Observer = as.factor(Observer)
+    ) %>%
+    group_by(day_id) %>%
+    mutate(AR_start = row_number() == 1) %>%
+    ungroup() %>%
+    na.omit()
 
 # Define the models
 k_val <- 28
@@ -60,64 +52,72 @@ initial_rho <- 0.75 # pulled from earlier model
 # to avoid errors with ggpredict()
 
 # Model 1: Null Model
-m_null<- gamm(total_butterflies ~ 1, # No fixed effects in the formula
-                    random = list(day_id = ~1, Observer = ~1),
-                    data = df_model,
-                    family = tw(),
-                    correlation = corAR1(form = ~ 1 | day_id))
+m_null <- gamm(total_butterflies ~ 1, # No fixed effects in the formula
+    random = list(day_id = ~1, Observer = ~1),
+    data = df_model,
+    family = tw(),
+    correlation = corAR1(form = ~ 1 | day_id)
+)
 
 # Model 2: Single Predictor Models
 m_temp <- bam(total_butterflies ~ s(temperature, k = k_val) + s(day_id, bs = "re") + s(Observer, bs = "re"),
-              data = df_model,
-              family = tw(),
-              method = "fREML",
-              discrete = TRUE,
-              rho = initial_rho,
-              AR.start = df_model$AR_start)
+    data = df_model,
+    family = tw(),
+    method = "fREML",
+    discrete = TRUE,
+    rho = initial_rho,
+    AR.start = df_model$AR_start
+)
 
 m_wind <- bam(total_butterflies ~ s(wind_mean, k = k_val) + s(day_id, bs = "re") + s(Observer, bs = "re"),
-              data = df_model,
-              family = tw(),
-              method = "fREML",
-              discrete = TRUE,
-              rho = initial_rho,
-              AR.start = df_model$AR_start)
+    data = df_model,
+    family = tw(),
+    method = "fREML",
+    discrete = TRUE,
+    rho = initial_rho,
+    AR.start = df_model$AR_start
+)
 
 m_sun <- bam(total_butterflies ~ s(butterflies_direct_sun, k = k_val) + s(day_id, bs = "re") + s(Observer, bs = "re"),
-             data = df_model,
-             family = tw(),
-             method = "fREML",
-             discrete = TRUE,
-             rho = initial_rho,
-             AR.start = df_model$AR_start)
+    data = df_model,
+    family = tw(),
+    method = "fREML",
+    discrete = TRUE,
+    rho = initial_rho,
+    AR.start = df_model$AR_start
+)
 
 
 # Model 3: Additive Model
-m_additive <- bam(total_butterflies ~ s(temperature, k = k_val) +
-                                    s(wind_mean, k = k_val) +
-                                    s(butterflies_direct_sun, k = k_val) +
-                                    s(day_id, bs = "re") +
-                                    s(Observer, bs = "re"),
-                  data = df_model,
-                  family = tw(),
-                  method = "fREML",
-                  discrete = TRUE,
-                  rho = initial_rho,
-                  AR.start = df_model$AR_start)
+m_additive <- bam(
+    total_butterflies ~ s(temperature, k = k_val) +
+        s(wind_mean, k = k_val) +
+        s(butterflies_direct_sun, k = k_val) +
+        s(day_id, bs = "re") +
+        s(Observer, bs = "re"),
+    data = df_model,
+    family = tw(),
+    method = "fREML",
+    discrete = TRUE,
+    rho = initial_rho,
+    AR.start = df_model$AR_start
+)
 
 # Model 4: Additive + Interaction Models
-m_int_temp_wind <- bam(total_butterflies ~ s(temperature, k = k_val) +
-                                          s(wind_mean, k = k_val) +
-                                          s(butterflies_direct_sun, k = k_val) +
-                                          ti(temperature, wind_mean, k = 10) +
-                                          s(day_id, bs = "re") +
-                                          s(Observer, bs = "re"),
-                       data = df_model,
-                       family = tw(),
-                       method = "fREML",
-                       discrete = TRUE,
-                       rho = initial_rho,
-                       AR.start = df_model$AR_start)
+m_int_temp_wind <- bam(
+    total_butterflies ~ s(temperature, k = k_val) +
+        s(wind_mean, k = k_val) +
+        s(butterflies_direct_sun, k = k_val) +
+        ti(temperature, wind_mean, k = 10) +
+        s(day_id, bs = "re") +
+        s(Observer, bs = "re"),
+    data = df_model,
+    family = tw(),
+    method = "fREML",
+    discrete = TRUE,
+    rho = initial_rho,
+    AR.start = df_model$AR_start
+)
 
 # We can now inspect these models.
 ```
@@ -168,7 +168,7 @@ library(grid)
 acf_add <- acf(residuals(m_additive), plot = FALSE, main = "ACF - Additive Model")
 pacf_add <- pacf(residuals(m_additive), plot = FALSE, main = "PACF - Additive Model")
 
-# ACF for interaction model  
+# ACF for interaction model
 acf_int <- acf(residuals(m_int_temp_wind), plot = FALSE, main = "ACF - Interaction Model")
 pacf_int <- pacf(residuals(m_int_temp_wind), plot = FALSE, main = "PACF - Interaction Model")
 
@@ -183,12 +183,12 @@ plot(pacf_int, main = "PACF - Interaction Model")
 # 5. Compare models using AIC
 # Create a list of models
 model_list <- list(
-  null = m_null,
-  temp = m_temp,
-  wind = m_wind,
-  sun = m_sun,
-  additive = m_additive,
-  interaction = m_int_temp_wind
+    null = m_null,
+    temp = m_temp,
+    wind = m_wind,
+    sun = m_sun,
+    additive = m_additive,
+    interaction = m_int_temp_wind
 )
 
 # Get AIC for each model
@@ -196,135 +196,11 @@ aic_values <- sapply(model_list, AIC)
 
 # Create a summary table
 aic_table <- tibble(
-  model = names(aic_values),
-  AIC = aic_values
+    model = names(aic_values),
+    AIC = aic_values
 ) %>%
-  arrange(AIC)
+    arrange(AIC)
 
 print(aic_table)
-```
-
-```{r plot-all-effects, fig.width=10, fig.height=8}
-# --- Plotting the Best Model ---
-
-# The model with the lowest AIC is `m_int_temp_wind`.
-# Let's visualize the effects from this model.
-
-# 1. Plot all smooth terms (main effects and interactions) together
-# `gratia::draw()` is excellent for this. `scales = "free"` allows each plot
-# to have its own y-axis scale.
-draw(m_int_temp_wind, scales = "free")
-```
-
-```{r plot-temperature, fig.width=8, fig.height=6}
-# 2. Plot individual effects for more detail
-
-# Main effect of Temperature
-draw(m_int_temp_wind, select = "s(temperature)")
-```
-
-```{r plot-wind, fig.width=8, fig.height=6}
-# Main effect of Wind
-draw(m_int_temp_wind, select = "s(wind_mean)")
-```
-
-```{r plot-sun, fig.width=8, fig.height=6}
-# Main effect of Sun
-draw(m_int_temp_wind, select = "s(butterflies_direct_sun)")
-```
-
-
-```{r plot-interaction, fig.width=8, fig.height=6}
-# 3. Visualize the interaction between Temperature and Wind
-
-# Option A: A 2D heatmap of the interaction surface using gratia
-draw(m_int_temp_wind, select = "ti(temperature,wind_mean)")
-```
-
-```{r plot-conditional-effects, fig.width=8, fig.height=6}
-# Option B: Using ggeffects to plot conditional effects.
-# This shows the effect of temperature at different levels of wind speed.
-# It can sometimes be easier to interpret.
-library(ggeffects)
-# Note: ggpredict has issues with logical AR_start, so we use typical values
-#ggpredict(m_int_temp_wind, terms = c("temperature", "wind_mean"), 
-#          typical = "mean") %>% plot()
-```
-
-```{r plot-random-day, fig.width=8, fig.height=6}
-# 4. Visualize the random effects
-# This can help understand the variation among days and observers.
-draw(m_int_temp_wind, select = "s(day_id)")
-```
-
-```{r plot-random-observer, fig.width=8, fig.height=6}
-draw(m_int_temp_wind, select = "s(Observer)")
-```
-
-
-```{r}
-m_int_corr_gamm <- gamm(total_butterflies ~ s(temperature, k = 28) + 
-                                           s(wind_mean, k = 50),
-                      random = list(day_id = ~1, Observer = ~1),
-                      data = df_model,
-                      family = tw(),
-                      correlation = corAR1(form = ~ 1 | day_id))
-
-# To view the summary or plot, you need to reference the '$gam' part of the output
-summary(m_int_corr_gamm$gam)
-draw(m_int_corr_gamm$gam)
-```
-```{r}
-# --- Full Diagnostic Suite for the GAMM Model ---
-
-# Ensure necessary libraries are loaded
-library(mgcv)
-library(gratia)
-library(DHARMa)
-
-# Set a consistent theme for gratia plots
-theme_set(theme_minimal())
-
-# --- 1. Diagnostics for the GAM component ($gam) ---
-# This provides the standard 4-panel diagnostic plot and checks the basis dimensions (k).
-cat("\n--- Running gam.check() on the GAM component ---\n")
-gam.check(m_int_corr_gamm$gam)
-
-
-# --- 2. Visualizing the fitted smooths using gratia ---
-# This is often clearer than the base plots for seeing the relationships.
-cat("\n--- Plotting fitted smooths using gratia::draw() ---\n")
-print(draw(m_int_corr_gamm$gam, scales = "free"))
-
-
-# --- 3. Diagnostics for the LME component ($lme) - Residuals & Autocorrelation ---
-cat("\n--- Plotting LME residuals and ACF ---\n")
-
-# Set up a 1x2 plotting window
-par(mfrow = c(1, 2), mar = c(5, 5, 2, 2))
-
-# a) Check the Autocorrelation Function (ACF) on the normalized residuals.
-# This is the MOST IMPORTANT plot to see if corAR1() worked.
-# The vertical bars at lags > 0 should now be within the blue dashed lines.
-acf(residuals(m_int_corr_gamm$lme, type = "normalized"),
-    main = "ACF of Normalized Residuals")
-
-# b) Plot basic residuals vs. fitted values from the LME component.
-# You are looking for a random "cloud" of points with no obvious pattern.
-plot(m_int_corr_gamm$lme,
-     main = "Residuals vs. Fitted")
-
-# Reset the plotting window to the default
-par(mfrow = c(1, 1))
-
-
-# --- 4. Advanced Simulation-Based Diagnostics with DHARMa ---
-cat("\n--- Running DHARMa simulation-based residual checks (this may take a moment) ---\n")
-
-# DHARMa simulates new data from your fitted model and checks if the
-# observed residuals conform to expectations. It's a powerful tool.
-# We increase the number of simulations for a more robust check.
-simulation_output <- simulateResiduals(fittedModel = m_int_corr_gamm, n = 500)
-plot(simulation_output)
 ```
 
