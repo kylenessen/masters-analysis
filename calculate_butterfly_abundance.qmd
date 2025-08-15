@@ -277,7 +277,13 @@ unique_days_per_deployment <- abundance_index_filtered %>%
 
 # Join back to main dataset
 abundance_index_filtered <- abundance_index_filtered %>%
-    left_join(unique_days_per_deployment, by = c("deployment_id", "day_id"))
+    left_join(unique_days_per_deployment, by = c("deployment_id", "day_id")) %>%
+    # Add AR_start column for autocorrelation modeling
+    # TRUE for first observation of each day, FALSE otherwise
+    arrange(day_id, timestamp) %>%
+    group_by(day_id) %>%
+    mutate(AR_start = row_number() == 1) %>%
+    ungroup()
 ```
 
 ```{r}
@@ -464,7 +470,6 @@ cat("Patch applied successfully.\n")
 ```
 
 
-
 ```{r}
 #| label: diagnostic-timeseries
 #| fig-cap: "Diagnostic: Timeseries for each day_id"
@@ -545,14 +550,14 @@ for (i in seq_along(all_day_ids)) {
     did <- all_day_ids[i]
     df_day <- abundance_index_filtered %>%
         filter(day_id == did)
-    
+
     # Get stats for this day
     n_obs <- nrow(df_day)
     duration_hours <- as.numeric(difftime(max(df_day$timestamp),
         min(df_day$timestamp),
         units = "hours"
     ))
-    
+
     p <- ggplot(df_day, aes(x = timestamp, y = total_butterflies)) +
         geom_point(size = 1.5, alpha = 0.7) +
         geom_line(alpha = 0.3) +
@@ -567,12 +572,12 @@ for (i in seq_along(all_day_ids)) {
         ) +
         theme_minimal() +
         theme(plot.title = element_text(size = 10))
-    
+
     # Save plot with higher quality
     filename <- file.path(temp_dir, sprintf("plot_%03d.png", i))
     ggsave(filename, p, width = 10, height = 6, dpi = 150, bg = "white")
     plot_files[i] <- filename
-    
+
     if (i %% 10 == 0) {
         cat("Processed", i, "of", length(all_day_ids), "plots\n")
     }
@@ -597,5 +602,33 @@ cat("Estimated duration:", length(all_day_ids) * 0.5, "seconds\n")
 
 # Clean up temporary files
 unlink(plot_files)
+```
+
+```{r}
+#| label: export-complete-days
+#| echo: true
+
+# Export complete days only to CSV
+complete_days_export <- abundance_index_filtered %>%
+    filter(complete_day == TRUE) %>%
+    select(-timestamp_str) %>%  # Drop timestamp_str column
+    arrange(deployment_id, timestamp)
+
+# Show summary of what we're exporting
+cat("Exporting complete days dataset:\n")
+cat("- Total rows:", nrow(complete_days_export), "\n")
+cat("- Unique deployments:", n_distinct(complete_days_export$deployment_id), "\n")
+cat("- Unique days:", n_distinct(complete_days_export$day_id), "\n")
+cat("- Date range:", format(min(complete_days_export$timestamp), "%Y-%m-%d"),
+    "to", format(max(complete_days_export$timestamp), "%Y-%m-%d"), "\n\n")
+
+# Save to CSV
+output_filename <- "data/butterfly_abundance_complete_days.csv"
+readr::write_csv(complete_days_export, output_filename)
+cat("Complete days dataset saved to:", output_filename, "\n")
+
+# Display first few rows
+cat("\nFirst 10 rows of exported data:\n")
+print(head(complete_days_export, 10))
 ```
 
