@@ -73,8 +73,8 @@ analysis_df <- butterfly_abundance %>%
   ) %>%
   left_join(
     deployments %>%
-      select(deployment_id, wind_meter_name, Deployed_time, Recovered_time, 
-             horizontal_dist_to_cluster_m, height_m, youtube_url, Observer, view_id),
+      select(deployment_id, wind_meter_name, 
+             horizontal_dist_to_cluster_m, height_m, Observer, view_id),
     by = "deployment_id"
   )
 
