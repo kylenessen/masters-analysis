@@ -97,3 +97,108 @@ glimpse(analysis_df)
 summary(analysis_df)
 ```
 
+## Add Wind Features
+
+```{r wind-features}
+# Define wind threshold
+WIND_THRESHOLD <- 2
+
+# Function to calculate wind features for each butterfly observation
+calculate_wind_features <- function(df, wind_data) {
+  
+  # Initialize empty list to store wind features for each row
+  wind_features_list <- list()
+  
+  # Process each row in the dataframe
+  for(i in 1:nrow(df)) {
+    row <- df[i,]
+    
+    # Skip if no wind meter associated
+    if(is.na(row$wind_meter_name)) {
+      wind_features_list[[i]] <- tibble(
+        wind_mean = NA_real_,
+        wind_max_gust = NA_real_,
+        wind_sd = NA_real_,
+        gust_differential_mean = NA_real_,
+        cumulative_wind = NA_real_,
+        n_strong_gusts = NA_real_,
+        time_above_threshold = NA_real_,
+        n_wind_records = NA_real_
+      )
+      next
+    }
+    
+    # Define time window (30 minutes before the observation)
+    end_time <- row$timestamp
+    start_time <- end_time - minutes(30)
+    
+    # For first observation of a day (AR_start == TRUE), use next 30 minutes
+    if(!is.na(row$AR_start) && row$AR_start == TRUE) {
+      start_time <- end_time
+      end_time <- start_time + minutes(30)
+    }
+    
+    # Filter wind data for this meter and time window
+    wind_subset <- wind_data %>%
+      filter(
+        wind_meter_name == row$wind_meter_name,
+        time >= start_time,
+        time < end_time
+      )
+    
+    # Calculate features if we have wind data
+    if(nrow(wind_subset) > 0) {
+      features <- wind_subset %>%
+        mutate(gust_differential = gust - speed) %>%
+        summarize(
+          wind_mean = mean(speed, na.rm = TRUE),
+          wind_max_gust = max(gust, na.rm = TRUE),
+          wind_sd = sd(speed, na.rm = TRUE),
+          gust_differential_mean = mean(gust_differential, na.rm = TRUE),
+          cumulative_wind = sum(speed, na.rm = TRUE),
+          n_strong_gusts = sum(gust > WIND_THRESHOLD, na.rm = TRUE),
+          time_above_threshold = sum(speed > WIND_THRESHOLD, na.rm = TRUE),
+          n_wind_records = n()
+        )
+      wind_features_list[[i]] <- features
+    } else {
+      # No wind data available for this time window
+      wind_features_list[[i]] <- tibble(
+        wind_mean = NA_real_,
+        wind_max_gust = NA_real_,
+        wind_sd = NA_real_,
+        gust_differential_mean = NA_real_,
+        cumulative_wind = NA_real_,
+        n_strong_gusts = NA_real_,
+        time_above_threshold = NA_real_,
+        n_wind_records = 0
+      )
+    }
+  }
+  
+  # Combine all wind features into a single dataframe
+  wind_features_df <- bind_rows(wind_features_list)
+  
+  # Add wind features to original dataframe
+  cbind(df, wind_features_df)
+}
+
+# Apply wind feature calculation
+analysis_df <- calculate_wind_features(analysis_df, wind_data)
+
+# Check wind data coverage
+wind_coverage <- analysis_df %>%
+  summarize(
+    total_obs = n(),
+    has_wind_meter = sum(!is.na(wind_meter_name)),
+    has_wind_data = sum(!is.na(wind_mean)),
+    complete_wind = sum(n_wind_records >= 25, na.rm = TRUE)  # At least 25 of 30 minutes
+  )
+
+cat("Wind data coverage:\n")
+print(wind_coverage)
+
+# View updated structure
+glimpse(analysis_df)
+```
+
