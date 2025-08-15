@@ -1,0 +1,311 @@
+---
+title: "Combine Data Sources"
+format: html
+---
+
+```{r setup}
+library(tidyverse)
+library(here)
+```
+
+## Load Data
+
+```{r load-data}
+# Load butterfly abundance data
+butterfly_abundance <- read_csv(here("data", "butterfly_abundance_complete_days.csv"))
+
+# Load deployments data
+deployments <- read_csv(here("data", "deployments.csv"))
+
+# Load temperature data
+temperature_data <- read_csv(here("data", "temperature_data_2023.csv"))
+
+# Load wind data
+wind_data <- read_csv(here("data", "wind_all.csv"))
+```
+
+## Data Summaries
+
+### Butterfly Abundance
+```{r butterfly-summary}
+glimpse(butterfly_abundance)
+summary(butterfly_abundance)
+```
+
+### Deployments
+```{r deployments-summary}
+glimpse(deployments)
+summary(deployments)
+```
+
+### Temperature Data
+```{r temperature-summary}
+glimpse(temperature_data)
+summary(temperature_data)
+```
+
+### Wind Data
+```{r wind-summary}
+glimpse(wind_data)
+summary(wind_data)
+```
+
+## Combine Data
+
+### Join Butterfly Abundance with Temperature
+
+```{r prepare-temperature}
+# Check for matching filenames
+n_matches <- butterfly_abundance %>%
+  inner_join(temperature_data, by = c("image_filename" = "filename")) %>%
+  nrow()
+
+cat("Number of butterfly records with matching temperature data:", n_matches, "out of", nrow(butterfly_abundance), "\n")
+```
+
+```{r combine-data}
+# Create combined analysis dataframe with butterfly_abundance as base
+analysis_df <- butterfly_abundance %>%
+  left_join(
+    temperature_data %>%
+      select(filename, temperature),
+    by = c("image_filename" = "filename")
+  ) %>%
+  left_join(
+    deployments %>%
+      select(deployment_id, wind_meter_name, 
+             horizontal_dist_to_cluster_m, height_m, Observer, view_id),
+    by = "deployment_id"
+  )
+
+# Check for any missing temperature values
+missing_temp <- analysis_df %>%
+  filter(is.na(temperature)) %>%
+  nrow()
+
+cat("Records missing temperature data:", missing_temp, "\n")
+
+# Check deployment metadata join
+n_deployments <- analysis_df %>%
+  distinct(deployment_id) %>%
+  nrow()
+
+cat("Number of unique deployments in analysis_df:", n_deployments, "\n")
+
+# Summary of combined data
+glimpse(analysis_df)
+summary(analysis_df)
+```
+
+## Add Wind Features
+
+```{r wind-features}
+# Define wind threshold
+WIND_THRESHOLD <- 2
+
+# Function to calculate wind features for each butterfly observation
+calculate_wind_features <- function(df, wind_data) {
+  
+  # Initialize empty list to store wind features for each row
+  wind_features_list <- list()
+  
+  # Process each row in the dataframe
+  for(i in 1:nrow(df)) {
+    row <- df[i,]
+    
+    # Skip if no wind meter associated
+    if(is.na(row$wind_meter_name)) {
+      wind_features_list[[i]] <- tibble(
+        wind_mean = NA_real_,
+        wind_max_gust = NA_real_,
+        wind_sd = NA_real_,
+        gust_differential_mean = NA_real_,
+        cumulative_wind = NA_real_,
+        n_strong_gusts = NA_real_,
+        time_above_threshold = NA_real_,
+        n_wind_records = NA_real_
+      )
+      next
+    }
+    
+    # Define time window (30 minutes before the observation)
+    end_time <- row$timestamp
+    start_time <- end_time - minutes(30)
+    
+    # For first observation of a day (AR_start == TRUE), use next 30 minutes
+    if(!is.na(row$AR_start) && row$AR_start == TRUE) {
+      start_time <- end_time
+      end_time <- start_time + minutes(30)
+    }
+    
+    # Filter wind data for this meter and time window
+    wind_subset <- wind_data %>%
+      filter(
+        wind_meter_name == row$wind_meter_name,
+        time >= start_time,
+        time < end_time
+      )
+    
+    # Calculate features if we have wind data
+    if(nrow(wind_subset) > 0) {
+      features <- wind_subset %>%
+        mutate(gust_differential = gust - speed) %>%
+        summarize(
+          wind_mean = mean(speed, na.rm = TRUE),
+          wind_max_gust = max(gust, na.rm = TRUE),
+          wind_sd = sd(speed, na.rm = TRUE),
+          gust_differential_mean = mean(gust_differential, na.rm = TRUE),
+          cumulative_wind = sum(speed, na.rm = TRUE),
+          n_strong_gusts = sum(gust > WIND_THRESHOLD, na.rm = TRUE),
+          time_above_threshold = sum(speed > WIND_THRESHOLD, na.rm = TRUE),
+          n_wind_records = n()
+        )
+      wind_features_list[[i]] <- features
+    } else {
+      # No wind data available for this time window
+      wind_features_list[[i]] <- tibble(
+        wind_mean = NA_real_,
+        wind_max_gust = NA_real_,
+        wind_sd = NA_real_,
+        gust_differential_mean = NA_real_,
+        cumulative_wind = NA_real_,
+        n_strong_gusts = NA_real_,
+        time_above_threshold = NA_real_,
+        n_wind_records = 0
+      )
+    }
+  }
+  
+  # Combine all wind features into a single dataframe
+  wind_features_df <- bind_rows(wind_features_list)
+  
+  # Add wind features to original dataframe
+  cbind(df, wind_features_df)
+}
+
+# Apply wind feature calculation
+analysis_df <- calculate_wind_features(analysis_df, wind_data)
+
+# Check wind data coverage
+wind_coverage <- analysis_df %>%
+  summarize(
+    total_obs = n(),
+    has_wind_meter = sum(!is.na(wind_meter_name)),
+    has_wind_data = sum(!is.na(wind_mean)),
+    complete_wind = sum(n_wind_records >= 25, na.rm = TRUE)  # At least 25 of 30 minutes
+  )
+
+cat("Wind data coverage:\n")
+print(wind_coverage)
+
+# View updated structure
+glimpse(analysis_df)
+
+```
+
+## Final Data Cleanup and Export
+
+```{r cleanup-export}
+# Remove rows where wind_mean is NA
+analysis_df_clean <- analysis_df %>%
+  filter(!is.na(wind_mean))
+
+cat("Rows before removing NA wind_mean:", nrow(analysis_df), "\n")
+cat("Rows after removing NA wind_mean:", nrow(analysis_df_clean), "\n")
+cat("Rows removed:", nrow(analysis_df) - nrow(analysis_df_clean), "\n")
+
+# Remove specified columns
+analysis_df_final <- analysis_df_clean %>%
+  select(-date, -complete_day, -wind_meter_name, 
+         -horizontal_dist_to_cluster_m, -height_m, 
+         -n_wind_records, -n_strong_gusts)
+
+# Check final structure
+cat("\nFinal dataset structure:\n")
+glimpse(analysis_df_final)
+```
+
+## Sanity Check: Time Series Plots by Day
+
+```{r sanity-check-plots, fig.height=8, fig.width=12}
+# Define features to plot
+features_to_plot <- c("total_butterflies", "butterflies_direct_sun", 
+                      "temperature", "wind_mean", "wind_sd", "wind_max_gust", 
+                      "gust_differential_mean", "cumulative_wind", "time_above_threshold")
+
+# Get unique day_ids
+unique_days <- unique(analysis_df_final$day_id)
+cat("Number of unique days:", length(unique_days), "\n\n")
+
+# Create plots for each day
+for(day in unique_days) {
+  # Filter data for this day
+  day_data <- analysis_df_final %>%
+    filter(day_id == day) %>%
+    arrange(timestamp)
+  
+  # Skip if no data
+  if(nrow(day_data) == 0) next
+  
+  # Get deployment info for title
+  deployment <- unique(day_data$deployment_id)[1]
+  date_range <- paste(min(day_data$timestamp), "to", max(day_data$timestamp))
+  
+  # Create a list to store plots
+  plot_list <- list()
+  
+  # Create a plot for each feature
+  for(i in seq_along(features_to_plot)) {
+    feature <- features_to_plot[i]
+    
+    # Check if feature exists in data
+    if(!feature %in% names(day_data)) {
+      cat("Warning: Feature", feature, "not found in data\n")
+      next
+    }
+    
+    # Create plot
+    p <- ggplot(day_data, aes(x = timestamp, y = .data[[feature]])) +
+      geom_line(color = "steelblue", size = 1) +
+      geom_point(color = "steelblue", size = 2) +
+      labs(
+        x = "Time",
+        y = feature,
+        subtitle = paste(feature)
+      ) +
+      theme_minimal() +
+      theme(
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        plot.subtitle = element_text(size = 10, face = "bold")
+      )
+    
+    plot_list[[i]] <- p
+  }
+  
+  # Combine plots using patchwork
+  if(length(plot_list) > 0) {
+    library(patchwork)
+    combined_plot <- wrap_plots(plot_list, ncol = 2) + 
+      plot_annotation(
+        title = paste("Day ID:", day, "| Deployment:", deployment),
+        subtitle = date_range,
+        theme = theme(
+          plot.title = element_text(size = 14, face = "bold"),
+          plot.subtitle = element_text(size = 11)
+        )
+      )
+    
+    print(combined_plot)
+    cat("\n")
+  }
+}
+```
+
+```{r}
+# Export to CSV
+write_csv(analysis_df_final, here("data", "analysis_dataset_final.csv"))
+cat("\nData exported to: data/analysis_dataset_final.csv\n")
+cat("Final dataset dimensions:", nrow(analysis_df_final), "rows x", ncol(analysis_df_final), "columns\n")
+```
+
+
