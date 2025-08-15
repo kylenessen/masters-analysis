@@ -54,16 +54,17 @@ df_model <- df_full %>%
 
 # Define the models
 k_val <- 28
+initial_rho <- 0.75 # pulled from earlier model
 
 # Note: After changing AR_start to factor, all models need to be rerun
 # to avoid errors with ggpredict()
 
 # Model 1: Null Model
-m_null <- bam(total_butterflies ~ s(day_id, bs = "re") + s(Observer, bs = "re"),
-              data = df_model,
-              family = tw(),
-              method = "fREML",
-              AR.start = df_model$AR_start)
+m_null<- gamm(total_butterflies ~ 1, # No fixed effects in the formula
+                    random = list(day_id = ~1, Observer = ~1),
+                    data = df_model,
+                    family = tw(),
+                    correlation = corAR1(form = ~ 1 | day_id))
 
 # Model 2: Single Predictor Models
 m_temp <- bam(total_butterflies ~ s(temperature, k = k_val) + s(day_id, bs = "re") + s(Observer, bs = "re"),
@@ -71,6 +72,7 @@ m_temp <- bam(total_butterflies ~ s(temperature, k = k_val) + s(day_id, bs = "re
               family = tw(),
               method = "fREML",
               discrete = TRUE,
+              rho = initial_rho,
               AR.start = df_model$AR_start)
 
 m_wind <- bam(total_butterflies ~ s(wind_mean, k = k_val) + s(day_id, bs = "re") + s(Observer, bs = "re"),
@@ -78,6 +80,7 @@ m_wind <- bam(total_butterflies ~ s(wind_mean, k = k_val) + s(day_id, bs = "re")
               family = tw(),
               method = "fREML",
               discrete = TRUE,
+              rho = initial_rho,
               AR.start = df_model$AR_start)
 
 m_sun <- bam(total_butterflies ~ s(butterflies_direct_sun, k = k_val) + s(day_id, bs = "re") + s(Observer, bs = "re"),
@@ -85,6 +88,7 @@ m_sun <- bam(total_butterflies ~ s(butterflies_direct_sun, k = k_val) + s(day_id
              family = tw(),
              method = "fREML",
              discrete = TRUE,
+             rho = initial_rho,
              AR.start = df_model$AR_start)
 
 
@@ -98,6 +102,7 @@ m_additive <- bam(total_butterflies ~ s(temperature, k = k_val) +
                   family = tw(),
                   method = "fREML",
                   discrete = TRUE,
+                  rho = initial_rho,
                   AR.start = df_model$AR_start)
 
 # Model 4: Additive + Interaction Models
@@ -111,6 +116,7 @@ m_int_temp_wind <- bam(total_butterflies ~ s(temperature, k = k_val) +
                        family = tw(),
                        method = "fREML",
                        discrete = TRUE,
+                       rho = initial_rho,
                        AR.start = df_model$AR_start)
 
 # We can now inspect these models.
@@ -253,5 +259,72 @@ draw(m_int_temp_wind, select = "s(day_id)")
 
 ```{r plot-random-observer, fig.width=8, fig.height=6}
 draw(m_int_temp_wind, select = "s(Observer)")
+```
+
+
+```{r}
+m_int_corr_gamm <- gamm(total_butterflies ~ s(temperature, k = 28) + 
+                                           s(wind_mean, k = 50),
+                      random = list(day_id = ~1, Observer = ~1),
+                      data = df_model,
+                      family = tw(),
+                      correlation = corAR1(form = ~ 1 | day_id))
+
+# To view the summary or plot, you need to reference the '$gam' part of the output
+summary(m_int_corr_gamm$gam)
+draw(m_int_corr_gamm$gam)
+```
+```{r}
+# --- Full Diagnostic Suite for the GAMM Model ---
+
+# Ensure necessary libraries are loaded
+library(mgcv)
+library(gratia)
+library(DHARMa)
+
+# Set a consistent theme for gratia plots
+theme_set(theme_minimal())
+
+# --- 1. Diagnostics for the GAM component ($gam) ---
+# This provides the standard 4-panel diagnostic plot and checks the basis dimensions (k).
+cat("\n--- Running gam.check() on the GAM component ---\n")
+gam.check(m_int_corr_gamm$gam)
+
+
+# --- 2. Visualizing the fitted smooths using gratia ---
+# This is often clearer than the base plots for seeing the relationships.
+cat("\n--- Plotting fitted smooths using gratia::draw() ---\n")
+print(draw(m_int_corr_gamm$gam, scales = "free"))
+
+
+# --- 3. Diagnostics for the LME component ($lme) - Residuals & Autocorrelation ---
+cat("\n--- Plotting LME residuals and ACF ---\n")
+
+# Set up a 1x2 plotting window
+par(mfrow = c(1, 2), mar = c(5, 5, 2, 2))
+
+# a) Check the Autocorrelation Function (ACF) on the normalized residuals.
+# This is the MOST IMPORTANT plot to see if corAR1() worked.
+# The vertical bars at lags > 0 should now be within the blue dashed lines.
+acf(residuals(m_int_corr_gamm$lme, type = "normalized"),
+    main = "ACF of Normalized Residuals")
+
+# b) Plot basic residuals vs. fitted values from the LME component.
+# You are looking for a random "cloud" of points with no obvious pattern.
+plot(m_int_corr_gamm$lme,
+     main = "Residuals vs. Fitted")
+
+# Reset the plotting window to the default
+par(mfrow = c(1, 1))
+
+
+# --- 4. Advanced Simulation-Based Diagnostics with DHARMa ---
+cat("\n--- Running DHARMa simulation-based residual checks (this may take a moment) ---\n")
+
+# DHARMa simulates new data from your fitted model and checks if the
+# observed residuals conform to expectations. It's a powerful tool.
+# We increase the number of simulations for a more robust check.
+simulation_output <- simulateResiduals(fittedModel = m_int_corr_gamm, n = 500)
+plot(simulation_output)
 ```
 
