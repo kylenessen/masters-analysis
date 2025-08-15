@@ -250,7 +250,11 @@ abundance_index_filtered <- abundance_index %>%
     mutate(
         date = as.Date(timestamp),
         day_id = paste0(deployment_id, "-", format(date, "%Y%m%d"))
-    )
+    ) %>%
+    # Filter out days where ALL observations have zero butterflies
+    group_by(day_id) %>%
+    filter(!(all(total_butterflies == 0 | is.na(total_butterflies)))) %>%
+    ungroup()
 
 # Add complete_day column - only TRUE for middle days with records before AND after
 # First get unique days per deployment
@@ -258,7 +262,7 @@ unique_days_per_deployment <- abundance_index_filtered %>%
     group_by(deployment_id, day_id, date) %>%
     summarise(n = n(), .groups = "drop") %>%
     group_by(deployment_id) %>%
-    arrange(date) %>%  # Sort by actual date, not day_id string
+    arrange(date) %>% # Sort by actual date, not day_id string
     mutate(
         # For each unique day, check if there's a day before and after
         prev_date = lag(date),
@@ -310,7 +314,7 @@ cat("Total days in dataset:", nrow(day_summary), "\n")
 cat("\nExample day sequences (first 3 deployments):\n")
 unique_days_per_deployment %>%
     group_by(deployment_id) %>%
-    slice(1:5) %>%  # Show first 5 days per deployment
+    slice(1:5) %>% # Show first 5 days per deployment
     ungroup() %>%
     head(15) %>%
     print()
@@ -387,7 +391,11 @@ cat("Abundance index computed using conservative category minima: 1 for '1-9', 1
 cat("Generating diagnostic timeseries plots for each day_id...\n\n")
 
 # Get all unique day_ids sorted
-all_day_ids <- unique(abundance_index_filtered$day_id) %>% sort()
+all_day_ids <- abundance_index_filtered %>%
+    filter(complete_day == TRUE) %>%
+    pull(day_id) %>%
+    unique() %>%
+    sort()
 
 # Show summary first
 cat("Total unique day_ids:", length(all_day_ids), "\n")
@@ -397,26 +405,29 @@ cat("Plotting each day_id individually...\n\n")
 for (did in all_day_ids) {
     df_day <- abundance_index_filtered %>%
         filter(day_id == did)
-    
+
     # Get stats for this day
     n_obs <- nrow(df_day)
-    duration_hours <- as.numeric(difftime(max(df_day$timestamp), 
-                                          min(df_day$timestamp), 
-                                          units = "hours"))
-    
+    duration_hours <- as.numeric(difftime(max(df_day$timestamp),
+        min(df_day$timestamp),
+        units = "hours"
+    ))
+
     p <- ggplot(df_day, aes(x = timestamp, y = total_butterflies)) +
         geom_point(size = 1.5, alpha = 0.7) +
         geom_line(alpha = 0.3) +
         labs(
-            title = paste0("Day: ", did, 
-                          " (n=", n_obs, 
-                          ", duration=", round(duration_hours, 1), "h)"),
+            title = paste0(
+                "Day: ", did,
+                " (n=", n_obs,
+                ", duration=", round(duration_hours, 1), "h)"
+            ),
             x = "Timestamp",
             y = "Total butterflies"
         ) +
         theme_minimal() +
         theme(plot.title = element_text(size = 10))
-    
+
     print(p)
 }
 ```
