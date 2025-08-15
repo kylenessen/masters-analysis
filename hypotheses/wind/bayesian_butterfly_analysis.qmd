@@ -10,12 +10,15 @@ library(posterior)
 library(bayesplot)
 library(ggeffects)
 library(here)
-library(parallel)
+library(future)
+library(furrr)
 
 # Set up parallel processing for 24 cores
-# 4 models × 4 chains × 1 core per chain = 16 cores
-# Leave 8 cores for system processes
-options(mc.cores = 4)  # 4 chains per model
+# Strategy: Run 4 models simultaneously, each using 4 cores (4 chains × 1 core)
+# Total: 4 models × 4 cores = 16 cores, leaving 8 for system
+plan(multisession, workers = 4)  # 4 parallel R sessions
+options(mc.cores = 4)  # Each brm model uses 4 cores for chains
+
 theme_set(theme_minimal())
 
 # Set global MCMC settings
@@ -132,132 +135,128 @@ fit_bayesian_models <- function() {
 
 # Get all formulas
 all_formulas <- fit_bayesian_models()
+
+# Monitor parallel execution
+cat("Parallel backend configured:\n")
+cat("- Workers (parallel R sessions):", nbrOfWorkers(), "\n")
+cat("- Cores per model (for chains):", getOption("mc.cores"), "\n")
+cat("- Total cores in use:", nbrOfWorkers() * getOption("mc.cores"), "\n\n")
 ```
 
 ```{r fit-wind-models, eval=TRUE}
 # Fit wind hypothesis models (4 models in parallel)
-cat("Fitting wind hypothesis models...\n")
+cat("Fitting wind hypothesis models in parallel...\n")
+cat("Using 4 parallel sessions, each with 4 chains (16 cores total)\n")
 
-# Null model
-m_null_wind <- brm(
-    all_formulas$wind$null,
-    data = df_model,
-    family = family_spec,
-    prior = null_priors,
-    chains = n_chains,
-    iter = n_iter,
-    warmup = n_warmup,
-    cores = 4,
-    control = list(adapt_delta = 0.95, max_treedepth = 12),
-    file = "models/m_null_wind"
+# Define model specifications
+wind_model_specs <- list(
+    null = list(
+        formula = all_formulas$wind$null,
+        prior = null_priors,
+        file = "models/m_null_wind"
+    ),
+    temp = list(
+        formula = all_formulas$wind$temp,
+        prior = smooth_priors,
+        file = "models/m_temp_wind"
+    ),
+    wind = list(
+        formula = all_formulas$wind$wind,
+        prior = smooth_priors,
+        file = "models/m_wind"
+    ),
+    sun = list(
+        formula = all_formulas$wind$sun,
+        prior = smooth_priors,
+        file = "models/m_sun_wind"
+    )
 )
 
-# Temperature model
-m_temp_wind <- brm(
-    all_formulas$wind$temp,
-    data = df_model,
-    family = family_spec,
-    prior = smooth_priors,
-    chains = n_chains,
-    iter = n_iter,
-    warmup = n_warmup,
-    cores = 4,
-    control = list(adapt_delta = 0.95, max_treedepth = 12),
-    file = "models/m_temp_wind"
-)
+# Function to fit a single model
+fit_single_model <- function(spec) {
+    brm(
+        formula = spec$formula,
+        data = df_model,
+        family = family_spec,
+        prior = spec$prior,
+        chains = n_chains,
+        iter = n_iter,
+        warmup = n_warmup,
+        cores = 4,  # Each model uses 4 cores
+        control = list(adapt_delta = 0.95, max_treedepth = 12),
+        file = spec$file,
+        silent = 0  # Show progress
+    )
+}
 
-# Wind model
-m_wind <- brm(
-    all_formulas$wind$wind,
-    data = df_model,
-    family = family_spec,
-    prior = smooth_priors,
-    chains = n_chains,
-    iter = n_iter,
-    warmup = n_warmup,
-    cores = 4,
-    control = list(adapt_delta = 0.95, max_treedepth = 12),
-    file = "models/m_wind"
+# Fit all wind models in parallel
+start_wind <- Sys.time()
+wind_models_list <- future_map(
+    wind_model_specs,
+    fit_single_model,
+    .options = furrr_options(seed = 123)
 )
+end_wind <- Sys.time()
 
-# Sun model
-m_sun_wind <- brm(
-    all_formulas$wind$sun,
-    data = df_model,
-    family = family_spec,
-    prior = smooth_priors,
-    chains = n_chains,
-    iter = n_iter,
-    warmup = n_warmup,
-    cores = 4,
-    control = list(adapt_delta = 0.95, max_treedepth = 12),
-    file = "models/m_sun_wind"
-)
+# Extract models
+m_null_wind <- wind_models_list$null
+m_temp_wind <- wind_models_list$temp
+m_wind <- wind_models_list$wind
+m_sun_wind <- wind_models_list$sun
 
-cat("Wind hypothesis models completed.\n")
+cat("Wind hypothesis models completed in", 
+    round(difftime(end_wind, start_wind, units = "mins"), 2), "minutes\n")
 ```
+
 
 ```{r fit-threshold-models, eval=TRUE}
 # Fit time_above_threshold hypothesis models (4 models in parallel)
-cat("Fitting time above threshold hypothesis models...\n")
+cat("Fitting time above threshold hypothesis models in parallel...\n")
+cat("Using 4 parallel sessions, each with 4 chains (16 cores total)\n")
 
-# Null model (threshold hypothesis)
-m_null_thresh <- brm(
-    all_formulas$threshold$null_thresh,
-    data = df_model,
-    family = family_spec,
-    prior = null_priors,
-    chains = n_chains,
-    iter = n_iter,
-    warmup = n_warmup,
-    cores = 4,
-    control = list(adapt_delta = 0.95, max_treedepth = 12),
-    file = "models/m_null_thresh"
+# Define threshold model specifications
+threshold_model_specs <- list(
+    null = list(
+        formula = all_formulas$threshold$null_thresh,
+        prior = null_priors,
+        file = "models/m_null_thresh"
+    ),
+    temp = list(
+        formula = all_formulas$threshold$temp_thresh,
+        prior = smooth_priors,
+        file = "models/m_temp_thresh"
+    ),
+    threshold = list(
+        formula = all_formulas$threshold$threshold,
+        prior = smooth_priors,
+        file = "models/m_threshold"
+    ),
+    sun = list(
+        formula = all_formulas$threshold$sun_thresh,
+        prior = smooth_priors,
+        file = "models/m_sun_thresh"
+    )
 )
 
-# Temperature model (threshold hypothesis)
-m_temp_thresh <- brm(
-    all_formulas$threshold$temp_thresh,
-    data = df_model,
-    family = family_spec,
-    prior = smooth_priors,
-    chains = n_chains,
-    iter = n_iter,
-    warmup = n_warmup,
-    cores = 4,
-    control = list(adapt_delta = 0.95, max_treedepth = 12),
-    file = "models/m_temp_thresh"
+# Fit all threshold models in parallel
+start_thresh <- Sys.time()
+threshold_models_list <- future_map(
+    threshold_model_specs,
+    fit_single_model,  # Using the same function defined above
+    .options = furrr_options(seed = 456)
 )
+end_thresh <- Sys.time()
 
-# Threshold model
-m_threshold <- brm(
-    all_formulas$threshold$threshold,
-    data = df_model,
-    family = family_spec,
-    prior = smooth_priors,
-    chains = n_chains,
-    iter = n_iter,
-    warmup = n_warmup,
-    cores = 4,
-    control = list(adapt_delta = 0.95, max_treedepth = 12),
-    file = "models/m_threshold"
-)
+# Extract models
+m_null_thresh <- threshold_models_list$null
+m_temp_thresh <- threshold_models_list$temp
+m_threshold <- threshold_models_list$threshold
+m_sun_thresh <- threshold_models_list$sun
 
-# Sun model (threshold hypothesis)
-m_sun_thresh <- brm(
-    all_formulas$threshold$sun_thresh,
-    data = df_model,
-    family = family_spec,
-    prior = smooth_priors,
-    chains = n_chains,
-    iter = n_iter,
-    warmup = n_warmup,
-    cores = 4,
-    control = list(adapt_delta = 0.95, max_treedepth = 12),
-    file = "models/m_sun_thresh"
-)
-
-cat("Threshold hypothesis models completed.\n")
+cat("Threshold hypothesis models completed in",
+    round(difftime(end_thresh, start_thresh, units = "mins"), 2), "minutes\n")
+cat("Total modeling time:",
+    round(difftime(end_thresh, start_wind, units = "mins"), 2), "minutes\n")
 ```
 
 ```{r model-diagnostics}
@@ -368,8 +367,8 @@ save(
     wind_models, threshold_models,
     wind_comparison, threshold_comparison,
     wind_weights, threshold_weights,
-    file = "bayesian_analysis_results.RData"
+    file = "models/bayesian_analysis_results.RData"
 )
 
-cat("Analysis complete. Results saved to bayesian_analysis_results.RData\n")
+cat("Analysis complete. Results saved to models/bayesian_analysis_results.RData\n")
 ```
