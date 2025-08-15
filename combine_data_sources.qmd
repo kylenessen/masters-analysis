@@ -201,49 +201,5 @@ print(wind_coverage)
 # View updated structure
 glimpse(analysis_df)
 
-# Investigate SC10 and SC9
-cat("\n=== Investigating SC10 and SC9 ===\n")
-
-# Check wind meter assignments for SC10 and SC9
-sc10_sc9_info <- deployments %>%
-  filter(deployment_id %in% c("SC10", "SC9")) %>%
-  select(deployment_id, wind_meter_name)
-print(sc10_sc9_info)
-
-# Check if these wind meters exist in wind_data
-cat("\nUnique wind meters in wind_data:\n")
-print(unique(wind_data$wind_meter_name))
-
-# Check for case sensitivity or spelling issues
-cat("\nChecking for similar names:\n")
-wind_meters_deployments <- unique(deployments$wind_meter_name[!is.na(deployments$wind_meter_name)])
-wind_meters_wind_data <- unique(wind_data$wind_meter_name)
-
-cat("Wind meters in deployments but not in wind_data:\n")
-print(setdiff(wind_meters_deployments, wind_meters_wind_data))
-
-# Check time ranges for problematic meters if they exist
-if("Stardust" %in% wind_data$wind_meter_name) {
-  cat("\nStardust (SC10) time range in wind_data:\n")
-  wind_data %>%
-    filter(wind_meter_name == "Stardust") %>%
-    summarize(
-      min_time = min(time),
-      max_time = max(time),
-      n_records = n()
-    ) %>%
-    print()
-}
-
-# Check SC10 butterfly observation time range
-cat("\nSC10 butterfly observation time range:\n")
-analysis_df %>%
-  filter(deployment_id == "SC10") %>%
-  summarize(
-    min_time = min(timestamp),
-    max_time = max(timestamp),
-    n_records = n()
-  ) %>%
-  print()
 ```
 
