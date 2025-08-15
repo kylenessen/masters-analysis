@@ -30,7 +30,7 @@ summary(df)
 
 # Check correlations among predictors
 cor_matrix <- df %>%
-  select(temperature, wind_mean, time_above_threshold, butterflies_direct_sun) %>%
+  select(temperature, wind_mean, butterflies_direct_sun) %>%
   cor(use = "complete.obs")
 print(cor_matrix)
 ```
@@ -42,7 +42,7 @@ df_full <- df
 # Prepare data for modeling
 # Select variables, ensure correct types, create AR.start, and handle missing values
 df_model <- df_full %>%
-  select(total_butterflies, temperature, wind_mean, butterflies_direct_sun, time_above_threshold, day_id, Observer) %>%
+  select(total_butterflies, temperature, wind_mean, butterflies_direct_sun, day_id, Observer) %>%
   mutate(
     day_id = as.factor(day_id),
     Observer = as.factor(Observer)
@@ -53,7 +53,7 @@ df_model <- df_full %>%
   na.omit()
 
 # Define the models
-k_val <- 25
+k_val <- 28
 
 # Note: After changing AR_start to factor, all models need to be rerun
 # to avoid errors with ggpredict()
@@ -87,18 +87,11 @@ m_sun <- bam(total_butterflies ~ s(butterflies_direct_sun, k = k_val) + s(day_id
              discrete = TRUE,
              AR.start = df_model$AR_start)
 
-m_time <- bam(total_butterflies ~ s(time_above_threshold, k = k_val) + s(day_id, bs = "re") + s(Observer, bs = "re"),
-              data = df_model,
-              family = tw(),
-              method = "fREML",
-              discrete = TRUE,
-              AR.start = df_model$AR_start)
 
 # Model 3: Additive Model
 m_additive <- bam(total_butterflies ~ s(temperature, k = k_val) +
                                     s(wind_mean, k = k_val) +
                                     s(butterflies_direct_sun, k = k_val) +
-                                    s(time_above_threshold, k = k_val) +
                                     s(day_id, bs = "re") +
                                     s(Observer, bs = "re"),
                   data = df_model,
@@ -111,7 +104,6 @@ m_additive <- bam(total_butterflies ~ s(temperature, k = k_val) +
 m_int_temp_wind <- bam(total_butterflies ~ s(temperature, k = k_val) +
                                           s(wind_mean, k = k_val) +
                                           s(butterflies_direct_sun, k = k_val) +
-                                          s(time_above_threshold, k = k_val) +
                                           ti(temperature, wind_mean, k = 10) +
                                           s(day_id, bs = "re") +
                                           s(Observer, bs = "re"),
@@ -189,7 +181,6 @@ model_list <- list(
   temp = m_temp,
   wind = m_wind,
   sun = m_sun,
-  time = m_time,
   additive = m_additive,
   interaction = m_int_temp_wind
 )
@@ -236,10 +227,6 @@ draw(m_int_temp_wind, select = "s(wind_mean)")
 draw(m_int_temp_wind, select = "s(butterflies_direct_sun)")
 ```
 
-```{r plot-time-threshold, fig.width=8, fig.height=6}
-# Main effect of Time Above Threshold
-draw(m_int_temp_wind, select = "s(time_above_threshold)")
-```
 
 ```{r plot-interaction, fig.width=8, fig.height=6}
 # 3. Visualize the interaction between Temperature and Wind
