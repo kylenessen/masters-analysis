@@ -1,0 +1,58 @@
+---
+title: "Combine Data Sources"
+format: html
+---
+
+```{r setup}
+library(tidyverse)
+library(here)
+```
+
+## Load Data
+
+```{r load-data}
+# Load butterfly abundance data
+butterfly_abundance <- read_csv(here("data", "butterfly_abundance_complete_days.csv"))
+
+# Load deployments data
+deployments <- read_csv(here("data", "deployments.csv"))
+
+# Load temperature data
+temperature_data <- read_csv(here("data", "temperature_data_2023.csv"))
+
+# Load wind data
+wind_data <- read_csv(here("data", "wind_all.csv"))
+```
+
+## Data Summaries
+
+### Butterfly Abundance
+```{r butterfly-summary}
+glimpse(butterfly_abundance)
+summary(butterfly_abundance)
+```
+
+### Deployments
+```{r deployments-summary}
+glimpse(deployments)
+summary(deployments)
+```
+
+### Temperature Data
+```{r temperature-summary}
+glimpse(temperature_data)
+summary(temperature_data)
+```
+
+### Wind Data
+```{r wind-summary}
+glimpse(wind_data)
+summary(wind_data)
+```
+
+## Combine Data
+
+```{r combine-data}
+# This section will combine the datasets based on common keys
+# We'll need to identify the joining columns once we see the data structure
+```
