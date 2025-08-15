@@ -68,7 +68,7 @@ cat("Number of butterfly records with matching temperature data:", n_matches, "o
 analysis_df <- butterfly_abundance %>%
   left_join(
     temperature_data %>%
-      select(filename, temperature, confidence),
+      select(filename, temperature),
     by = c("image_filename" = "filename")
   )
 
@@ -84,17 +84,3 @@ glimpse(analysis_df)
 summary(analysis_df)
 ```
 
-### Visualize Temperature-Butterfly Relationship
-
-```{r temp-butterfly-viz}
-# Quick visualization of temperature vs butterfly abundance
-ggplot(analysis_df, aes(x = temperature, y = total_butterflies)) +
-  geom_point(alpha = 0.3) +
-  geom_smooth(method = "loess") +
-  labs(
-    title = "Butterfly Abundance vs Temperature",
-    x = "Temperature (°C)",
-    y = "Total Butterflies"
-  ) +
-  theme_minimal()
-```
