@@ -514,3 +514,88 @@ for (did in all_day_ids) {
     print(p)
 }
 ```
+
+```{r}
+#| label: generate-animation
+#| fig-cap: "Animated GIF of all complete day timeseries plots"
+#| echo: true
+#| eval: false
+
+# Load magick library for creating animations
+library(magick)
+
+# Create animated GIF of all complete day plots
+cat("Creating animated GIF of all complete day plots...\n")
+
+# Get all unique day_ids with complete_day = TRUE
+all_day_ids <- abundance_index_filtered %>%
+    filter(complete_day == TRUE) %>%
+    pull(day_id) %>%
+    unique() %>%
+    sort()
+
+cat("Total plots to animate:", length(all_day_ids), "\n")
+
+# Create temporary directory for individual plot files
+temp_dir <- tempdir()
+plot_files <- character(length(all_day_ids))
+
+# Generate each plot and save as PNG
+for (i in seq_along(all_day_ids)) {
+    did <- all_day_ids[i]
+    df_day <- abundance_index_filtered %>%
+        filter(day_id == did)
+    
+    # Get stats for this day
+    n_obs <- nrow(df_day)
+    duration_hours <- as.numeric(difftime(max(df_day$timestamp),
+        min(df_day$timestamp),
+        units = "hours"
+    ))
+    
+    p <- ggplot(df_day, aes(x = timestamp, y = total_butterflies)) +
+        geom_point(size = 1.5, alpha = 0.7) +
+        geom_line(alpha = 0.3) +
+        labs(
+            title = paste0(
+                "Day: ", did,
+                " (n=", n_obs,
+                ", duration=", round(duration_hours, 1), "h)"
+            ),
+            x = "Timestamp",
+            y = "Total butterflies"
+        ) +
+        theme_minimal() +
+        theme(plot.title = element_text(size = 10))
+    
+    # Save plot with higher quality
+    filename <- file.path(temp_dir, sprintf("plot_%03d.png", i))
+    ggsave(filename, p, width = 10, height = 6, dpi = 150, bg = "white")
+    plot_files[i] <- filename
+    
+    if (i %% 10 == 0) {
+        cat("Processed", i, "of", length(all_day_ids), "plots\n")
+    }
+}
+
+cat("All plots generated. Creating GIF...\n")
+
+# Read all images
+img_list <- image_read(plot_files)
+
+# Create animated gif with 0.5 second delay (50 centiseconds)
+animation <- image_animate(img_list, fps = 2, dispose = "previous")
+
+# Save the animation
+output_file <- "butterfly_plots_animation.gif"
+image_write(animation, path = output_file)
+
+cat("Animation saved as:", output_file, "\n")
+cat("Frame rate: 2 fps (0.5 seconds per frame)\n")
+cat("Total frames:", length(all_day_ids), "\n")
+cat("Estimated duration:", length(all_day_ids) * 0.5, "seconds\n")
+
+# Clean up temporary files
+unlink(plot_files)
+```
+
