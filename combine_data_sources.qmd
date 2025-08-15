@@ -52,7 +52,49 @@ summary(wind_data)
 
 ## Combine Data
 
+### Join Butterfly Abundance with Temperature
+
+```{r prepare-temperature}
+# Check for matching filenames
+n_matches <- butterfly_abundance %>%
+  inner_join(temperature_data, by = c("image_filename" = "filename")) %>%
+  nrow()
+
+cat("Number of butterfly records with matching temperature data:", n_matches, "out of", nrow(butterfly_abundance), "\n")
+```
+
 ```{r combine-data}
-# This section will combine the datasets based on common keys
-# We'll need to identify the joining columns once we see the data structure
+# Create combined analysis dataframe with butterfly_abundance as base
+analysis_df <- butterfly_abundance %>%
+  left_join(
+    temperature_data %>%
+      select(filename, temperature, confidence),
+    by = c("image_filename" = "filename")
+  )
+
+# Check for any missing temperature values
+missing_temp <- analysis_df %>%
+  filter(is.na(temperature)) %>%
+  nrow()
+
+cat("Records missing temperature data:", missing_temp, "\n")
+
+# Summary of combined data
+glimpse(analysis_df)
+summary(analysis_df)
+```
+
+### Visualize Temperature-Butterfly Relationship
+
+```{r temp-butterfly-viz}
+# Quick visualization of temperature vs butterfly abundance
+ggplot(analysis_df, aes(x = temperature, y = total_butterflies)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "loess") +
+  labs(
+    title = "Butterfly Abundance vs Temperature",
+    x = "Temperature (°C)",
+    y = "Total Butterflies"
+  ) +
+  theme_minimal()
 ```
