@@ -1,0 +1,393 @@
+---
+title: "Butterfly Abundance - Improved Bayesian Analysis"
+format: pdf
+---
+
+```{r setup}
+library(tidyverse)
+library(brms)
+library(posterior)
+library(bayesplot)
+library(ggeffects)
+library(here)
+library(future)
+library(furrr)
+library(loo)
+
+# Set up parallel processing
+plan(multisession, workers = 4)  # 4 parallel R sessions
+options(mc.cores = 4)  # Each brm model uses 4 cores for chains
+
+theme_set(theme_minimal())
+
+# IMPROVED MCMC settings for better convergence
+n_iter <- 4000  # Increased from 2000
+n_warmup <- 2000  # Increased from 1000
+n_chains <- 4
+adapt_delta <- 0.99  # Increased from 0.95 to reduce divergences
+max_treedepth <- 15  # Increased from 12
+```
+
+```{r load-data}
+# Load the prepared data
+df <- read_csv(here("data", "analysis_dataset_final.csv"))
+
+# Check data structure
+glimpse(df)
+```
+
+```{r prepare-data}
+# Prepare data for Bayesian modeling
+df_model <- df %>%
+    select(total_butterflies, temperature, wind_mean, butterflies_direct_sun, 
+           day_id, Observer, time_above_threshold) %>%
+    mutate(
+        day_id = as.factor(day_id),
+        Observer = as.factor(Observer)
+    ) %>%
+    group_by(day_id) %>%
+    mutate(
+        time_within_day = row_number(),  # For AR(1) structure
+        AR_start = row_number() == 1
+    ) %>%
+    ungroup() %>%
+    na.omit()
+
+# IMPROVED: Use centering instead of full scaling for better interpretability
+df_model <- df_model %>%
+    mutate(
+        # Center predictors (subtract mean) but keep original scale
+        temperature_c = temperature - mean(temperature),
+        wind_mean_c = wind_mean - mean(wind_mean),
+        butterflies_direct_sun_c = butterflies_direct_sun - mean(butterflies_direct_sun),
+        time_above_threshold_c = time_above_threshold - mean(time_above_threshold)
+    )
+
+cat("Dataset dimensions:", nrow(df_model), "×", ncol(df_model), "\n")
+cat("Number of days:", length(unique(df_model$day_id)), "\n")
+cat("Number of observers:", length(unique(df_model$Observer)), "\n")
+cat("\nPredictor means (for interpretation):\n")
+cat("Temperature:", round(mean(df$temperature, na.rm=TRUE), 2), "°C\n")
+cat("Wind speed:", round(mean(df$wind_mean, na.rm=TRUE), 2), "m/s\n")
+cat("Time above threshold:", round(mean(df$time_above_threshold, na.rm=TRUE), 2), "min\n")
+```
+
+```{r model-priors}
+# IMPROVED priors based on domain knowledge
+# Null model priors
+null_priors <- c(
+    prior(normal(3, 1), class = Intercept),  # log scale for negbinomial
+    prior(exponential(1), class = sd),
+    prior(normal(0, 0.5), class = ar)
+)
+
+# Priors for models with smooth terms
+smooth_priors <- c(
+    prior(normal(3, 1), class = Intercept),
+    prior(normal(0, 0.5), class = b),  # Tighter priors
+    prior(exponential(1), class = sd),
+    prior(exponential(2), class = sds),  # More flexible for smooths
+    prior(normal(0, 0.5), class = ar)
+)
+
+# Family for count data
+family_spec <- negbinomial()
+```
+
+```{r model-formulas}
+# SIMPLIFIED formulas without AR(1) initially (add back if convergence improves)
+formulas_wind <- list(
+    null = bf(total_butterflies ~ 1 + 
+             (1 | day_id) + (1 | Observer)),
+    
+    temp = bf(total_butterflies ~ s(temperature_c, k = 8) +  # Reduced k
+             (1 | day_id) + (1 | Observer)),
+    
+    wind = bf(total_butterflies ~ s(wind_mean_c, k = 8) + 
+             (1 | day_id) + (1 | Observer)),
+    
+    sun = bf(total_butterflies ~ s(butterflies_direct_sun_c, k = 8) + 
+            (1 | day_id) + (1 | Observer))
+)
+
+formulas_threshold <- list(
+    null = bf(total_butterflies ~ 1 + 
+             (1 | day_id) + (1 | Observer)),
+    
+    temp = bf(total_butterflies ~ s(temperature_c, k = 8) + 
+             (1 | day_id) + (1 | Observer)),
+    
+    threshold = bf(total_butterflies ~ s(time_above_threshold_c, k = 8) + 
+                  (1 | day_id) + (1 | Observer)),
+    
+    sun = bf(total_butterflies ~ s(butterflies_direct_sun_c, k = 8) + 
+            (1 | day_id) + (1 | Observer))
+)
+```
+
+```{r fit-function}
+# Improved fitting function with better error handling
+fit_single_model <- function(spec, model_name = "model") {
+    cat("\nStarting:", model_name, "\n")
+    
+    tryCatch({
+        model <- brm(
+            formula = spec$formula,
+            data = df_model,
+            family = family_spec,
+            prior = spec$prior,
+            chains = n_chains,
+            iter = n_iter,
+            warmup = n_warmup,
+            cores = 4,
+            control = list(
+                adapt_delta = adapt_delta, 
+                max_treedepth = max_treedepth
+            ),
+            file = spec$file,
+            silent = 0,
+            refresh = 500  # Show progress every 500 iterations
+        )
+        
+        # Quick diagnostic check
+        rhat_max <- max(rhat(model), na.rm = TRUE)
+        cat("Completed:", model_name, "| Max Rhat:", round(rhat_max, 3), "\n")
+        
+        return(model)
+    }, error = function(e) {
+        cat("ERROR in", model_name, ":", e$message, "\n")
+        return(NULL)
+    })
+}
+```
+
+```{r fit-simple-models}
+# Start with simpler models first to test convergence
+cat("=== FITTING SIMPLE TEST MODELS ===\n")
+
+# Test with just null models first
+test_null_wind <- brm(
+    formulas_wind$null,
+    data = df_model,
+    family = family_spec,
+    prior = null_priors,
+    chains = 2,  # Fewer chains for testing
+    iter = 2000,
+    warmup = 1000,
+    cores = 2,
+    control = list(adapt_delta = 0.99, max_treedepth = 15),
+    file = "models/test_null_wind"
+)
+
+# Check diagnostics
+summary(test_null_wind)
+plot(test_null_wind)
+```
+
+```{r fit-wind-models-improved}
+# Only proceed if test model converges well
+cat("\n=== FITTING WIND HYPOTHESIS MODELS ===\n")
+
+wind_model_specs <- list(
+    null = list(
+        formula = formulas_wind$null,
+        prior = null_priors,
+        file = "models/m_null_wind_v2"
+    ),
+    temp = list(
+        formula = formulas_wind$temp,
+        prior = smooth_priors,
+        file = "models/m_temp_wind_v2"
+    ),
+    wind = list(
+        formula = formulas_wind$wind,
+        prior = smooth_priors,
+        file = "models/m_wind_v2"
+    ),
+    sun = list(
+        formula = formulas_wind$sun,
+        prior = smooth_priors,
+        file = "models/m_sun_wind_v2"
+    )
+)
+
+# Fit models with names for better tracking
+wind_models_list <- future_map2(
+    wind_model_specs,
+    names(wind_model_specs),
+    fit_single_model,
+    .options = furrr_options(seed = 123)
+)
+
+# Extract models
+m_null_wind <- wind_models_list$null
+m_temp_wind <- wind_models_list$temp
+m_wind <- wind_models_list$wind
+m_sun_wind <- wind_models_list$sun
+```
+
+```{r fit-threshold-models-improved}
+cat("\n=== FITTING THRESHOLD HYPOTHESIS MODELS ===\n")
+
+threshold_model_specs <- list(
+    null = list(
+        formula = formulas_threshold$null,
+        prior = null_priors,
+        file = "models/m_null_thresh_v2"
+    ),
+    temp = list(
+        formula = formulas_threshold$temp,
+        prior = smooth_priors,
+        file = "models/m_temp_thresh_v2"
+    ),
+    threshold = list(
+        formula = formulas_threshold$threshold,
+        prior = smooth_priors,
+        file = "models/m_threshold_v2"
+    ),
+    sun = list(
+        formula = formulas_threshold$sun,
+        prior = smooth_priors,
+        file = "models/m_sun_thresh_v2"
+    )
+)
+
+threshold_models_list <- future_map2(
+    threshold_model_specs,
+    names(threshold_model_specs),
+    fit_single_model,
+    .options = furrr_options(seed = 456)
+)
+
+# Extract models
+m_null_thresh <- threshold_models_list$null
+m_temp_thresh <- threshold_models_list$temp
+m_threshold <- threshold_models_list$threshold
+m_sun_thresh <- threshold_models_list$sun
+```
+
+```{r improved-diagnostics}
+# Comprehensive diagnostics
+check_model_diagnostics <- function(model, model_name) {
+    cat("\n=== Diagnostics for", model_name, "===\n")
+    
+    # Get diagnostic quantities
+    np <- nuts_params(model)
+    divergent <- sum(np$Value[np$Parameter == "divergent__"])
+    
+    # Rhat
+    rhat_vals <- rhat(model)
+    max_rhat <- max(rhat_vals, na.rm = TRUE)
+    
+    # ESS
+    ess_vals <- ess_bulk(model)
+    min_ess <- min(ess_vals, na.rm = TRUE)
+    
+    cat("Divergent transitions:", divergent, "\n")
+    cat("Max Rhat:", round(max_rhat, 3), "\n")
+    cat("Min Bulk ESS:", round(min_ess, 0), "\n")
+    
+    # Visual checks
+    print(plot(model, variable = c("^b_", "^sd_"), regex = TRUE))
+    
+    return(data.frame(
+        model = model_name,
+        divergent = divergent,
+        max_rhat = max_rhat,
+        min_ess = min_ess
+    ))
+}
+
+# Check all models
+wind_diagnostics <- map2_dfr(
+    wind_models_list,
+    names(wind_models_list),
+    check_model_diagnostics
+)
+
+threshold_diagnostics <- map2_dfr(
+    threshold_models_list,
+    names(threshold_models_list),
+    check_model_diagnostics
+)
+
+print(wind_diagnostics)
+print(threshold_diagnostics)
+```
+
+```{r loo-improved}
+# LOO with moment matching for problematic observations
+cat("\n=== MODEL COMPARISON WITH IMPROVED LOO ===\n")
+
+# Function to compute LOO with moment matching
+compute_loo_safe <- function(model, model_name) {
+    cat("Computing LOO for", model_name, "\n")
+    loo_result <- loo(model, moment_match = TRUE, reloo = TRUE)
+    return(loo_result)
+}
+
+# Wind models
+wind_loo <- map2(
+    wind_models_list,
+    names(wind_models_list),
+    compute_loo_safe
+)
+
+# Threshold models  
+threshold_loo <- map2(
+    threshold_models_list,
+    names(threshold_models_list),
+    compute_loo_safe
+)
+
+# Comparisons
+wind_comparison <- loo_compare(wind_loo)
+threshold_comparison <- loo_compare(threshold_loo)
+
+print("=== WIND MODELS ===")
+print(wind_comparison)
+
+print("\n=== THRESHOLD MODELS ===")
+print(threshold_comparison)
+
+# Model weights using loo package function
+wind_weights <- loo_model_weights(wind_loo)
+threshold_weights <- loo_model_weights(threshold_loo)
+
+print("\nWind model weights:")
+print(round(wind_weights, 3))
+
+print("\nThreshold model weights:")
+print(round(threshold_weights, 3))
+```
+
+```{r posterior-predictions}
+# Posterior predictive checks for best models
+best_wind_model <- wind_models_list[[names(wind_comparison[1, ])]]
+best_threshold_model <- threshold_models_list[[names(threshold_comparison[1, ])]]
+
+pp_check(best_wind_model, ndraws = 100) + 
+    ggtitle("Best Wind Model - Posterior Predictive Check")
+
+pp_check(best_threshold_model, ndraws = 100) + 
+    ggtitle("Best Threshold Model - Posterior Predictive Check")
+```
+
+```{r effects-plots-improved}
+# Conditional effects in original units
+# These automatically back-transform centered variables
+plot(conditional_effects(best_wind_model), ask = FALSE)
+plot(conditional_effects(best_threshold_model), ask = FALSE)
+```
+
+```{r save-improved-results}
+save(
+    wind_models_list, threshold_models_list,
+    wind_comparison, threshold_comparison,
+    wind_weights, threshold_weights,
+    wind_diagnostics, threshold_diagnostics,
+    file = "models/bayesian_analysis_improved.RData"
+)
+
+cat("\nAnalysis complete. Results saved to models/bayesian_analysis_improved.RData\n")
+```
