@@ -74,20 +74,20 @@ cat("Time above threshold:", round(mean(df$time_above_threshold, na.rm=TRUE), 2)
 
 ```{r model-priors}
 # IMPROVED priors based on domain knowledge
-# Null model priors
+# Null model priors WITH AR term
 null_priors <- c(
     prior(normal(3, 1), class = Intercept),  # log scale for negbinomial
     prior(exponential(1), class = sd),
-    prior(normal(0, 0.5), class = ar)
+    prior(normal(0.5, 0.3), class = ar, lb = 0, ub = 1)  # AR coefficient bounded [0,1]
 )
 
-# Priors for models with smooth terms
+# Priors for models with smooth terms WITH AR term
 smooth_priors <- c(
     prior(normal(3, 1), class = Intercept),
     prior(normal(0, 0.5), class = b),  # Tighter priors
     prior(exponential(1), class = sd),
     prior(exponential(2), class = sds),  # More flexible for smooths
-    prior(normal(0, 0.5), class = ar)
+    prior(normal(0.5, 0.3), class = ar, lb = 0, ub = 1)  # AR coefficient bounded [0,1]
 )
 
 # Family for count data
@@ -95,33 +95,41 @@ family_spec <- negbinomial()
 ```
 
 ```{r model-formulas}
-# SIMPLIFIED formulas without AR(1) initially (add back if convergence improves)
+# Formulas WITH AR(1) structure - essential for time series
 formulas_wind <- list(
     null = bf(total_butterflies ~ 1 + 
-             (1 | day_id) + (1 | Observer)),
+             (1 | day_id) + (1 | Observer) +
+             ar(time = time_within_day, gr = day_id, p = 1, cov = FALSE)),
     
-    temp = bf(total_butterflies ~ s(temperature_c, k = 8) +  # Reduced k
-             (1 | day_id) + (1 | Observer)),
+    temp = bf(total_butterflies ~ s(temperature_c, k = 8) +  # Reduced k for stability
+             (1 | day_id) + (1 | Observer) +
+             ar(time = time_within_day, gr = day_id, p = 1, cov = FALSE)),
     
     wind = bf(total_butterflies ~ s(wind_mean_c, k = 8) + 
-             (1 | day_id) + (1 | Observer)),
+             (1 | day_id) + (1 | Observer) +
+             ar(time = time_within_day, gr = day_id, p = 1, cov = FALSE)),
     
     sun = bf(total_butterflies ~ s(butterflies_direct_sun_c, k = 8) + 
-            (1 | day_id) + (1 | Observer))
+            (1 | day_id) + (1 | Observer) +
+            ar(time = time_within_day, gr = day_id, p = 1, cov = FALSE))
 )
 
 formulas_threshold <- list(
     null = bf(total_butterflies ~ 1 + 
-             (1 | day_id) + (1 | Observer)),
+             (1 | day_id) + (1 | Observer) +
+             ar(time = time_within_day, gr = day_id, p = 1, cov = FALSE)),
     
     temp = bf(total_butterflies ~ s(temperature_c, k = 8) + 
-             (1 | day_id) + (1 | Observer)),
+             (1 | day_id) + (1 | Observer) +
+             ar(time = time_within_day, gr = day_id, p = 1, cov = FALSE)),
     
     threshold = bf(total_butterflies ~ s(time_above_threshold_c, k = 8) + 
-                  (1 | day_id) + (1 | Observer)),
+                  (1 | day_id) + (1 | Observer) +
+                  ar(time = time_within_day, gr = day_id, p = 1, cov = FALSE)),
     
     sun = bf(total_butterflies ~ s(butterflies_direct_sun_c, k = 8) + 
-            (1 | day_id) + (1 | Observer))
+            (1 | day_id) + (1 | Observer) +
+            ar(time = time_within_day, gr = day_id, p = 1, cov = FALSE))
 )
 ```
 
