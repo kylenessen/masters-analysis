@@ -1,0 +1,222 @@
+---
+title: "Dataset Introduction"
+author: "Kyle Nessen"
+date: "August 18, 2025"
+format: 
+  html:
+    embed-resources: true
+execute:
+  echo: false
+  warning: false
+---
+
+# Purpose
+
+Ahead of our meeting, I wanted to explore the dataset a bit more and have a shared understanding of the data. These are exploratory plots and don't include any analysis. My goal here is to provide more context so we are more informed going into our discussion and deciding which models to build or try. 
+
+## Data
+To begin, here is a glimpse of the dataframe that I have been using for my analysis. I will describe each variable below.
+
+```{r load-data}
+#| output: true
+library(tidyverse)
+library(here)
+# Load the prepared data
+df <- read_csv(here("data", "analysis_dataset_final.csv")) 
+
+df <-df %>% mutate(
+        day_id = as.factor(day_id),
+        Observer = as.factor(Observer),
+        view_id = as.factor(view_id),
+        deployment_id = as.factor(deployment_id)
+        ) %>%
+        group_by(day_id) %>%
+          mutate(
+              time_within_day = row_number(), # For AR(1) structure
+              AR_start = row_number() == 1
+          )
+
+
+# Check data structure
+glimpse(df)
+
+```
+
+## Variable Descriptions
+
+| Variable | Type | Description |
+|----------|------|-------------|
+| `total_butterflies` | numeric | Total count of butterflies observed in each image, which includes butterflies in direct sunlight |
+| `butterflies_direct_sun` | numeric | Number of butterflies that were in direct sunlight in each image |
+| `proportion_butterflies_direct_sun` | numeric | Ratio of butterflies in direct sun to total butterflies |
+| `timestamp` | datetime | Date and time of when each image was taken |
+| `day_id` | factor | Unique identifier for each observation day (sunrise to sunset) by deployment ID (more below) |
+| `time_within_day` | integer | Sequential observation number within each day |
+| `AR_start` | logical | Indicator marking the first observation of each day |
+| `deployment_id` | factor | Unique identifier to name observational periods by specific pairs of cameras and wind meters at particular locations and time periods. Each data download or battery changed ended a deployment and a new one began, even if at the same location and approximate viewing area |
+| `view_id` | factor | Unique identifier for sensor locations and viewing direction. Distinct from `deployment_id` in that a view_id can be reused (e.g., batteries changed and same equipment redeployed to similar view angle, just different time period)  |
+| `Observer` | factor | Person responsible for doing the counts for each image. Observers did not mix within a deployment, but can across view_id. |
+| `temperature` | numeric | Ambient temperature at observation time as recorded by trail camera |
+| `wind_mean` | numeric | Average wind speed during the 30 minute observation period |
+| `wind_max_gust` | numeric | Maximum wind gust recorded during the 30 minute observation period |
+| `wind_sd` | numeric | Standard deviation of wind speed averages sampled every minute |
+| `gust_differential_mean` | numeric | Average difference between gust and mean wind speeds |
+| `cumulative_wind` | numeric | Sum of average wind speed every minute during observation period |
+| `time_above_threshold` | numeric | Duration of minutes where wind speed was above 2 m/s |
+| `image_filename` | character | Original image file identifier. Used as primary key to join data from various sources |
+
+## Correlation Matrix
+
+```{r correlation-matrix}
+#| output: true
+library(corrplot)
+library(knitr)
+library(kableExtra)
+
+# Select only numeric variables explicitly (excluding day_id which is a factor)
+numeric_vars <- df %>% 
+  ungroup() %>%  # Remove grouping first
+  select(total_butterflies, butterflies_direct_sun, proportion_butterflies_direct_sun,
+         temperature, wind_mean, wind_max_gust, wind_sd, 
+         gust_differential_mean, cumulative_wind, time_above_threshold)
+
+# Calculate correlation matrix
+cor_matrix <- cor(numeric_vars, use = "complete.obs")
+
+# Create correlation plot
+corrplot(cor_matrix, 
+         method = "color",
+         type = "upper",
+         order = "hclust",
+         tl.cex = 0.8,
+         tl.col = "black",
+         tl.srt = 45,
+         addCoef.col = "black",
+         number.cex = 0.7)
+
+# Print correlation table
+kable(round(cor_matrix, 3), 
+      caption = "Correlation Matrix for Numeric Variables") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed")) %>%
+  scroll_box(width = "100%", height = "400px")
+```
+
+## Exploratory Data Visualization
+
+### Monarch Count Variables
+
+```{r monarch-counts}
+#| output: true
+#| fig-width: 12
+#| fig-height: 8
+
+# Distribution of monarch counts
+p1 <- ggplot(df, aes(x = total_butterflies)) +
+  geom_histogram(bins = 30, fill = "steelblue", alpha = 0.7) +
+  labs(title = "Distribution of Total Butterfly Counts", x = "Total Butterflies", y = "Frequency")
+
+p2 <- ggplot(df, aes(x = butterflies_direct_sun)) +
+  geom_histogram(bins = 30, fill = "orange", alpha = 0.7) +
+  labs(title = "Distribution of Butterflies in Direct Sun", x = "Butterflies in Direct Sun", y = "Frequency")
+
+p3 <- ggplot(df, aes(x = proportion_butterflies_direct_sun)) +
+  geom_histogram(bins = 30, fill = "green", alpha = 0.7) +
+  labs(title = "Distribution of Proportion in Direct Sun", x = "Proportion in Direct Sun", y = "Frequency")
+
+p4 <- ggplot(df, aes(x = total_butterflies, y = butterflies_direct_sun)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "lm", se = FALSE, color = "red") +
+  labs(title = "Total vs Direct Sun Butterflies", x = "Total Butterflies", y = "Butterflies in Direct Sun")
+
+library(gridExtra)
+grid.arrange(p1, p2, p3, p4, ncol = 2)
+```
+
+### Temperature Patterns
+
+```{r temperature}
+#| output: true
+#| fig-width: 12
+#| fig-height: 6
+
+# Temperature distribution and relationship with butterfly counts
+p1 <- ggplot(df, aes(x = temperature)) +
+  geom_histogram(bins = 30, fill = "red", alpha = 0.7) +
+  labs(title = "Temperature Distribution", x = "Temperature (°C)", y = "Frequency")
+
+p2 <- ggplot(df, aes(x = temperature, y = total_butterflies)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "loess", se = TRUE, color = "red") +
+  labs(title = "Temperature vs Total Butterfly Counts", x = "Temperature (°C)", y = "Total Butterflies")
+
+grid.arrange(p1, p2, ncol = 2)
+```
+
+### Wind Variables
+
+#### Wind Speed Distributions
+
+```{r wind-distributions}
+#| output: true
+#| fig-width: 12
+#| fig-height: 8
+
+# Primary wind variable distributions
+p1 <- ggplot(df, aes(x = wind_mean)) +
+  geom_histogram(bins = 30, fill = "lightblue", alpha = 0.7) +
+  labs(title = "Mean Wind Speed Distribution", x = "Mean Wind Speed (m/s)", y = "Frequency")
+
+p2 <- ggplot(df, aes(x = wind_max_gust)) +
+  geom_histogram(bins = 30, fill = "darkblue", alpha = 0.7) +
+  labs(title = "Max Wind Gust Distribution", x = "Max Wind Gust (m/s)", y = "Frequency")
+
+p3 <- ggplot(df, aes(x = wind_sd)) +
+  geom_histogram(bins = 30, fill = "purple", alpha = 0.7) +
+  labs(title = "Wind Speed Std Dev Distribution", x = "Wind Speed SD (m/s)", y = "Frequency")
+
+p4 <- ggplot(df, aes(x = gust_differential_mean)) +
+  geom_histogram(bins = 30, fill = "pink", alpha = 0.7) +
+  labs(title = "Gust Differential Distribution", x = "Gust Differential (m/s)", y = "Frequency")
+
+grid.arrange(p1, p2, p3, p4, ncol = 2)
+```
+
+#### Additional Wind Metrics
+
+```{r wind-additional}
+#| output: true
+#| fig-width: 12
+#| fig-height: 4
+
+p5 <- ggplot(df, aes(x = cumulative_wind)) +
+  geom_histogram(bins = 30, fill = "cyan", alpha = 0.7) +
+  labs(title = "Cumulative Wind Distribution", x = "Cumulative Wind", y = "Frequency")
+
+p6 <- ggplot(df, aes(x = time_above_threshold)) +
+  geom_histogram(bins = 30, fill = "yellow", alpha = 0.7) +
+  labs(title = "Time Above Threshold Distribution", x = "Time Above Threshold (min)", y = "Frequency")
+
+grid.arrange(p5, p6, ncol = 2)
+```
+
+#### Wind vs Butterfly Relationships
+
+```{r wind-butterfly-relationships}
+#| output: true
+#| fig-width: 12
+#| fig-height: 4
+
+p7 <- ggplot(df, aes(x = wind_mean, y = total_butterflies)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "loess", se = TRUE, color = "blue") +
+  labs(title = "Mean Wind vs Butterfly Counts", x = "Mean Wind Speed (m/s)", y = "Total Butterflies")
+
+p8 <- ggplot(df, aes(x = wind_max_gust, y = total_butterflies)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "loess", se = TRUE, color = "darkblue") +
+  labs(title = "Max Gust vs Butterfly Counts", x = "Max Wind Gust (m/s)", y = "Total Butterflies")
+
+grid.arrange(p7, p8, ncol = 2)
+```
+
+
