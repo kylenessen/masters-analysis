@@ -21,7 +21,7 @@ theme_set(theme_minimal())
 # MCMC settings - reduced for faster debugging
 n_iter <- 3000 
 n_warmup <- 1500 
-n_chains <- 4
+n_chains <- 8
 adapt_delta <- 0.99 
 max_treedepth <- 15 
 ```
@@ -139,7 +139,7 @@ fit_single_model <- function(formula, prior, model_name = "model", force_refit =
                 chains = n_chains,
                 iter = n_iter,
                 warmup = n_warmup,
-                cores = 4,
+                cores = 23,
                 control = list(
                     adapt_delta = adapt_delta,
                     max_treedepth = max_treedepth
@@ -148,7 +148,7 @@ fit_single_model <- function(formula, prior, model_name = "model", force_refit =
                 save_pars = save_pars(all = TRUE), # For LOO
                 backend = "cmdstanr",
                 silent = 0,
-                refresh = 500
+                refresh = 25
             )
 
             # Save the fitted model
