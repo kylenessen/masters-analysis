@@ -186,6 +186,31 @@ calculate_wind_features <- function(df, wind_data) {
 # Apply wind feature calculation
 analysis_df <- calculate_wind_features(analysis_df, wind_data)
 
+## Add Proportion of Butterflies in Direct Sunlight
+
+```{r sunlight-proportion}
+# Calculate proportion of butterflies in direct sunlight
+analysis_df <- analysis_df %>%
+  mutate(
+    proportion_butterflies_direct_sun = case_when(
+      is.na(total_butterflies) | is.na(butterflies_direct_sun) ~ NA_real_,
+      total_butterflies == 0 ~ 0,
+      TRUE ~ butterflies_direct_sun / total_butterflies
+    )
+  )
+
+# Check the new feature
+cat("Proportion of butterflies in direct sunlight summary:\n")
+summary(analysis_df$proportion_butterflies_direct_sun)
+
+# Check for any proportions > 1 (shouldn't happen)
+invalid_proportions <- analysis_df %>%
+  filter(proportion_butterflies_direct_sun > 1, !is.na(proportion_butterflies_direct_sun)) %>%
+  nrow()
+
+cat("Invalid proportions (> 1):", invalid_proportions, "\n")
+```
+
 # Check wind data coverage
 wind_coverage <- analysis_df %>%
   summarize(
@@ -229,7 +254,7 @@ glimpse(analysis_df_final)
 
 ```{r sanity-check-plots, fig.height=8, fig.width=12}
 # Define features to plot
-features_to_plot <- c("total_butterflies", "butterflies_direct_sun", 
+features_to_plot <- c("total_butterflies", "butterflies_direct_sun", "proportion_butterflies_direct_sun",
                       "temperature", "wind_mean", "wind_sd", "wind_max_gust", 
                       "gust_differential_mean", "cumulative_wind", "time_above_threshold")
 
