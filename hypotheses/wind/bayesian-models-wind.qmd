@@ -1,0 +1,228 @@
+---
+title: "Butterfly Abundance - Bayesian Analysis"
+format: pdf
+---
+
+```{r setup}
+library(tidyverse)
+library(brms)
+library(posterior)
+library(bayesplot)
+library(ggeffects)
+library(here)
+library(future)
+library(furrr)
+library(loo)
+
+# Check for OpenCL support (GPU acceleration)
+opencl_available <- tryCatch(
+    {
+        # Test if OpenCL is available
+        test <- opencl_ids()
+        cat("OpenCL devices found:\n")
+        print(test)
+        TRUE
+    },
+    error = function(e) {
+        cat("OpenCL not available:", e$message, "\n")
+        cat("Models will run on CPU only\n")
+        FALSE
+    }
+)
+
+# Set up parallel processing
+plan(multisession, workers = 4) # 4 parallel R sessions
+options(mc.cores = parallel::detectCores()) # Use all available cores
+
+theme_set(theme_minimal())
+
+# FASTER MCMC settings - reduce for speed, increase if convergence issues
+n_iter <- 2000 # Reduced for speed (was 4000)
+n_warmup <- 1000 # Reduced for speed (was 2000)
+n_chains <- 4
+adapt_delta <- 0.95 # Reduced for speed (was 0.99)
+max_treedepth <- 12 # Reduced for speed (was 15)
+```
+
+```{r load-data}
+# Load the prepared data
+df <- read_csv(here("data", "analysis_dataset_final.csv"))
+
+# Check data structure
+glimpse(df)
+```
+
+```{r prepare-data}
+# Prepare data for Bayesian modeling
+df_model <- df %>%
+    select(
+        total_butterflies, temperature, wind_mean, butterflies_direct_sun,
+        day_id, Observer, time_above_threshold
+    ) %>%
+    mutate(
+        day_id = as.factor(day_id),
+        Observer = as.factor(Observer)
+    ) %>%
+    group_by(day_id) %>%
+    mutate(
+        time_within_day = row_number(), # For AR(1) structure
+        AR_start = row_number() == 1
+    ) %>%
+    ungroup() %>%
+    na.omit()
+
+# IMPROVED: Use centering instead of full scaling for better interpretability
+df_model <- df_model %>%
+    mutate(
+        # Center predictors (subtract mean) but keep original scale
+        temperature_c = temperature - mean(temperature),
+        wind_mean_c = wind_mean - mean(wind_mean),
+        butterflies_direct_sun_c = butterflies_direct_sun - mean(butterflies_direct_sun),
+        time_above_threshold_c = time_above_threshold - mean(time_above_threshold)
+    )
+
+cat("Dataset dimensions:", nrow(df_model), "×", ncol(df_model), "\n")
+cat("Number of days:", length(unique(df_model$day_id)), "\n")
+cat("Number of observers:", length(unique(df_model$Observer)), "\n")
+cat("\nPredictor means (for interpretation):\n")
+cat("Temperature:", round(mean(df$temperature, na.rm = TRUE), 2), "°C\n")
+cat("Wind speed:", round(mean(df$wind_mean, na.rm = TRUE), 2), "m/s\n")
+cat("Time above threshold:", round(mean(df$time_above_threshold, na.rm = TRUE), 2), "min\n")
+```
+
+```{r model-priors}
+# IMPROVED priors based on domain knowledge
+# Null model priors WITH AR term
+null_priors <- c(
+    prior(normal(3, 1), class = Intercept), # log scale for negbinomial
+    prior(exponential(1), class = sd),
+    prior(normal(0.5, 0.3), class = ar, lb = 0, ub = 1) # AR coefficient bounded [0,1]
+)
+
+# Priors for models with smooth terms WITH AR term
+smooth_priors <- c(
+    prior(normal(3, 1), class = Intercept),
+    prior(normal(0, 0.5), class = b), # Tighter priors
+    prior(exponential(1), class = sd),
+    prior(exponential(2), class = sds), # More flexible for smooths
+    prior(normal(0.5, 0.3), class = ar, lb = 0, ub = 1) # AR coefficient bounded [0,1]
+)
+
+# Family for count data
+family_spec <- negbinomial()
+```
+
+```{r fit-function}
+# Improved fitting function with GPU support
+fit_single_model <- function(spec, model_name = "model") {
+    cat("\nStarting:", model_name)
+    if (opencl_available) cat(" (with GPU acceleration)")
+    cat("\n")
+
+    tryCatch(
+        {
+            # Base arguments
+            brm_args <- list(
+                formula = spec$formula,
+                data = df_model,
+                family = family_spec,
+                prior = spec$prior,
+                chains = n_chains,
+                iter = n_iter,
+                warmup = n_warmup,
+                cores = 4,
+                control = list(
+                    adapt_delta = adapt_delta,
+                    max_treedepth = max_treedepth
+                ),
+                save_pars = save_pars(all = TRUE), # For LOO moment matching
+                file = spec$file,
+                silent = 0,
+                refresh = 500 # Show progress every 500 iterations
+            )
+
+            # Add OpenCL if available
+            if (opencl_available) {
+                brm_args$opencl <- opencl(ids = c(0, 0)) # Use first platform, first device
+                brm_args$threads <- threading(threads = 2) # Within-chain parallelization
+            }
+
+            # Fit the model
+            model <- do.call(brm, brm_args)
+
+            # Quick diagnostic check
+            rhat_max <- max(rhat(model), na.rm = TRUE)
+            cat("Completed:", model_name, "| Max Rhat:", round(rhat_max, 3), "\n")
+
+            return(model)
+        },
+        error = function(e) {
+            cat("ERROR in", model_name, ":", e$message, "\n")
+            return(NULL)
+        }
+    )
+}
+```
+
+```{r model-formulas}
+# Formulas WITH AR(1) structure - essential for time series
+formulas_wind <- list(
+    null = bf(total_butterflies ~ 1 +
+        (1 | day_id) + (1 | Observer) +
+        ar(time = time_within_day, gr = day_id, p = 1, cov = FALSE)),
+    temp = bf(total_butterflies ~ s(temperature_c, k = 8) + # Reduced k for stability
+        (1 | day_id) + (1 | Observer) +
+        ar(time = time_within_day, gr = day_id, p = 1, cov = FALSE)),
+    wind = bf(total_butterflies ~ s(wind_mean_c, k = 8) +
+        (1 | day_id) + (1 | Observer) +
+        ar(time = time_within_day, gr = day_id, p = 1, cov = FALSE)),
+    sun = bf(total_butterflies ~ s(butterflies_direct_sun_c, k = 8) +
+        (1 | day_id) + (1 | Observer) +
+        ar(time = time_within_day, gr = day_id, p = 1, cov = FALSE))
+)
+
+
+```
+
+```{r fit-wind-models-improved}
+# Only proceed if test model converges well
+cat("\n=== FITTING WIND HYPOTHESIS MODELS ===\n")
+
+wind_model_specs <- list(
+    null = list(
+        formula = formulas_wind$null,
+        prior = null_priors,
+        file = "models/m_null_wind_v2"
+    ),
+    temp = list(
+        formula = formulas_wind$temp,
+        prior = smooth_priors,
+        file = "models/m_temp_wind_v2"
+    ),
+    wind = list(
+        formula = formulas_wind$wind,
+        prior = smooth_priors,
+        file = "models/m_wind_v2"
+    ),
+    sun = list(
+        formula = formulas_wind$sun,
+        prior = smooth_priors,
+        file = "models/m_sun_wind_v2"
+    )
+)
+
+# Fit models with names for better tracking
+wind_models_list <- future_map2(
+    wind_model_specs,
+    names(wind_model_specs),
+    fit_single_model,
+    .options = furrr_options(seed = 123)
+)
+
+# Extract models
+m_null_wind <- wind_models_list$null
+m_temp_wind <- wind_models_list$temp
+m_wind <- wind_models_list$wind
+m_sun_wind <- wind_models_list$sun
+```
+
