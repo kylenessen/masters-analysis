@@ -104,7 +104,7 @@ cat("Proportion butterflies in sun:", round(mean(df$proportion_butterflies_direc
 # Null model priors WITH AR term
 null_priors <- c(
     prior(normal(0, 5), class = Intercept), # Very wide, allows large range
-    prior(inv_gamma(2, 1), class = shape), # Prevents zero, weakly informative
+    prior(lognormal(0, 1), class = shape), # Naturally positive, weakly informative
     prior(exponential(0.1), class = sd), # Weakly informative, allows large variance
     prior(beta(2, 2), class = ar, lb = 0, ub = 1) # Weakly informative for AR, bounds required
 )
@@ -113,7 +113,7 @@ null_priors <- c(
 smooth_priors <- c(
     prior(normal(0, 5), class = Intercept), # Very wide
     prior(normal(0, 2), class = b), # Weakly informative for coefficients
-    prior(inv_gamma(2, 1), class = shape), # Prevents zero issue
+    prior(lognormal(0, 1), class = shape), # Naturally positive, weakly informative
     prior(exponential(0.1), class = sd), # Allows large random effects
     prior(exponential(0.5), class = sds), # Moderately flexible for smooths
     prior(beta(2, 2), class = ar, lb = 0, ub = 1) # Symmetric around 0.5, bounds required
