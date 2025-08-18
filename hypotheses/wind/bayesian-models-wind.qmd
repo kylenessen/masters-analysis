@@ -99,9 +99,34 @@ family_spec <- negbinomial()
 ```
 
 ```{r fit-function}
-# Sequential model fitting function (CPU only)
-fit_single_model <- function(formula, prior, model_name = "model") {
-    cat("\nStarting:", model_name, "(CPU only)\n")
+# Create models directory for caching
+dir.create(here("hypotheses", "wind", "models"), showWarnings = FALSE, recursive = TRUE)
+
+# Sequential model fitting function with caching (CPU only)
+fit_single_model <- function(formula, prior, model_name = "model", force_refit = FALSE) {
+    # Create model file path
+    model_file <- here("hypotheses", "wind", "models", paste0(model_name, ".rds"))
+    
+    # Check if model already exists and we're not forcing a refit
+    if (file.exists(model_file) && !force_refit) {
+        cat("\nLoading cached model:", model_name, "\n")
+        model <- readRDS(model_file)
+        
+        # Still run diagnostics on loaded model
+        rhat_max <- max(rhat(model), na.rm = TRUE)
+        n_eff_min <- min(neff_ratio(model), na.rm = TRUE)
+        n_divergent <- sum(subset(nuts_params(model), Parameter == "divergent__")$Value)
+        
+        cat("Loaded:", model_name, 
+            "| Max Rhat:", round(rhat_max, 3),
+            "| Min ESS ratio:", round(n_eff_min, 3),
+            "| Divergent transitions:", n_divergent, "\n")
+            
+        return(model)
+    }
+    
+    # If we reach here, we need to fit a new model
+    cat("\nFitting new model:", model_name, "(CPU only)\n")
 
     tryCatch(
         {
@@ -125,6 +150,10 @@ fit_single_model <- function(formula, prior, model_name = "model") {
                 silent = 0,
                 refresh = 500
             )
+
+            # Save the fitted model
+            saveRDS(model, model_file)
+            cat("Model saved to:", model_file, "\n")
 
             # Diagnostic checks
             rhat_max <- max(rhat(model), na.rm = TRUE)
