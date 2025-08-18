@@ -13,39 +13,14 @@ library(here)
 library(cmdstanr)
 library(loo)
 
-# Check for OpenCL support (GPU acceleration)
-opencl_available <- tryCatch(
-    {
-        # Test if OpenCL is available
-        library(rstan)
-        test <- opencl_ids()
-        cat("OpenCL devices found:\n")
-        print(test)
-        
-        # Also check cmdstanr OpenCL support
-        if (require(cmdstanr, quietly = TRUE)) {
-            cat("\nChecking cmdstanr installation...\n")
-            if (cmdstanr::cmdstan_version() >= "2.26.0") {
-                cat("CmdStan version is compatible with OpenCL\n")
-            }
-        }
-        TRUE
-    },
-    error = function(e) {
-        cat("OpenCL not available:", e$message, "\n")
-        cat("Models will run on CPU only\n")
-        FALSE
-    }
-)
-
-# Set up for sequential execution with GPU acceleration
+# Set up for CPU-only execution
 options(mc.cores = parallel::detectCores()) # Use all available cores for brms
 
 theme_set(theme_minimal())
 
-# MCMC settings 
-n_iter <- 5000 
-n_warmup <- 2000 
+# MCMC settings - reduced for faster debugging
+n_iter <- 3000 
+n_warmup <- 1500 
 n_chains <- 4
 adapt_delta <- 0.99 
 max_treedepth <- 15 
@@ -104,7 +79,7 @@ cat("Proportion butterflies in sun:", round(mean(df$proportion_butterflies_direc
 # Null model priors WITH AR term
 null_priors <- c(
     prior(normal(0, 5), class = Intercept), # Very wide, allows large range
-    prior(lognormal(0, 1), class = shape), # Naturally positive, weakly informative
+    prior(gamma(2, 0.1), class = shape), # More constrained, prevents zero values
     prior(exponential(0.1), class = sd), # Weakly informative, allows large variance
     prior(beta(2, 2), class = ar, lb = 0, ub = 1) # Weakly informative for AR, bounds required
 )
@@ -113,7 +88,7 @@ null_priors <- c(
 smooth_priors <- c(
     prior(normal(0, 5), class = Intercept), # Very wide
     prior(normal(0, 2), class = b), # Weakly informative for coefficients
-    prior(lognormal(0, 1), class = shape), # Naturally positive, weakly informative
+    prior(gamma(2, 0.1), class = shape), # More constrained, prevents zero values
     prior(exponential(0.1), class = sd), # Allows large random effects
     prior(exponential(0.5), class = sds), # Moderately flexible for smooths
     prior(beta(2, 2), class = ar, lb = 0, ub = 1) # Symmetric around 0.5, bounds required
@@ -124,16 +99,14 @@ family_spec <- negbinomial()
 ```
 
 ```{r fit-function}
-# Sequential model fitting function with GPU support
+# Sequential model fitting function (CPU only)
 fit_single_model <- function(formula, prior, model_name = "model") {
-    cat("\nStarting:", model_name)
-    if (opencl_available) cat(" (with GPU acceleration)")
-    cat("\n")
+    cat("\nStarting:", model_name, "(CPU only)\n")
 
     tryCatch(
         {
-            # Base arguments for brm
-            brm_args <- list(
+            # Fit the model
+            model <- brm(
                 formula = formula,
                 data = df_model,
                 family = family_spec,
@@ -146,27 +119,22 @@ fit_single_model <- function(formula, prior, model_name = "model") {
                     adapt_delta = adapt_delta,
                     max_treedepth = max_treedepth
                 ),
+                init = 0.1, # Helps with initialization issues
                 save_pars = save_pars(all = TRUE), # For LOO
                 backend = "cmdstanr",
                 silent = 0,
                 refresh = 500
             )
-            
-            # Add OpenCL GPU acceleration if available
-            if (opencl_available) {
-                brm_args$opencl <- brms::opencl(ids = c(0L, 0L))
-                brm_args$threads <- brms::threading(threads = 2)
-                cat("Using GPU acceleration\n")
-            } else {
-                cat("Using CPU only\n")
-            }
-            
-            # Fit the model
-            model <- do.call(brm, brm_args)
 
-            # Quick diagnostic check
+            # Diagnostic checks
             rhat_max <- max(rhat(model), na.rm = TRUE)
-            cat("Completed:", model_name, "| Max Rhat:", round(rhat_max, 3), "\n")
+            n_eff_min <- min(neff_ratio(model), na.rm = TRUE)
+            n_divergent <- sum(subset(nuts_params(model), Parameter == "divergent__")$Value)
+            
+            cat("Completed:", model_name, 
+                "| Max Rhat:", round(rhat_max, 3),
+                "| Min ESS ratio:", round(n_eff_min, 3),
+                "| Divergent transitions:", n_divergent, "\n")
 
             return(model)
         },
