@@ -17,9 +17,18 @@ library(loo)
 opencl_available <- tryCatch(
     {
         # Test if OpenCL is available
+        library(rstan)
         test <- opencl_ids()
         cat("OpenCL devices found:\n")
         print(test)
+        
+        # Also check cmdstanr OpenCL support
+        if (require(cmdstanr, quietly = TRUE)) {
+            cat("\nChecking cmdstanr installation...\n")
+            if (cmdstanr::cmdstan_version() >= "2.26.0") {
+                cat("CmdStan version is compatible with OpenCL\n")
+            }
+        }
         TRUE
     },
     error = function(e) {
@@ -91,10 +100,11 @@ cat("Proportion butterflies in sun:", round(mean(df$proportion_butterflies_direc
 ```
 
 ```{r model-priors}
-# IMPROVED priors based on domain knowledge
+# Improved priors based on domain knowledge
 # Null model priors WITH AR term
 null_priors <- c(
     prior(normal(3, 1), class = Intercept), # log scale for negbinomial
+    prior(gamma(2, 0.1), class = shape), # Strong prior for negbinomial precision parameter
     prior(exponential(1), class = sd),
     prior(normal(0.5, 0.3), class = ar, lb = 0, ub = 1) # AR coefficient bounded [0,1]
 )
@@ -103,6 +113,7 @@ null_priors <- c(
 smooth_priors <- c(
     prior(normal(3, 1), class = Intercept),
     prior(normal(0, 0.5), class = b), # Tighter priors
+    prior(gamma(2, 0.1), class = shape), # Strong prior for negbinomial precision parameter
     prior(exponential(1), class = sd),
     prior(exponential(2), class = sds), # More flexible for smooths
     prior(normal(0.5, 0.3), class = ar, lb = 0, ub = 1) # AR coefficient bounded [0,1]
@@ -121,8 +132,8 @@ fit_single_model <- function(formula, prior, model_name = "model") {
 
     tryCatch(
         {
-            # Fit the model with GPU acceleration
-            model <- brm(
+            # Base arguments for brm
+            brm_args <- list(
                 formula = formula,
                 data = df_model,
                 family = family_spec,
@@ -137,10 +148,21 @@ fit_single_model <- function(formula, prior, model_name = "model") {
                 ),
                 save_pars = save_pars(all = TRUE), # For LOO
                 backend = "cmdstanr",
-                opencl = brms::opencl(ids = c(0L, 0L)),
                 silent = 0,
                 refresh = 500
             )
+            
+            # Add OpenCL GPU acceleration if available
+            if (opencl_available) {
+                brm_args$opencl <- brms::opencl(ids = c(0L, 0L))
+                brm_args$threads <- brms::threading(threads = 2)
+                cat("Using GPU acceleration\n")
+            } else {
+                cat("Using CPU only\n")
+            }
+            
+            # Fit the model
+            model <- do.call(brm, brm_args)
 
             # Quick diagnostic check
             rhat_max <- max(rhat(model), na.rm = TRUE)
