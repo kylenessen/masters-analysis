@@ -14,18 +14,31 @@ library(future)
 library(furrr)
 library(loo)
 
+# Check for OpenCL support (GPU acceleration)
+opencl_available <- tryCatch({
+    # Test if OpenCL is available
+    test <- opencl_ids()
+    cat("OpenCL devices found:\n")
+    print(test)
+    TRUE
+}, error = function(e) {
+    cat("OpenCL not available:", e$message, "\n")
+    cat("Models will run on CPU only\n")
+    FALSE
+})
+
 # Set up parallel processing
 plan(multisession, workers = 4)  # 4 parallel R sessions
-options(mc.cores = 4)  # Each brm model uses 4 cores for chains
+options(mc.cores = parallel::detectCores())  # Use all available cores
 
 theme_set(theme_minimal())
 
-# IMPROVED MCMC settings for better convergence
-n_iter <- 4000  # Increased from 2000
-n_warmup <- 2000  # Increased from 1000
+# FASTER MCMC settings - reduce for speed, increase if convergence issues
+n_iter <- 2000  # Reduced for speed (was 4000)
+n_warmup <- 1000  # Reduced for speed (was 2000) 
 n_chains <- 4
-adapt_delta <- 0.99  # Increased from 0.95 to reduce divergences
-max_treedepth <- 15  # Increased from 12
+adapt_delta <- 0.95  # Reduced for speed (was 0.99)
+max_treedepth <- 12  # Reduced for speed (was 15)
 ```
 
 ```{r load-data}
@@ -134,12 +147,15 @@ formulas_threshold <- list(
 ```
 
 ```{r fit-function}
-# Improved fitting function with better error handling
+# Improved fitting function with GPU support
 fit_single_model <- function(spec, model_name = "model") {
-    cat("\nStarting:", model_name, "\n")
+    cat("\nStarting:", model_name)
+    if (opencl_available) cat(" (with GPU acceleration)")
+    cat("\n")
     
     tryCatch({
-        model <- brm(
+        # Base arguments
+        brm_args <- list(
             formula = spec$formula,
             data = df_model,
             family = family_spec,
@@ -152,10 +168,20 @@ fit_single_model <- function(spec, model_name = "model") {
                 adapt_delta = adapt_delta, 
                 max_treedepth = max_treedepth
             ),
+            save_pars = save_pars(all = TRUE),  # For LOO moment matching
             file = spec$file,
             silent = 0,
             refresh = 500  # Show progress every 500 iterations
         )
+        
+        # Add OpenCL if available
+        if (opencl_available) {
+            brm_args$opencl <- opencl(ids = c(0, 0))  # Use first platform, first device
+            brm_args$threads <- threading(threads = 2)  # Within-chain parallelization
+        }
+        
+        # Fit the model
+        model <- do.call(brm, brm_args)
         
         # Quick diagnostic check
         rhat_max <- max(rhat(model), na.rm = TRUE)
@@ -173,9 +199,9 @@ fit_single_model <- function(spec, model_name = "model") {
 # Start with simpler models first to test convergence
 cat("=== FITTING SIMPLE TEST MODELS ===\n")
 
-# Test with just null models first
-test_null_wind <- brm(
-    formulas_wind$null,
+# Build test model arguments
+test_args <- list(
+    formula = formulas_wind$null,
     data = df_model,
     family = family_spec,
     prior = null_priors,
@@ -184,8 +210,20 @@ test_null_wind <- brm(
     warmup = 1000,
     cores = 2,
     control = list(adapt_delta = 0.99, max_treedepth = 15),
+    save_pars = save_pars(all = TRUE),
     file = "models/test_null_wind"
 )
+
+# Add OpenCL if available
+if (opencl_available) {
+    test_args$opencl <- opencl(ids = c(0, 0))
+    cat("Testing with GPU acceleration...\n")
+} else {
+    cat("Testing with CPU only...\n")
+}
+
+# Test with just null models first
+test_null_wind <- do.call(brm, test_args)
 
 # Check diagnostics
 summary(test_null_wind)
@@ -324,13 +362,30 @@ print(threshold_diagnostics)
 ```
 
 ```{r loo-improved}
-# LOO with moment matching for problematic observations
-cat("\n=== MODEL COMPARISON WITH IMPROVED LOO ===\n")
+# LOO with fallback options for existing models
+cat("\n=== MODEL COMPARISON WITH LOO ===\n")
 
-# Function to compute LOO with moment matching
+# Function to compute LOO with fallback to standard if moment matching fails
 compute_loo_safe <- function(model, model_name) {
-    cat("Computing LOO for", model_name, "\n")
-    loo_result <- loo(model, moment_match = TRUE, reloo = TRUE)
+    cat("Computing LOO for", model_name, "...")
+    
+    loo_result <- tryCatch({
+        # Try with moment matching first (requires save_pars)
+        loo(model, moment_match = TRUE)
+    }, error = function(e) {
+        cat(" moment matching failed, using standard LOO...")
+        # Fallback to standard LOO
+        tryCatch({
+            loo(model)
+        }, error = function(e2) {
+            cat(" ERROR:", e2$message, "\n")
+            return(NULL)
+        })
+    })
+    
+    if (!is.null(loo_result)) {
+        cat(" done!\n")
+    }
     return(loo_result)
 }
 
@@ -348,25 +403,46 @@ threshold_loo <- map2(
     compute_loo_safe
 )
 
-# Comparisons
-wind_comparison <- loo_compare(wind_loo)
-threshold_comparison <- loo_compare(threshold_loo)
+# Filter out NULL results before comparison
+wind_loo_valid <- wind_loo[!sapply(wind_loo, is.null)]
+threshold_loo_valid <- threshold_loo[!sapply(threshold_loo, is.null)]
 
-print("=== WIND MODELS ===")
-print(wind_comparison)
+# Comparisons only if we have at least 2 valid models
+if (length(wind_loo_valid) >= 2) {
+    wind_comparison <- loo_compare(wind_loo_valid)
+    print("=== WIND MODELS ===")
+    print(wind_comparison)
+    
+    # Model weights
+    wind_weights <- loo_model_weights(wind_loo_valid)
+} else {
+    cat("Not enough valid LOO results for wind model comparison\n")
+    wind_comparison <- NULL
+    wind_weights <- NULL
+}
 
-print("\n=== THRESHOLD MODELS ===")
-print(threshold_comparison)
+if (length(threshold_loo_valid) >= 2) {
+    threshold_comparison <- loo_compare(threshold_loo_valid)
+    print("\n=== THRESHOLD MODELS ===")
+    print(threshold_comparison)
+    
+    # Model weights  
+    threshold_weights <- loo_model_weights(threshold_loo_valid)
+} else {
+    cat("Not enough valid LOO results for threshold model comparison\n")
+    threshold_comparison <- NULL
+    threshold_weights <- NULL
+}
 
-# Model weights using loo package function
-wind_weights <- loo_model_weights(wind_loo)
-threshold_weights <- loo_model_weights(threshold_loo)
+if (!is.null(wind_weights)) {
+    print("\nWind model weights:")
+    print(round(wind_weights, 3))
+}
 
-print("\nWind model weights:")
-print(round(wind_weights, 3))
-
-print("\nThreshold model weights:")
-print(round(threshold_weights, 3))
+if (!is.null(threshold_weights)) {
+    print("\nThreshold model weights:")
+    print(round(threshold_weights, 3))
+}
 ```
 
 ```{r posterior-predictions}
