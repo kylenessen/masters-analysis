@@ -100,23 +100,23 @@ cat("Proportion butterflies in sun:", round(mean(df$proportion_butterflies_direc
 ```
 
 ```{r model-priors}
-# Improved priors based on domain knowledge
+# Weakly informative priors for naive analysis
 # Null model priors WITH AR term
 null_priors <- c(
-    prior(normal(3, 1), class = Intercept), # log scale for negbinomial
-    prior(gamma(2, 0.1), class = shape), # Strong prior for negbinomial precision parameter
-    prior(exponential(1), class = sd),
-    prior(normal(0.5, 0.3), class = ar, lb = 0, ub = 1) # AR coefficient bounded [0,1]
+    prior(normal(0, 5), class = Intercept), # Very wide, allows large range
+    prior(inv_gamma(2, 1), class = shape), # Prevents zero, weakly informative
+    prior(exponential(0.1), class = sd), # Weakly informative, allows large variance
+    prior(beta(2, 2), class = ar) # Weakly informative for AR, slight preference for 0.5
 )
 
 # Priors for models with smooth terms WITH AR term
 smooth_priors <- c(
-    prior(normal(3, 1), class = Intercept),
-    prior(normal(0, 0.5), class = b), # Tighter priors
-    prior(gamma(2, 0.1), class = shape), # Strong prior for negbinomial precision parameter
-    prior(exponential(1), class = sd),
-    prior(exponential(2), class = sds), # More flexible for smooths
-    prior(normal(0.5, 0.3), class = ar, lb = 0, ub = 1) # AR coefficient bounded [0,1]
+    prior(normal(0, 5), class = Intercept), # Very wide
+    prior(normal(0, 2), class = b), # Weakly informative for coefficients
+    prior(inv_gamma(2, 1), class = shape), # Prevents zero issue
+    prior(exponential(0.1), class = sd), # Allows large random effects
+    prior(exponential(0.5), class = sds), # Moderately flexible for smooths
+    prior(beta(2, 2), class = ar) # Symmetric around 0.5
 )
 
 # Family for count data
