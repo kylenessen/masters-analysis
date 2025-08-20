@@ -41,6 +41,7 @@ class ButterflyCountProcessor:
     DOWNSAMPLE_RULES = {
         'SC1': {'original_interval': 5, 'target_interval': 30},
         'SC2': {'original_interval': 5, 'target_interval': 30},
+        'SC7': {'original_interval': 10, 'target_interval': 30},
         'SC12': {'original_interval': 10, 'target_interval': 30},
         'SC9': {'original_interval': 10, 'target_interval': 30}, 
         'SLC6_2': {'original_interval': 10, 'target_interval': 30}
@@ -208,6 +209,70 @@ class ButterflyCountProcessor:
         
         print(f"Processed {len(df)} butterfly observations from {len(json_files)} deployments")
         return df
+    
+    def validate_intervals(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Validate time intervals between consecutive photos within each deployment-day"""
+        if df.empty:
+            print("No data to validate")
+            return pd.DataFrame()
+        
+        results = []
+        
+        # Group by deployment and date 
+        df_sorted = df.sort_values(['deployment_id', 'timestamp'])
+        df_sorted['date'] = df_sorted['timestamp'].dt.date
+        
+        for (deployment_id, date), group in df_sorted.groupby(['deployment_id', 'date']):
+            if len(group) < 2:
+                continue  # Need at least 2 photos to calculate intervals
+                
+            group_sorted = group.sort_values('timestamp')
+            intervals_minutes = group_sorted['timestamp'].diff().dt.total_seconds() / 60
+            intervals_minutes = intervals_minutes.dropna()  # Remove first NaN
+            
+            if len(intervals_minutes) > 0:
+                results.append({
+                    'deployment_id': deployment_id,
+                    'date': date,
+                    'n_intervals': len(intervals_minutes),
+                    'min_interval': intervals_minutes.min(),
+                    'max_interval': intervals_minutes.max(), 
+                    'mean_interval': intervals_minutes.mean(),
+                    'std_interval': intervals_minutes.std()
+                })
+        
+        if not results:
+            print("No valid intervals found")
+            return pd.DataFrame()
+            
+        interval_df = pd.DataFrame(results)
+        
+        # Overall summary
+        all_intervals = []
+        for (deployment_id, date), group in df_sorted.groupby(['deployment_id', 'date']):
+            if len(group) >= 2:
+                group_sorted = group.sort_values('timestamp') 
+                intervals = group_sorted['timestamp'].diff().dt.total_seconds() / 60
+                all_intervals.extend(intervals.dropna().tolist())
+        
+        print(f"\n=== INTERVAL VALIDATION SUMMARY ===")
+        print(f"Total deployment-days analyzed: {len(interval_df)}")
+        print(f"Total intervals measured: {sum(interval_df['n_intervals'])}")
+        print(f"Overall min interval: {min(all_intervals):.1f} minutes")
+        print(f"Overall max interval: {max(all_intervals):.1f} minutes") 
+        print(f"Overall mean interval: {sum(all_intervals)/len(all_intervals):.1f} minutes")
+        
+        # Flag problematic deployment-days (outside 27-33 minute range)
+        problematic = interval_df[(interval_df['mean_interval'] > 33) | (interval_df['mean_interval'] < 27)]
+        if not problematic.empty:
+            print(f"\n⚠️ PROBLEMATIC INTERVALS (outside 27-33 min range):")
+            print(f"Found {len(problematic)} deployment-days with concerning intervals:")
+            for _, row in problematic.iterrows():
+                print(f"  {row['deployment_id']} {row['date']}: mean={row['mean_interval']:.1f}min, range={row['min_interval']:.1f}-{row['max_interval']:.1f}min, n={row['n_intervals']}")
+        else:
+            print(f"\n✅ All deployment-days have intervals within 27-33 minute range")
+        
+        return interval_df
 
 
 def load_deployments():
@@ -239,6 +304,15 @@ def main():
         print(f"Date range: {butterfly_counts['timestamp'].min()} to {butterfly_counts['timestamp'].max()}")
         print(f"\nFirst 10 rows:")
         print(butterfly_counts.head(10))
+        
+        # Validate timestamp intervals
+        print(f"\n" + "="*50)
+        print("Validating timestamp intervals...")
+        interval_validation = processor.validate_intervals(butterfly_counts)
+        
+        if not interval_validation.empty:
+            print(f"\nDetailed breakdown by deployment-day:")
+            print(interval_validation.round(1))
     else:
         print("No butterfly count data processed.")
 
