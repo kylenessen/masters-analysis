@@ -321,6 +321,101 @@ def add_temperature_data(butterfly_df: pd.DataFrame, temp_file: str = 'data/temp
     return merged_df
 
 
+def create_lag_analysis(df: pd.DataFrame, 
+                       lag_minutes: int = 30,
+                       remove_zero_pairs: bool = True,
+                       tolerance_minutes: int = 5) -> pd.DataFrame:
+    """Create lag analysis comparing observations at time t with t-lag"""
+    if df.empty:
+        raise ValueError("Cannot create lag analysis from empty DataFrame")
+    
+    # Create deployment_day column for grouping and random effects
+    df_with_day = df.copy()
+    df_with_day['deployment_day'] = (
+        df_with_day['deployment_id'] + '_' + 
+        df_with_day['timestamp'].dt.strftime('%Y%m%d')
+    )
+    
+    results = []
+    lag_delta = pd.Timedelta(minutes=lag_minutes)
+    tolerance_delta = pd.Timedelta(minutes=tolerance_minutes)
+    
+    # Process each deployment-day independently
+    for deployment_day, group in df_with_day.groupby('deployment_day'):
+        group_sorted = group.sort_values('timestamp').reset_index(drop=True)
+        
+        for _, current_obs in group_sorted.iterrows():
+            current_time = current_obs['timestamp']
+            target_lag_time = current_time - lag_delta
+            
+            # Find observation within tolerance window
+            time_diffs = (group_sorted['timestamp'] - target_lag_time).abs()
+            within_tolerance = time_diffs <= tolerance_delta
+            
+            if not within_tolerance.any():
+                continue  # Skip if no lagged observation found
+            
+            # Get closest observation within tolerance
+            closest_idx = time_diffs[within_tolerance].idxmin()
+            lag_obs = group_sorted.loc[closest_idx]
+            
+            # Apply zero-pair filter if requested
+            if remove_zero_pairs:
+                if (current_obs['total_butterflies'] == 0 and 
+                    lag_obs['total_butterflies'] == 0):
+                    continue
+            
+            # Create lag analysis record
+            lag_record = {
+                'deployment_day': deployment_day,
+                'deployment_id': current_obs['deployment_id'],
+                
+                # Current time (t) data
+                'timestamp_t': current_obs['timestamp'],
+                'image_filename_t': current_obs['image_filename'],
+                'total_butterflies_t': current_obs['total_butterflies'],
+                'butterflies_direct_sun_t': current_obs['butterflies_direct_sun'],
+                'temperature_t': current_obs['temperature'],
+                
+                # Lagged time (t-lag) data  
+                'timestamp_t_lag': lag_obs['timestamp'],
+                'image_filename_t_lag': lag_obs['image_filename'],
+                'total_butterflies_t_lag': lag_obs['total_butterflies'],
+                'butterflies_direct_sun_t_lag': lag_obs['butterflies_direct_sun'],
+                'temperature_t_lag': lag_obs['temperature'],
+                
+                # Derived metrics
+                'actual_lag_minutes': (current_time - lag_obs['timestamp']).total_seconds() / 60,
+                'temperature_avg': (current_obs['temperature'] + lag_obs['temperature']) / 2,
+            }
+            
+            results.append(lag_record)
+    
+    if not results:
+        print("No valid lag pairs found")
+        return pd.DataFrame()
+    
+    lag_df = pd.DataFrame(results)
+    
+    # Summary statistics
+    print(f"\n=== LAG ANALYSIS SUMMARY ===")
+    print(f"Original observations: {len(df)}")
+    print(f"Valid lag pairs created: {len(lag_df)}")
+    print(f"Lag period: {lag_minutes} ± {tolerance_minutes} minutes")
+    print(f"Actual lag range: {lag_df['actual_lag_minutes'].min():.1f} to {lag_df['actual_lag_minutes'].max():.1f} minutes")
+    print(f"Mean actual lag: {lag_df['actual_lag_minutes'].mean():.1f} minutes")
+    
+    if remove_zero_pairs:
+        total_possible_pairs = sum(len(group) - 1 for _, group in df_with_day.groupby('deployment_day') if len(group) > 1)
+        zero_pairs_filtered = total_possible_pairs - len(lag_df)
+        print(f"Zero-pairs filtered out: ~{zero_pairs_filtered}")
+    
+    unique_deployment_days = lag_df['deployment_day'].nunique()
+    print(f"Deployment-days with lag pairs: {unique_deployment_days}")
+    
+    return lag_df
+
+
 def load_deployments():
     """Load deployment data"""
     deployments = pd.read_csv('data/deployments.csv')
@@ -380,6 +475,24 @@ def main():
         except Exception as e:
             print(f"❌ Failed to add temperature data: {e}")
             final_data = butterfly_counts
+        
+        # Create lag analysis
+        print(f"\n" + "="*50)
+        print("Creating lag analysis...")
+        try:
+            lag_data = create_lag_analysis(final_data, lag_minutes=30, remove_zero_pairs=True)
+            
+            if not lag_data.empty:
+                print(f"\nLag analysis overview:")
+                print(f"Shape: {lag_data.shape}")
+                print(f"Columns: {list(lag_data.columns)}")
+                
+                print(f"\nFirst 3 lag pairs:")
+                display_cols = ['deployment_day', 'timestamp_t', 'total_butterflies_t', 'total_butterflies_t_lag', 'actual_lag_minutes', 'temperature_avg']
+                print(lag_data[display_cols].head(3))
+                
+        except Exception as e:
+            print(f"❌ Failed to create lag analysis: {e}")
     else:
         print("No butterfly count data processed.")
 
