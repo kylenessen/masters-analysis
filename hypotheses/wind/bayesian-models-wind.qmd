@@ -1,0 +1,340 @@
+---
+title: "Butterfly Abundance - Bayesian Analysis"
+format: pdf
+---
+
+```{r setup}
+library(tidyverse)
+library(brms)
+library(posterior)
+library(bayesplot)
+library(ggeffects)
+library(here)
+library(cmdstanr)
+library(loo)
+
+# Set up for CPU-only execution
+options(mc.cores = parallel::detectCores()) # Use all available cores for brms
+
+theme_set(theme_minimal())
+
+# MCMC settings - reduced for faster debugging
+n_iter <- 3000 
+n_warmup <- 1500 
+n_chains <- 8
+adapt_delta <- 0.99 
+max_treedepth <- 15 
+```
+
+```{r load-data}
+# Load the prepared data
+df <- read_csv(here("data", "analysis_dataset_final.csv"))
+
+# Check data structure
+glimpse(df)
+```
+
+```{r prepare-data}
+# Prepare data for Bayesian modeling
+df_model <- df %>%
+    select(
+        total_butterflies, temperature, wind_mean, wind_sd, wind_max_gust,
+        proportion_butterflies_direct_sun, day_id, Observer
+    ) %>%
+    mutate(
+        day_id = as.factor(day_id),
+        Observer = as.factor(Observer)
+    ) %>%
+    group_by(day_id) %>%
+    mutate(
+        time_within_day = row_number(), # For AR(1) structure
+        AR_start = row_number() == 1
+    ) %>%
+    ungroup() %>%
+    na.omit()
+
+# Center predictors (subtract mean) but keep original scale for better interpretability
+df_model <- df_model %>%
+    mutate(
+        temperature_c = temperature - mean(temperature),
+        wind_mean_c = wind_mean - mean(wind_mean),
+        wind_sd_c = wind_sd - mean(wind_sd),
+        wind_max_gust_c = wind_max_gust - mean(wind_max_gust),
+        proportion_sun_c = proportion_butterflies_direct_sun - mean(proportion_butterflies_direct_sun)
+    )
+
+cat("Dataset dimensions:", nrow(df_model), "×", ncol(df_model), "\n")
+cat("Number of days:", length(unique(df_model$day_id)), "\n")
+cat("Number of observers:", length(unique(df_model$Observer)), "\n")
+cat("\nPredictor means (for interpretation):\n")
+cat("Temperature:", round(mean(df$temperature, na.rm = TRUE), 2), "°C\n")
+cat("Wind mean:", round(mean(df$wind_mean, na.rm = TRUE), 2), "m/s\n")
+cat("Wind SD:", round(mean(df$wind_sd, na.rm = TRUE), 2), "m/s\n")
+cat("Wind max gust:", round(mean(df$wind_max_gust, na.rm = TRUE), 2), "m/s\n")
+cat("Proportion butterflies in sun:", round(mean(df$proportion_butterflies_direct_sun, na.rm = TRUE), 3), "\n")
+```
+
+```{r model-priors}
+# Weakly informative priors for naive analysis
+# Null model priors WITH AR term
+null_priors <- c(
+    prior(normal(0, 5), class = Intercept), # Very wide, allows large range
+    prior(gamma(2, 0.1), class = shape), # More constrained, prevents zero values
+    prior(exponential(0.1), class = sd), # Weakly informative, allows large variance
+    prior(beta(2, 2), class = ar, lb = 0, ub = 1) # Weakly informative for AR, bounds required
+)
+
+# Priors for models with smooth terms WITH AR term
+smooth_priors <- c(
+    prior(normal(0, 5), class = Intercept), # Very wide
+    prior(normal(0, 2), class = b), # Weakly informative for coefficients
+    prior(gamma(2, 0.1), class = shape), # More constrained, prevents zero values
+    prior(exponential(0.1), class = sd), # Allows large random effects
+    prior(exponential(0.5), class = sds), # Moderately flexible for smooths
+    prior(beta(2, 2), class = ar, lb = 0, ub = 1) # Symmetric around 0.5, bounds required
+)
+
+# Family for count data
+family_spec <- negbinomial()
+```
+
+```{r fit-function}
+# Create models directory for caching
+dir.create(here("hypotheses", "wind", "models"), showWarnings = FALSE, recursive = TRUE)
+
+# Sequential model fitting function with caching (CPU only)
+fit_single_model <- function(formula, prior, model_name = "model", force_refit = FALSE) {
+    # Create model file path
+    model_file <- here("hypotheses", "wind", "models", paste0(model_name, ".rds"))
+    
+    # Check if model already exists and we're not forcing a refit
+    if (file.exists(model_file) && !force_refit) {
+        cat("\nLoading cached model:", model_name, "\n")
+        model <- readRDS(model_file)
+        
+        # Still run diagnostics on loaded model
+        rhat_max <- max(rhat(model), na.rm = TRUE)
+        n_eff_min <- min(neff_ratio(model), na.rm = TRUE)
+        n_divergent <- sum(subset(nuts_params(model), Parameter == "divergent__")$Value)
+        
+        cat("Loaded:", model_name, 
+            "| Max Rhat:", round(rhat_max, 3),
+            "| Min ESS ratio:", round(n_eff_min, 3),
+            "| Divergent transitions:", n_divergent, "\n")
+            
+        return(model)
+    }
+    
+    # If we reach here, we need to fit a new model
+    cat("\nFitting new model:", model_name, "(CPU only)\n")
+
+    tryCatch(
+        {
+            # Fit the model
+            model <- brm(
+                formula = formula,
+                data = df_model,
+                family = family_spec,
+                prior = prior,
+                chains = n_chains,
+                iter = n_iter,
+                warmup = n_warmup,
+                cores = 23,
+                control = list(
+                    adapt_delta = adapt_delta,
+                    max_treedepth = max_treedepth
+                ),
+                init = 0.1, # Helps with initialization issues
+                save_pars = save_pars(all = TRUE), # For LOO
+                backend = "cmdstanr",
+                silent = 0,
+                refresh = 25
+            )
+
+            # Save the fitted model
+            saveRDS(model, model_file)
+            cat("Model saved to:", model_file, "\n")
+
+            # Diagnostic checks
+            rhat_max <- max(rhat(model), na.rm = TRUE)
+            n_eff_min <- min(neff_ratio(model), na.rm = TRUE)
+            n_divergent <- sum(subset(nuts_params(model), Parameter == "divergent__")$Value)
+            
+            cat("Completed:", model_name, 
+                "| Max Rhat:", round(rhat_max, 3),
+                "| Min ESS ratio:", round(n_eff_min, 3),
+                "| Divergent transitions:", n_divergent, "\n")
+
+            return(model)
+        },
+        error = function(e) {
+            cat("ERROR in", model_name, ":", e$message, "\n")
+            return(NULL)
+        }
+    )
+}
+```
+
+```{r model-formulas}
+# Model formulas WITH AR(1) structure - essential for time series
+# Base structure for all models
+base_formula <- " + (1 | day_id) + (1 | Observer) + ar(time = time_within_day, gr = day_id, p = 1, cov = FALSE)"
+
+# BASELINE MODELS (shared across all wind metric sets)
+baseline_formulas <- list(
+    null = bf(paste0("total_butterflies ~ 1", base_formula)),
+    temp = bf(paste0("total_butterflies ~ s(temperature_c, k = 8)", base_formula)),
+    sun = bf(paste0("total_butterflies ~ s(proportion_sun_c, k = 8)", base_formula)),
+    temp_sun = bf(paste0("total_butterflies ~ s(temperature_c, k = 8) + s(proportion_sun_c, k = 8)", base_formula))
+)
+
+# WIND MEAN MODEL SET
+wind_mean_formulas <- list(
+    wind_only = bf(paste0("total_butterflies ~ s(wind_mean_c, k = 8)", base_formula)),
+    wind_temp = bf(paste0("total_butterflies ~ s(wind_mean_c, k = 8) + s(temperature_c, k = 8)", base_formula)),
+    wind_sun = bf(paste0("total_butterflies ~ s(wind_mean_c, k = 8) + s(proportion_sun_c, k = 8)", base_formula)),
+    wind_temp_sun = bf(paste0("total_butterflies ~ s(wind_mean_c, k = 8) + s(temperature_c, k = 8) + s(proportion_sun_c, k = 8)", base_formula)),
+    wind_temp_int = bf(paste0("total_butterflies ~ s(wind_mean_c, k = 8) + s(temperature_c, k = 8) + s(wind_mean_c, temperature_c, k = 16)", base_formula)),
+    wind_sun_int = bf(paste0("total_butterflies ~ s(wind_mean_c, k = 8) + s(proportion_sun_c, k = 8) + s(wind_mean_c, proportion_sun_c, k = 16)", base_formula)),
+    wind_temp_sun_add = bf(paste0("total_butterflies ~ s(wind_mean_c, k = 8) + s(temperature_c, k = 8) + s(proportion_sun_c, k = 8) + s(wind_mean_c, temperature_c, k = 16)", base_formula)),
+    wind_temp_sun_full = bf(paste0("total_butterflies ~ s(wind_mean_c, k = 8) + s(temperature_c, k = 8) + s(proportion_sun_c, k = 8) + s(wind_mean_c, temperature_c, k = 16) + s(wind_mean_c, proportion_sun_c, k = 16)", base_formula))
+)
+
+# WIND SD MODEL SET
+wind_sd_formulas <- list(
+    wind_only = bf(paste0("total_butterflies ~ s(wind_sd_c, k = 8)", base_formula)),
+    wind_temp = bf(paste0("total_butterflies ~ s(wind_sd_c, k = 8) + s(temperature_c, k = 8)", base_formula)),
+    wind_sun = bf(paste0("total_butterflies ~ s(wind_sd_c, k = 8) + s(proportion_sun_c, k = 8)", base_formula)),
+    wind_temp_sun = bf(paste0("total_butterflies ~ s(wind_sd_c, k = 8) + s(temperature_c, k = 8) + s(proportion_sun_c, k = 8)", base_formula)),
+    wind_temp_int = bf(paste0("total_butterflies ~ s(wind_sd_c, k = 8) + s(temperature_c, k = 8) + s(wind_sd_c, temperature_c, k = 16)", base_formula)),
+    wind_sun_int = bf(paste0("total_butterflies ~ s(wind_sd_c, k = 8) + s(proportion_sun_c, k = 8) + s(wind_sd_c, proportion_sun_c, k = 16)", base_formula)),
+    wind_temp_sun_add = bf(paste0("total_butterflies ~ s(wind_sd_c, k = 8) + s(temperature_c, k = 8) + s(proportion_sun_c, k = 8) + s(wind_sd_c, temperature_c, k = 16)", base_formula)),
+    wind_temp_sun_full = bf(paste0("total_butterflies ~ s(wind_sd_c, k = 8) + s(temperature_c, k = 8) + s(proportion_sun_c, k = 8) + s(wind_sd_c, temperature_c, k = 16) + s(wind_sd_c, proportion_sun_c, k = 16)", base_formula))
+)
+
+# WIND MAX GUST MODEL SET
+wind_gust_formulas <- list(
+    wind_only = bf(paste0("total_butterflies ~ s(wind_max_gust_c, k = 8)", base_formula)),
+    wind_temp = bf(paste0("total_butterflies ~ s(wind_max_gust_c, k = 8) + s(temperature_c, k = 8)", base_formula)),
+    wind_sun = bf(paste0("total_butterflies ~ s(wind_max_gust_c, k = 8) + s(proportion_sun_c, k = 8)", base_formula)),
+    wind_temp_sun = bf(paste0("total_butterflies ~ s(wind_max_gust_c, k = 8) + s(temperature_c, k = 8) + s(proportion_sun_c, k = 8)", base_formula)),
+    wind_temp_int = bf(paste0("total_butterflies ~ s(wind_max_gust_c, k = 8) + s(temperature_c, k = 8) + s(wind_max_gust_c, temperature_c, k = 16)", base_formula)),
+    wind_sun_int = bf(paste0("total_butterflies ~ s(wind_max_gust_c, k = 8) + s(proportion_sun_c, k = 8) + s(wind_max_gust_c, proportion_sun_c, k = 16)", base_formula)),
+    wind_temp_sun_add = bf(paste0("total_butterflies ~ s(wind_max_gust_c, k = 8) + s(temperature_c, k = 8) + s(proportion_sun_c, k = 8) + s(wind_max_gust_c, temperature_c, k = 16)", base_formula)),
+    wind_temp_sun_full = bf(paste0("total_butterflies ~ s(wind_max_gust_c, k = 8) + s(temperature_c, k = 8) + s(proportion_sun_c, k = 8) + s(wind_max_gust_c, temperature_c, k = 16) + s(wind_max_gust_c, proportion_sun_c, k = 16)", base_formula))
+)
+```
+
+```{r fit-baseline-models}
+cat("\n=== FITTING BASELINE MODELS ===\n")
+
+# Fit baseline models sequentially
+m_null <- fit_single_model(baseline_formulas$null, null_priors, "null")
+m_temp <- fit_single_model(baseline_formulas$temp, smooth_priors, "temperature_only")
+m_sun <- fit_single_model(baseline_formulas$sun, smooth_priors, "sun_only")
+m_temp_sun <- fit_single_model(baseline_formulas$temp_sun, smooth_priors, "temperature_plus_sun")
+```
+
+```{r fit-wind-mean-models}
+cat("\n=== FITTING WIND MEAN MODEL SET ===\n")
+
+# Fit wind mean models sequentially
+m_windmean_only <- fit_single_model(wind_mean_formulas$wind_only, smooth_priors, "wind_mean_only")
+m_windmean_temp <- fit_single_model(wind_mean_formulas$wind_temp, smooth_priors, "wind_mean_plus_temp")
+m_windmean_sun <- fit_single_model(wind_mean_formulas$wind_sun, smooth_priors, "wind_mean_plus_sun")
+m_windmean_temp_sun <- fit_single_model(wind_mean_formulas$wind_temp_sun, smooth_priors, "wind_mean_plus_temp_plus_sun")
+m_windmean_temp_int <- fit_single_model(wind_mean_formulas$wind_temp_int, smooth_priors, "wind_mean_x_temp")
+m_windmean_sun_int <- fit_single_model(wind_mean_formulas$wind_sun_int, smooth_priors, "wind_mean_x_sun")
+m_windmean_temp_sun_add <- fit_single_model(wind_mean_formulas$wind_temp_sun_add, smooth_priors, "wind_mean_plus_temp_x_wind")
+m_windmean_full <- fit_single_model(wind_mean_formulas$wind_temp_sun_full, smooth_priors, "wind_mean_full_interactions")
+```
+
+```{r fit-wind-sd-models}
+cat("\n=== FITTING WIND SD MODEL SET ===\n")
+
+# Fit wind SD models sequentially
+m_windsd_only <- fit_single_model(wind_sd_formulas$wind_only, smooth_priors, "wind_sd_only")
+m_windsd_temp <- fit_single_model(wind_sd_formulas$wind_temp, smooth_priors, "wind_sd_plus_temp")
+m_windsd_sun <- fit_single_model(wind_sd_formulas$wind_sun, smooth_priors, "wind_sd_plus_sun")
+m_windsd_temp_sun <- fit_single_model(wind_sd_formulas$wind_temp_sun, smooth_priors, "wind_sd_plus_temp_plus_sun")
+m_windsd_temp_int <- fit_single_model(wind_sd_formulas$wind_temp_int, smooth_priors, "wind_sd_x_temp")
+m_windsd_sun_int <- fit_single_model(wind_sd_formulas$wind_sun_int, smooth_priors, "wind_sd_x_sun")
+m_windsd_temp_sun_add <- fit_single_model(wind_sd_formulas$wind_temp_sun_add, smooth_priors, "wind_sd_plus_temp_x_wind")
+m_windsd_full <- fit_single_model(wind_sd_formulas$wind_temp_sun_full, smooth_priors, "wind_sd_full_interactions")
+```
+
+```{r fit-wind-gust-models}
+cat("\n=== FITTING WIND MAX GUST MODEL SET ===\n")
+
+# Fit wind max gust models sequentially
+m_windgust_only <- fit_single_model(wind_gust_formulas$wind_only, smooth_priors, "wind_gust_only")
+m_windgust_temp <- fit_single_model(wind_gust_formulas$wind_temp, smooth_priors, "wind_gust_plus_temp")
+m_windgust_sun <- fit_single_model(wind_gust_formulas$wind_sun, smooth_priors, "wind_gust_plus_sun")
+m_windgust_temp_sun <- fit_single_model(wind_gust_formulas$wind_temp_sun, smooth_priors, "wind_gust_plus_temp_plus_sun")
+m_windgust_temp_int <- fit_single_model(wind_gust_formulas$wind_temp_int, smooth_priors, "wind_gust_x_temp")
+m_windgust_sun_int <- fit_single_model(wind_gust_formulas$wind_sun_int, smooth_priors, "wind_gust_x_sun")
+m_windgust_temp_sun_add <- fit_single_model(wind_gust_formulas$wind_temp_sun_add, smooth_priors, "wind_gust_plus_temp_x_wind")
+m_windgust_full <- fit_single_model(wind_gust_formulas$wind_temp_sun_full, smooth_priors, "wind_gust_full_interactions")
+```
+
+```{r model-comparison}
+cat("\n=== MODEL COMPARISON USING LOO ===\n")
+
+# Calculate LOO for all models
+cat("Calculating LOO for baseline models...\n")
+loo_null <- loo(m_null)
+loo_temp <- loo(m_temp)
+loo_sun <- loo(m_sun)
+loo_temp_sun <- loo(m_temp_sun)
+
+cat("Calculating LOO for wind mean models...\n")
+loo_windmean_only <- loo(m_windmean_only)
+loo_windmean_temp <- loo(m_windmean_temp)
+loo_windmean_sun <- loo(m_windmean_sun)
+loo_windmean_temp_sun <- loo(m_windmean_temp_sun)
+loo_windmean_temp_int <- loo(m_windmean_temp_int)
+loo_windmean_sun_int <- loo(m_windmean_sun_int)
+loo_windmean_temp_sun_add <- loo(m_windmean_temp_sun_add)
+loo_windmean_full <- loo(m_windmean_full)
+
+cat("Calculating LOO for wind SD models...\n")
+loo_windsd_only <- loo(m_windsd_only)
+loo_windsd_temp <- loo(m_windsd_temp)
+loo_windsd_sun <- loo(m_windsd_sun)
+loo_windsd_temp_sun <- loo(m_windsd_temp_sun)
+loo_windsd_temp_int <- loo(m_windsd_temp_int)
+loo_windsd_sun_int <- loo(m_windsd_sun_int)
+loo_windsd_temp_sun_add <- loo(m_windsd_temp_sun_add)
+loo_windsd_full <- loo(m_windsd_full)
+
+cat("Calculating LOO for wind max gust models...\n")
+loo_windgust_only <- loo(m_windgust_only)
+loo_windgust_temp <- loo(m_windgust_temp)
+loo_windgust_sun <- loo(m_windgust_sun)
+loo_windgust_temp_sun <- loo(m_windgust_temp_sun)
+loo_windgust_temp_int <- loo(m_windgust_temp_int)
+loo_windgust_sun_int <- loo(m_windgust_sun_int)
+loo_windgust_temp_sun_add <- loo(m_windgust_temp_sun_add)
+loo_windgust_full <- loo(m_windgust_full)
+
+# Compare models within each set
+cat("\n=== WIND MEAN MODEL COMPARISON ===\n")
+loo_compare(loo_null, loo_temp, loo_sun, loo_temp_sun,
+           loo_windmean_only, loo_windmean_temp, loo_windmean_sun, loo_windmean_temp_sun,
+           loo_windmean_temp_int, loo_windmean_sun_int, loo_windmean_temp_sun_add, loo_windmean_full)
+
+cat("\n=== WIND SD MODEL COMPARISON ===\n")
+loo_compare(loo_null, loo_temp, loo_sun, loo_temp_sun,
+           loo_windsd_only, loo_windsd_temp, loo_windsd_sun, loo_windsd_temp_sun,
+           loo_windsd_temp_int, loo_windsd_sun_int, loo_windsd_temp_sun_add, loo_windsd_full)
+
+cat("\n=== WIND MAX GUST MODEL COMPARISON ===\n")
+loo_compare(loo_null, loo_temp, loo_sun, loo_temp_sun,
+           loo_windgust_only, loo_windgust_temp, loo_windgust_sun, loo_windgust_temp_sun,
+           loo_windgust_temp_int, loo_windgust_sun_int, loo_windgust_temp_sun_add, loo_windgust_full)
+
+# Create summary table
+cat("\n=== SUMMARY: BEST MODELS FROM EACH WIND METRIC ===\n")
+cat("Use this to identify which wind metric provides the best explanatory power\n")
+```
+
