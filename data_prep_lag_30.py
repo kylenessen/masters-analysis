@@ -275,6 +275,52 @@ class ButterflyCountProcessor:
         return interval_df
 
 
+def add_temperature_data(butterfly_df: pd.DataFrame, temp_file: str = 'data/temperature_data_2023.csv') -> pd.DataFrame:
+    """Add temperature data to butterfly observations by joining on image filename"""
+    if butterfly_df.empty:
+        raise ValueError("Cannot add temperature data to empty butterfly DataFrame")
+    
+    try:
+        # Load only needed columns to save memory
+        temp_df = pd.read_csv(temp_file, usecols=['filename', 'temperature'])
+        print(f"Loaded {len(temp_df)} temperature records")
+    except FileNotFoundError:
+        raise FileNotFoundError(f"Temperature file not found: {temp_file}")
+    except Exception as e:
+        raise RuntimeError(f"Failed to load temperature data: {e}")
+    
+    # Check for duplicates in temperature data
+    duplicates = temp_df['filename'].duplicated().sum()
+    if duplicates > 0:
+        raise ValueError(f"Found {duplicates} duplicate filenames in temperature data - this will cause join issues")
+    
+    # Perform left join on filename
+    original_count = len(butterfly_df)
+    merged_df = butterfly_df.merge(
+        temp_df, 
+        left_on='image_filename', 
+        right_on='filename', 
+        how='left'
+    ).drop('filename', axis=1)  # Remove redundant filename column
+    
+    # Validation checks
+    if len(merged_df) != original_count:
+        raise RuntimeError(f"Join changed row count: {original_count} → {len(merged_df)}. This indicates duplicate temperature records.")
+    
+    missing_temp = merged_df['temperature'].isna().sum()
+    if missing_temp > 0:
+        print(f"⚠️ Warning: {missing_temp} butterfly observations missing temperature data ({missing_temp/len(merged_df)*100:.1f}%)")
+        
+        # Show some examples of missing temperature data
+        missing_examples = merged_df[merged_df['temperature'].isna()]['image_filename'].head(5).tolist()
+        print(f"   Examples of missing files: {missing_examples}")
+    
+    successful_joins = len(merged_df) - missing_temp
+    print(f"✅ Successfully joined temperature for {successful_joins}/{len(merged_df)} observations")
+    
+    return merged_df
+
+
 def load_deployments():
     """Load deployment data"""
     deployments = pd.read_csv('data/deployments.csv')
@@ -313,6 +359,27 @@ def main():
         if not interval_validation.empty:
             print(f"\nDetailed breakdown by deployment-day:")
             print(interval_validation.round(1))
+        
+        # Add temperature data
+        print(f"\n" + "="*50)
+        print("Adding temperature data...")
+        try:
+            final_data = add_temperature_data(butterfly_counts)
+            print(f"\nFinal dataset overview:")
+            print(f"Shape: {final_data.shape}")
+            print(f"Columns: {list(final_data.columns)}")
+            print(f"\nTemperature stats:")
+            temp_stats = final_data['temperature'].describe()
+            print(f"  Count: {temp_stats['count']:.0f}")
+            print(f"  Mean: {temp_stats['mean']:.1f}°C")
+            print(f"  Range: {temp_stats['min']:.1f}°C to {temp_stats['max']:.1f}°C")
+            
+            print(f"\nFirst 5 rows with temperature:")
+            print(final_data[['deployment_id', 'image_filename', 'timestamp', 'total_butterflies', 'temperature']].head())
+            
+        except Exception as e:
+            print(f"❌ Failed to add temperature data: {e}")
+            final_data = butterfly_counts
     else:
         print("No butterfly count data processed.")
 
