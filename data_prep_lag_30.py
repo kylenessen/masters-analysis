@@ -594,6 +594,85 @@ def _query_wind_metrics(db_path: Path, start_time: datetime, end_time: datetime)
         raise RuntimeError(f"Failed to query wind data from {db_path}: {e}")
 
 
+def export_final_dataset(df: pd.DataFrame, output_path: str = 'data/monarch_lag_analysis_final.csv') -> str:
+    """Export final research dataset to CSV"""
+    if df.empty:
+        raise ValueError("Cannot export empty dataset")
+    
+    # Create output directory if it doesn't exist
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    # Export to CSV
+    df.to_csv(output_path, index=False)
+    
+    print(f"\n=== DATASET EXPORT SUMMARY ===")
+    print(f"✅ Exported {len(df)} observations to: {output_path}")
+    print(f"📊 Dataset shape: {df.shape}")
+    print(f"📁 File size: {output_path.stat().st_size / 1024:.1f} KB")
+    
+    # Show column summary
+    print(f"\n📋 FINAL DATASET COLUMNS ({len(df.columns)}):")
+    for i, col in enumerate(df.columns, 1):
+        print(f"  {i:2d}. {col}")
+    
+    # Data completeness check
+    missing_data = df.isnull().sum()
+    if missing_data.any():
+        print(f"\n⚠️ Missing data summary:")
+        for col, count in missing_data[missing_data > 0].items():
+            pct = count / len(df) * 100
+            print(f"  {col}: {count} missing ({pct:.1f}%)")
+    else:
+        print(f"\n✅ Complete dataset - no missing values!")
+    
+    return str(output_path)
+
+
+def add_deployment_metadata(df: pd.DataFrame, deployments_df: pd.DataFrame) -> pd.DataFrame:
+    """Add deployment metadata fields for analysis"""
+    if df.empty:
+        raise ValueError("Cannot add metadata to empty DataFrame")
+    
+    # Select the metadata columns we want
+    metadata_cols = ['deployment_id', 'Observer', 'horizontal_dist_to_cluster_m', 'grove', 'view_id']
+    
+    # Check that all required columns exist
+    missing_cols = [col for col in metadata_cols if col not in deployments_df.columns]
+    if missing_cols:
+        raise ValueError(f"Missing columns in deployments data: {missing_cols}")
+    
+    deployment_metadata = deployments_df[metadata_cols].copy()
+    
+    # Join metadata to the main dataset
+    original_count = len(df)
+    merged_df = df.merge(
+        deployment_metadata,
+        on='deployment_id',
+        how='left'
+    )
+    
+    # Validation
+    if len(merged_df) != original_count:
+        raise RuntimeError(f"Metadata join changed row count: {original_count} → {len(merged_df)}")
+    
+    # Check for missing metadata
+    metadata_check_cols = ['Observer', 'horizontal_dist_to_cluster_m', 'grove', 'view_id']
+    missing_metadata = merged_df[metadata_check_cols].isnull().sum()
+    
+    if missing_metadata.any():
+        print(f"⚠️ Missing deployment metadata:")
+        for col, count in missing_metadata[missing_metadata > 0].items():
+            pct = count / len(merged_df) * 100
+            print(f"  {col}: {count} missing ({pct:.1f}%)")
+    else:
+        print(f"✅ All deployment metadata successfully joined")
+    
+    print(f"📋 Added deployment metadata: Observer, horizontal_dist_to_cluster_m, grove, view_id")
+    
+    return merged_df
+
+
 def load_deployments():
     """Load deployment data"""
     deployments = pd.read_csv('data/deployments.csv')
@@ -693,6 +772,34 @@ def main():
                 sample_cols = ['deployment_day', 'total_butterflies_t', 'total_butterflies_t_lag', 
                              'temperature_avg', 'avg_sustained', 'max_gust', 'wind_obs_count']
                 print(final_data_with_wind[sample_cols].head(3))
+                
+                # Add deployment metadata
+                print(f"\n" + "="*50)
+                print("Adding deployment metadata...")
+                try:
+                    final_dataset = add_deployment_metadata(final_data_with_wind, deployments)
+                    
+                    print(f"\nFinal dataset with metadata:")
+                    print(f"Shape: {final_dataset.shape}")
+                    
+                    # Show metadata preview
+                    metadata_cols = ['deployment_id', 'Observer', 'horizontal_dist_to_cluster_m', 'grove', 'view_id']
+                    print(f"\nMetadata preview:")
+                    print(final_dataset[metadata_cols].head(3))
+                    
+                except Exception as e:
+                    print(f"❌ Failed to add deployment metadata: {e}")
+                    final_dataset = final_data_with_wind
+                
+                # Export final dataset
+                print(f"\n" + "="*50)
+                print("Exporting final research dataset...")
+                try:
+                    export_path = export_final_dataset(final_dataset)
+                    print(f"\n🎉 Data preprocessing pipeline completed successfully!")
+                    print(f"📊 Final research dataset ready at: {export_path}")
+                except Exception as e:
+                    print(f"❌ Failed to export dataset: {e}")
                 
         except Exception as e:
             print(f"❌ Failed to add wind data: {e}")
