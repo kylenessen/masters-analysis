@@ -6,6 +6,8 @@ Data preprocessing script with 30-min lag analysis
 import pandas as pd
 import json
 import re
+import sqlite3
+import numpy as np
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional
@@ -416,6 +418,182 @@ def create_lag_analysis(df: pd.DataFrame,
     return lag_df
 
 
+def add_wind_data(lag_df: pd.DataFrame, 
+                 deployments_df: pd.DataFrame,
+                 wind_db_dir: str = 'data/wind') -> pd.DataFrame:
+    """Add wind metrics to lag analysis data by querying SQLite databases"""
+    if lag_df.empty:
+        raise ValueError("Cannot add wind data to empty lag DataFrame")
+    
+    # Create mapping from deployment_id to wind_meter_name
+    wind_meter_map = deployments_df.set_index('deployment_id')['wind_meter_name'].to_dict()
+    
+    wind_db_path = Path(wind_db_dir)
+    if not wind_db_path.exists():
+        raise FileNotFoundError(f"Wind database directory not found: {wind_db_dir}")
+    
+    # Get available wind database files
+    db_files = {
+        db_path.stem: db_path 
+        for db_path in wind_db_path.glob('*.s3db')
+    }
+    
+    print(f"Found {len(db_files)} wind databases: {list(db_files.keys())}")
+    
+    results = []
+    diagnostic_issues = []
+    
+    for _, row in lag_df.iterrows():
+        deployment_id = row['deployment_id']
+        
+        # Get wind meter name for this deployment
+        wind_meter_name = wind_meter_map.get(deployment_id)
+        if not wind_meter_name:
+            raise ValueError(f"No wind meter found for deployment {deployment_id}")
+        
+        # Find corresponding database
+        db_path = db_files.get(wind_meter_name)
+        if not db_path:
+            print(f"⚠️ Warning: No wind database found for {wind_meter_name} (deployment {deployment_id})")
+            # Add row with NaN wind values
+            wind_metrics = {
+                'avg_sustained': np.nan,
+                'max_gust': np.nan, 
+                'mode_gust': np.nan,
+                'gust_sd': np.nan,
+                'wind_obs_count': 0
+            }
+        else:
+            # Query wind data for the lag period
+            wind_metrics = _query_wind_metrics(
+                db_path, 
+                row['timestamp_t_lag'], 
+                row['timestamp_t']
+            )
+            
+            # Check for diagnostic issues
+            obs_count = wind_metrics['wind_obs_count']
+            if obs_count < 25 or obs_count > 35:
+                diagnostic_issues.append({
+                    'deployment_day': row['deployment_day'],
+                    'timestamp_t': row['timestamp_t'],
+                    'wind_meter': wind_meter_name,
+                    'obs_count': obs_count,
+                    'expected_range': '25-35'
+                })
+        
+        # Combine original row with wind metrics
+        result_row = row.to_dict()
+        result_row.update(wind_metrics)
+        results.append(result_row)
+    
+    # Create final DataFrame
+    wind_df = pd.DataFrame(results)
+    
+    # Print diagnostics
+    print(f"\n=== WIND DATA INTEGRATION SUMMARY ===")
+    print(f"Lag pairs processed: {len(wind_df)}")
+    missing_wind = wind_df['wind_obs_count'].eq(0).sum()
+    if missing_wind > 0:
+        print(f"⚠️ Pairs with missing wind data: {missing_wind}")
+    
+    valid_wind = len(wind_df) - missing_wind
+    print(f"✅ Pairs with wind data: {valid_wind}")
+    
+    if valid_wind > 0:
+        obs_stats = wind_df[wind_df['wind_obs_count'] > 0]['wind_obs_count']
+        print(f"Wind observations per lag period: {obs_stats.min():.0f}-{obs_stats.max():.0f} (mean: {obs_stats.mean():.1f})")
+    
+    # Report and filter out diagnostic issues
+    if diagnostic_issues:
+        print(f"\n⚠️ FILTERING OUT {len(diagnostic_issues)} pairs with unusual wind observation counts:")
+        # Show first 10 examples
+        for issue in diagnostic_issues[:10]:
+            print(f"  {issue['deployment_day']} at {issue['timestamp_t']}: {issue['obs_count']} obs (expected: {issue['expected_range']})")
+        if len(diagnostic_issues) > 10:
+            print(f"  ... and {len(diagnostic_issues) - 10} more")
+        
+        # Filter out problematic pairs
+        problematic_indices = set()
+        for issue in diagnostic_issues:
+            mask = ((wind_df['deployment_day'] == issue['deployment_day']) & 
+                   (wind_df['timestamp_t'] == issue['timestamp_t']))
+            problematic_indices.update(wind_df[mask].index.tolist())
+        
+        wind_df_filtered = wind_df.drop(index=list(problematic_indices)).reset_index(drop=True)
+        
+        print(f"\n📊 FILTERING SUMMARY:")
+        print(f"Original lag pairs: {len(wind_df)}")
+        print(f"Filtered out: {len(problematic_indices)}")
+        print(f"Final clean dataset: {len(wind_df_filtered)}")
+        
+        return wind_df_filtered
+    else:
+        print(f"✅ All wind observation counts within expected range (25-35)")
+        return wind_df
+
+
+def _query_wind_metrics(db_path: Path, start_time: datetime, end_time: datetime) -> Dict:
+    """Query wind metrics from SQLite database for given time period"""
+    try:
+        with sqlite3.connect(str(db_path)) as conn:
+            # Convert timestamps to strings in local time format
+            start_str = start_time.strftime('%Y-%m-%d %H:%M:%S')
+            end_str = end_time.strftime('%Y-%m-%d %H:%M:%S')
+            
+            query = """
+            SELECT time, speed, gust 
+            FROM Wind 
+            WHERE time BETWEEN ? AND ?
+            ORDER BY time
+            """
+            
+            wind_data = pd.read_sql_query(query, conn, params=[start_str, end_str])
+            
+            if wind_data.empty:
+                return {
+                    'avg_sustained': np.nan,
+                    'max_gust': np.nan,
+                    'mode_gust': np.nan, 
+                    'gust_sd': np.nan,
+                    'wind_obs_count': 0
+                }
+            
+            # Convert string columns to numeric, handling whitespace
+            wind_data['speed'] = pd.to_numeric(wind_data['speed'].astype(str).str.strip(), errors='coerce')
+            wind_data['gust'] = pd.to_numeric(wind_data['gust'].astype(str).str.strip(), errors='coerce')
+            
+            # Calculate wind metrics
+            sustained_speeds = wind_data['speed'].dropna()
+            gust_speeds = wind_data['gust'].dropna()
+            
+            # Average sustained wind speed
+            avg_sustained = sustained_speeds.mean() if len(sustained_speeds) > 0 else np.nan
+            
+            # Maximum gust speed
+            max_gust = gust_speeds.max() if len(gust_speeds) > 0 else np.nan
+            
+            # Mode (most frequent) gust speed using pandas
+            if len(gust_speeds) > 0:
+                mode_gust = gust_speeds.mode().iloc[0] if len(gust_speeds.mode()) > 0 else gust_speeds.iloc[0]
+            else:
+                mode_gust = np.nan
+            
+            # Standard deviation of gust speeds
+            gust_sd = gust_speeds.std() if len(gust_speeds) > 1 else np.nan
+            
+            return {
+                'avg_sustained': avg_sustained,
+                'max_gust': max_gust,
+                'mode_gust': mode_gust,
+                'gust_sd': gust_sd,
+                'wind_obs_count': len(wind_data)
+            }
+            
+    except Exception as e:
+        raise RuntimeError(f"Failed to query wind data from {db_path}: {e}")
+
+
 def load_deployments():
     """Load deployment data"""
     deployments = pd.read_csv('data/deployments.csv')
@@ -493,6 +671,31 @@ def main():
                 
         except Exception as e:
             print(f"❌ Failed to create lag analysis: {e}")
+            return
+        
+        # Add wind data
+        print(f"\n" + "="*50)
+        print("Adding wind data...")
+        try:
+            final_data_with_wind = add_wind_data(lag_data, deployments, wind_db_dir='data/wind')
+            
+            if not final_data_with_wind.empty:
+                print(f"\nFinal dataset with wind:")
+                print(f"Shape: {final_data_with_wind.shape}")
+                
+                # Show wind statistics
+                wind_cols = ['avg_sustained', 'max_gust', 'mode_gust', 'gust_sd']
+                wind_stats = final_data_with_wind[wind_cols].describe()
+                print(f"\nWind metrics summary:")
+                print(wind_stats.round(2))
+                
+                print(f"\nSample with all metrics:")
+                sample_cols = ['deployment_day', 'total_butterflies_t', 'total_butterflies_t_lag', 
+                             'temperature_avg', 'avg_sustained', 'max_gust', 'wind_obs_count']
+                print(final_data_with_wind[sample_cols].head(3))
+                
+        except Exception as e:
+            print(f"❌ Failed to add wind data: {e}")
     else:
         print("No butterfly count data processed.")
 
