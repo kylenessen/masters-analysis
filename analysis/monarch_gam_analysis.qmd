@@ -1,0 +1,243 @@
+---
+title: "Monarch Abundance Analysis with GAM"
+author: "Kyle Nessen"
+date: "`r Sys.Date()`"
+format: 
+  html:
+    toc: true
+    toc-depth: 3
+    code-fold: true
+    theme: cosmo
+execute:
+  warning: false
+  message: false
+---
+
+## Introduction
+
+This analysis examines changes in monarch abundance using a robust GAM (Generalized Additive Model) approach. We'll explore temporal patterns and potential drivers of monarch population dynamics.
+
+## Setup
+
+```{r setup}
+library(tidyverse)
+library(mgcv)
+library(lubridate)
+library(plotly)
+library(knitr)
+library(DT)
+library(here)
+```
+
+## Data Loading
+
+```{r load-data}
+# Load the monarch analysis data
+monarch_data <- read_csv(here("data","monarch_analysis_lag30min.csv"))
+
+glimpse(monarch_data)
+```
+
+## Data Preparation
+
+```{r data-prep}
+# Check grove distribution
+table(monarch_data$grove)
+
+# Remove any rows with missing values in key variables
+model_data <- monarch_data %>%
+  filter(!is.na(butterfly_difference_cbrt),
+         !is.na(total_butterflies_t_lag),
+         !is.na(max_gust),
+         !is.na(temperature_avg),
+         !is.na(butterflies_direct_sun_t_lag),
+         !is.na(deployment_id),
+         !is.na(deployment_day),
+         !is.na(Observer),
+         !is.na(observation_order_within_day_t))
+
+cat("Clean dataset has", nrow(model_data), "observations\n")
+```
+
+## Model Building and Selection
+
+```{r model-setup}
+library(nlme)
+
+# Define the random effects structure and correlation
+random_structure <- list(deployment_id = ~ 1, Observer = ~ 1, deployment_day = ~ 1)
+correlation_structure <- corAR1(form = ~ observation_order_within_day_t | deployment_day)
+
+# Model specifications for AIC comparison
+model_specs <- list(
+  # Null model
+  "M0_null" = "butterfly_difference_cbrt ~ total_butterflies_t_lag",
+  
+  # Single variable models
+  "M1_gust" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust",
+  "M2_temp" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + temperature_avg", 
+  "M3_sun" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + butterflies_direct_sun_t_lag",
+  
+  # Two-variable combinations
+  "M4_gust_temp" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust + temperature_avg",
+  "M5_gust_sun" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust + butterflies_direct_sun_t_lag",
+  "M6_temp_sun" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + temperature_avg + butterflies_direct_sun_t_lag",
+  
+  # Three-variable model (main effects only)
+  "M7_all_main" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust + temperature_avg + butterflies_direct_sun_t_lag",
+  
+  # Two-way interactions
+  "M8_gust_temp_int" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust * temperature_avg",
+  "M9_gust_sun_int" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust * butterflies_direct_sun_t_lag",
+  "M10_temp_sun_int" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + temperature_avg * butterflies_direct_sun_t_lag",
+  
+  # Two-way interactions with third variable as main effect
+  "M11_gust_temp_int_plus_sun" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust * temperature_avg + butterflies_direct_sun_t_lag",
+  "M12_gust_sun_int_plus_temp" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust * butterflies_direct_sun_t_lag + temperature_avg",
+  "M13_temp_sun_int_plus_gust" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + temperature_avg * butterflies_direct_sun_t_lag + max_gust",
+  
+  # All two-way interactions
+  "M14_all_two_way" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust * temperature_avg + max_gust * butterflies_direct_sun_t_lag + temperature_avg * butterflies_direct_sun_t_lag",
+  
+  # Three-way interaction
+  "M15_three_way" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust * temperature_avg * butterflies_direct_sun_t_lag"
+)
+
+cat("Total models to fit:", length(model_specs), "\n")
+```
+
+## Model Fitting
+
+```{r model-fitting}
+# Function to safely fit models
+fit_model_safely <- function(formula_str, data) {
+  tryCatch({
+    formula_obj <- as.formula(formula_str)
+    gamm(formula_obj, 
+         data = data,
+         random = random_structure,
+         correlation = correlation_structure,
+         method = "REML")
+  }, error = function(e) {
+    message("Failed to fit model: ", formula_str)
+    message("Error: ", e$message)
+    return(NULL)
+  })
+}
+
+# Fit all models
+cat("Fitting models...\n")
+fitted_models <- map(model_specs, ~fit_model_safely(.x, model_data))
+
+# Remove failed models
+successful_models <- fitted_models[!map_lgl(fitted_models, is.null)]
+cat("Successfully fitted", length(successful_models), "out of", length(model_specs), "models\n")
+```
+
+## Model Comparison
+
+```{r model-comparison}
+# Extract AIC values
+aic_results <- map_dfr(names(successful_models), function(model_name) {
+  model <- successful_models[[model_name]]
+  data.frame(
+    Model = model_name,
+    Formula = model_specs[[model_name]],
+    AIC = AIC(model$lme),
+    LogLik = logLik(model$lme)[1],
+    df = attr(logLik(model$lme), "df")
+  )
+}) %>%
+  arrange(AIC) %>%
+  mutate(
+    Delta_AIC = AIC - min(AIC),
+    AIC_weight = exp(-0.5 * Delta_AIC) / sum(exp(-0.5 * Delta_AIC))
+  )
+
+# Display results
+aic_results %>%
+  select(Model, AIC, Delta_AIC, AIC_weight, df) %>%
+  kable(digits = 3, caption = "Model comparison by AIC")
+
+# Show top 5 models
+cat("\nTop 5 models by AIC:\n")
+head(aic_results, 5) %>%
+  select(Model, Formula, AIC, Delta_AIC) %>%
+  kable(digits = 3)
+```
+
+## Best Model Analysis
+
+```{r best-model-analysis}
+# Get the best model
+best_model_name <- aic_results$Model[1]
+best_model <- successful_models[[best_model_name]]
+
+cat("Best model:", best_model_name, "\n")
+cat("Formula:", aic_results$Formula[1], "\n\n")
+
+# Model summary
+summary(best_model$gam)
+```
+
+```{r model-diagnostics}
+# Model diagnostics
+par(mfrow = c(2, 2))
+
+# Residual plots using the lme component
+plot(best_model$lme)
+
+# Additional residual checks
+residuals_df <- data.frame(
+  fitted = fitted(best_model$lme),
+  residuals = residuals(best_model$lme, type = "normalized")
+)
+
+# Q-Q plot
+qqnorm(residuals_df$residuals, main = "Normal Q-Q Plot of Residuals")
+qqline(residuals_df$residuals)
+
+# Histogram of residuals
+hist(residuals_df$residuals, main = "Distribution of Residuals", xlab = "Residuals")
+```
+
+```{r coefficient-interpretation}
+# Extract and display coefficients
+coef_table <- summary(best_model$gam)$p.table
+coef_df <- data.frame(
+  Variable = rownames(coef_table),
+  Estimate = coef_table[, "Estimate"],
+  SE = coef_table[, "Std. Error"],
+  t_value = coef_table[, "t value"],
+  p_value = coef_table[, "Pr(>|t|)"]
+) %>%
+  mutate(
+    Significant = ifelse(p_value < 0.001, "***",
+                        ifelse(p_value < 0.01, "**", 
+                              ifelse(p_value < 0.05, "*", 
+                                    ifelse(p_value < 0.1, ".", ""))))
+  )
+
+coef_df %>%
+  kable(digits = 4, caption = "Coefficient estimates for best model")
+```
+
+```{r model-performance}
+# Model performance metrics
+cat("Model Performance:\n")
+cat("AIC:", AIC(best_model$lme), "\n")
+cat("Log-likelihood:", logLik(best_model$lme)[1], "\n")
+cat("R-squared (approximate):", summary(best_model$gam)$r.sq, "\n")
+cat("Deviance explained:", summary(best_model$gam)$dev.expl * 100, "%\n")
+
+# Random effects variance
+cat("\nRandom Effects Variance Components:\n")
+print(VarCorr(best_model$lme))
+```
+
+## Results Summary
+
+The analysis tested 15 different model configurations to determine which environmental factors best predict changes in monarch butterfly abundance. The models included various combinations of wind speed (max_gust), temperature (temperature_avg), and solar exposure (butterflies_direct_sun_t_lag), along with their interactions.
+
+Key findings will be interpreted based on the best-performing model according to AIC criteria.
+
