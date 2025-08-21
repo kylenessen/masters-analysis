@@ -347,7 +347,13 @@ def create_lag_analysis(df: pd.DataFrame,
     for deployment_day, group in df_with_day.groupby('deployment_day'):
         group_sorted = group.sort_values('timestamp').reset_index(drop=True)
         
-        for _, current_obs in group_sorted.iterrows():
+        # Calculate temporal autocorrelation variables for this deployment-day
+        first_obs_time = group_sorted['timestamp'].min()
+        group_sorted['time_within_day'] = (group_sorted['timestamp'] - first_obs_time).dt.total_seconds() / 60
+        group_sorted['is_first_obs_of_day'] = group_sorted.index == 0
+        group_sorted['observation_order_within_day'] = group_sorted.index + 1
+        
+        for idx, current_obs in group_sorted.iterrows():
             current_time = current_obs['timestamp']
             target_lag_time = current_time - lag_delta
             
@@ -393,6 +399,14 @@ def create_lag_analysis(df: pd.DataFrame,
                 'butterfly_difference': current_obs['total_butterflies'] - lag_obs['total_butterflies'],
                 'butterfly_difference_cbrt': np.sign(current_obs['total_butterflies'] - lag_obs['total_butterflies']) * np.power(np.abs(current_obs['total_butterflies'] - lag_obs['total_butterflies']), 1/3),
                 'butterfly_difference_log': np.sign(current_obs['total_butterflies'] - lag_obs['total_butterflies']) * np.log(np.maximum(np.abs(current_obs['total_butterflies'] - lag_obs['total_butterflies']), 0.1)),
+                
+                # Temporal autocorrelation variables for GAMM/mixed effects models
+                'time_within_day_t': current_obs['time_within_day'],
+                'is_first_obs_of_day_t': current_obs['is_first_obs_of_day'],
+                'observation_order_within_day_t': current_obs['observation_order_within_day'],
+                'time_within_day_t_lag': lag_obs['time_within_day'],
+                'is_first_obs_of_day_t_lag': lag_obs['is_first_obs_of_day'],
+                'observation_order_within_day_t_lag': lag_obs['observation_order_within_day'],
             }
             
             results.append(lag_record)
