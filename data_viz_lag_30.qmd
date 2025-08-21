@@ -1,0 +1,411 @@
+---
+title: "Lag 30 Data Visualization"
+author: "Kyle Nessen"
+date: "August 20, 2025"
+format: 
+  html:
+    embed-resources: true
+execute:
+  echo: false
+  warning: false
+---
+
+# Purpose
+
+This document explores the lag_30.csv dataset with descriptive visualizations and correlation analysis. The goal is to understand the structure and relationships within this dataset.
+
+## Data
+To begin, here is a glimpse of the dataframe and summary statistics.
+
+```{r load-data}
+#| output: true
+library(tidyverse)
+library(here)
+# Load the prepared data
+df <- read_csv(here("data", "monarch_lag_analysis_final.csv")) 
+
+# Note: butterfly_difference, butterfly_difference_cbrt, and butterfly_difference_log 
+# are now calculated in the Python preprocessing script
+df <- df %>%
+  mutate(
+    # Add legacy names for backward compatibility with existing plots
+    total_butterflies_change = butterfly_difference,
+    butterflies_direct_sun_change = butterflies_direct_sun_t - butterflies_direct_sun_t_lag,
+    total_butterflies_change_cubert = butterfly_difference_cbrt,
+    total_butterflies_change_sin = sin(butterfly_difference / 50) # Keep sin transformation for comparison
+  )
+
+# Check data structure
+glimpse(df)
+
+```
+
+## Summary Statistics
+
+```{r summary-stats}
+#| output: true
+library(knitr)
+library(kableExtra)
+
+# Summary statistics for numeric variables
+summary_stats <- df %>% 
+  ungroup() %>%
+  select_if(is.numeric) %>%
+  summary()
+
+# Display summary
+print(summary_stats)
+
+```
+
+## Correlation Matrix
+
+```{r correlation-matrix}
+#| output: true
+library(corrplot)
+
+# Select time t variables plus temperature_avg and change variables (including transformations)
+numeric_vars <- df %>% 
+  ungroup() %>%
+  select(total_butterflies_t, butterflies_direct_sun_t, butterfly_difference, 
+         butterflies_direct_sun_change, butterfly_difference_cbrt, 
+         butterfly_difference_log, total_butterflies_change_sin, temperature_avg,
+         avg_sustained, max_gust, mode_gust, gust_sd, horizontal_dist_to_cluster_m)
+
+# Calculate correlation matrix
+cor_matrix <- cor(numeric_vars, use = "complete.obs")
+
+# Create correlation plot
+corrplot(cor_matrix, 
+         method = "color",
+         type = "upper",
+         order = "hclust",
+         tl.cex = 0.8,
+         tl.col = "black",
+         tl.srt = 45,
+         addCoef.col = "black",
+         number.cex = 0.7)
+
+# Print correlation table
+kable(round(cor_matrix, 3), 
+      caption = "Correlation Matrix for Selected Variables") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed")) %>%
+  scroll_box(width = "100%", height = "400px")
+```
+
+## Exploratory Data Visualization
+
+### Butterfly Count Variables
+
+```{r butterfly-counts}
+#| output: true
+#| fig-width: 12
+#| fig-height: 12
+
+# Distribution of butterfly counts
+p1 <- ggplot(df, aes(x = total_butterflies_t)) +
+  geom_histogram(bins = 30, fill = "steelblue", alpha = 0.7) +
+  labs(title = "Distribution of Total Butterfly Counts (Time t)", x = "Total Butterflies", y = "Frequency")
+
+p2 <- ggplot(df, aes(x = butterflies_direct_sun_t)) +
+  geom_histogram(bins = 30, fill = "orange", alpha = 0.7) +
+  labs(title = "Distribution of Butterflies in Direct Sun (Time t)", x = "Butterflies in Direct Sun", y = "Frequency")
+
+p3 <- ggplot(df, aes(x = total_butterflies_change)) +
+  geom_histogram(bins = 30, fill = "green", alpha = 0.7) +
+  labs(title = "Distribution of Total Butterfly Change", x = "Change in Total Butterflies", y = "Frequency")
+
+p4 <- ggplot(df, aes(x = butterflies_direct_sun_change)) +
+  geom_histogram(bins = 30, fill = "purple", alpha = 0.7) +
+  labs(title = "Distribution of Direct Sun Butterfly Change", x = "Change in Direct Sun Butterflies", y = "Frequency")
+
+p5 <- ggplot(df, aes(x = total_butterflies_t, y = butterflies_direct_sun_t)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "lm", se = FALSE, color = "red") +
+  labs(title = "Total vs Direct Sun Butterflies", x = "Total Butterflies", y = "Butterflies in Direct Sun")
+
+p6 <- ggplot(df, aes(x = total_butterflies_change, y = butterflies_direct_sun_change)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "lm", se = FALSE, color = "darkgreen") +
+  labs(title = "Change in Total vs Change in Direct Sun", x = "Change in Total Butterflies", y = "Change in Direct Sun Butterflies")
+
+library(gridExtra)
+grid.arrange(p1, p2, p3, p4, p5, p6, ncol = 2)
+```
+
+### Transformed Change Variables
+
+```{r transformed-change-vars}
+#| output: true
+#| fig-width: 12
+#| fig-height: 8
+
+# Distributions of transformed change variables
+p_cube <- ggplot(df, aes(x = total_butterflies_change_cubert)) +
+  geom_histogram(bins = 30, fill = "darkgreen", alpha = 0.7) +
+  labs(title = "Cube Root Transform of Butterfly Change", x = "Cube Root of Change", y = "Frequency")
+
+p_log <- ggplot(df, aes(x = butterfly_difference_log)) +
+  geom_histogram(bins = 30, fill = "maroon", alpha = 0.7) +
+  labs(title = "Log Transform of Butterfly Change", x = "Log of Change", y = "Frequency")
+
+p_sin <- ggplot(df, aes(x = total_butterflies_change_sin)) +
+  geom_histogram(bins = 30, fill = "navy", alpha = 0.7) +
+  labs(title = "Sin Transform of Butterfly Change", x = "Sin of Change (scaled)", y = "Frequency")
+
+# Compare original vs transformed distributions
+p_compare1 <- ggplot(df) +
+  geom_histogram(aes(x = total_butterflies_change), bins = 30, alpha = 0.5, fill = "green") +
+  geom_histogram(aes(x = total_butterflies_change_cubert * 10), bins = 30, alpha = 0.5, fill = "darkgreen") +
+  labs(title = "Original vs Cube Root (scaled x10)", x = "Change Value", y = "Frequency")
+
+p_compare2 <- ggplot(df) +
+  geom_histogram(aes(x = total_butterflies_change), bins = 30, alpha = 0.5, fill = "green") +
+  geom_histogram(aes(x = butterfly_difference_log * 10), bins = 30, alpha = 0.5, fill = "maroon") +
+  labs(title = "Original vs Log Transform (scaled x10)", x = "Change Value", y = "Frequency")
+
+grid.arrange(p_cube, p_log, p_sin, p_compare1, p_compare2, ncol = 2, nrow = 3)
+```
+
+### Temperature Patterns
+
+```{r temperature}
+#| output: true
+#| fig-width: 12
+#| fig-height: 6
+
+# Temperature distribution and relationship with butterfly counts
+p1 <- ggplot(df, aes(x = temperature_avg)) +
+  geom_histogram(bins = 30, fill = "red", alpha = 0.7) +
+  labs(title = "Average Temperature Distribution", x = "Temperature (°C)", y = "Frequency")
+
+p2 <- ggplot(df, aes(x = temperature_avg, y = total_butterflies_t)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "loess", se = TRUE, color = "red") +
+  labs(title = "Average Temperature vs Total Butterfly Counts", x = "Temperature (°C)", y = "Total Butterflies")
+
+grid.arrange(p1, p2, ncol = 2)
+```
+
+### Wind Variables
+
+#### Wind Speed Distributions
+
+```{r wind-distributions}
+#| output: true
+#| fig-width: 12
+#| fig-height: 8
+
+# Wind variable distributions
+p1 <- ggplot(df, aes(x = avg_sustained)) +
+  geom_histogram(bins = 30, fill = "lightblue", alpha = 0.7) +
+  labs(title = "Average Sustained Wind Distribution", x = "Avg Sustained Wind (m/s)", y = "Frequency")
+
+p2 <- ggplot(df, aes(x = max_gust)) +
+  geom_histogram(bins = 30, fill = "darkblue", alpha = 0.7) +
+  labs(title = "Max Wind Gust Distribution", x = "Max Wind Gust (m/s)", y = "Frequency")
+
+p3 <- ggplot(df, aes(x = mode_gust)) +
+  geom_histogram(bins = 30, fill = "purple", alpha = 0.7) +
+  labs(title = "Mode Wind Gust Distribution", x = "Mode Wind Gust (m/s)", y = "Frequency")
+
+p4 <- ggplot(df, aes(x = gust_sd)) +
+  geom_histogram(bins = 30, fill = "pink", alpha = 0.7) +
+  labs(title = "Gust Standard Deviation Distribution", x = "Gust SD (m/s)", y = "Frequency")
+
+grid.arrange(p1, p2, p3, p4, ncol = 2)
+```
+
+#### Wind vs Butterfly Relationships
+
+```{r wind-butterfly-relationships}
+#| output: true
+#| fig-width: 12
+#| fig-height: 8
+
+p5 <- ggplot(df, aes(x = avg_sustained, y = total_butterflies_t)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "loess", se = TRUE, color = "blue") +
+  labs(title = "Sustained Wind vs Butterfly Counts", x = "Avg Sustained Wind (m/s)", y = "Total Butterflies")
+
+p6 <- ggplot(df, aes(x = max_gust, y = total_butterflies_t)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "loess", se = TRUE, color = "darkblue") +
+  labs(title = "Max Gust vs Butterfly Counts", x = "Max Wind Gust (m/s)", y = "Total Butterflies")
+
+p7 <- ggplot(df, aes(x = mode_gust, y = total_butterflies_t)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "loess", se = TRUE, color = "purple") +
+  labs(title = "Mode Gust vs Butterfly Counts", x = "Mode Wind Gust (m/s)", y = "Total Butterflies")
+
+p8 <- ggplot(df, aes(x = horizontal_dist_to_cluster_m, y = total_butterflies_t)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "loess", se = TRUE, color = "green") +
+  labs(title = "Distance to Cluster vs Butterfly Counts", x = "Distance to Cluster (m)", y = "Total Butterflies")
+
+grid.arrange(p5, p6, p7, p8, ncol = 2)
+```
+
+### Change Variables vs Environmental Conditions
+
+```{r change-environment-relationships}
+#| output: true
+#| fig-width: 12
+#| fig-height: 8
+
+p9 <- ggplot(df, aes(x = temperature_avg, y = total_butterflies_change)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "loess", se = TRUE, color = "red") +
+  labs(title = "Temperature vs Change in Butterfly Counts", x = "Average Temperature (°C)", y = "Change in Total Butterflies")
+
+p10 <- ggplot(df, aes(x = avg_sustained, y = total_butterflies_change)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "loess", se = TRUE, color = "blue") +
+  labs(title = "Wind vs Change in Butterfly Counts", x = "Avg Sustained Wind (m/s)", y = "Change in Total Butterflies")
+
+p11 <- ggplot(df, aes(x = max_gust, y = total_butterflies_change)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "loess", se = TRUE, color = "darkblue") +
+  labs(title = "Max Gust vs Change in Butterfly Counts", x = "Max Wind Gust (m/s)", y = "Change in Total Butterflies")
+
+p12 <- ggplot(df, aes(x = horizontal_dist_to_cluster_m, y = total_butterflies_change)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "loess", se = TRUE, color = "green") +
+  labs(title = "Distance vs Change in Butterfly Counts", x = "Distance to Cluster (m)", y = "Change in Total Butterflies")
+
+grid.arrange(p9, p10, p11, p12, ncol = 2)
+```
+
+### Transformed Change Variables vs Environmental Conditions
+
+```{r transformed-environment-relationships}
+#| output: true
+#| fig-width: 12
+#| fig-height: 8
+
+p13 <- ggplot(df, aes(x = temperature_avg, y = total_butterflies_change_cubert)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "loess", se = TRUE, color = "darkgreen") +
+  labs(title = "Temperature vs Cube Root Change", x = "Average Temperature (°C)", y = "Cube Root of Change")
+
+p14 <- ggplot(df, aes(x = avg_sustained, y = total_butterflies_change_cubert)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "loess", se = TRUE, color = "darkgreen") +
+  labs(title = "Wind vs Cube Root Change", x = "Avg Sustained Wind (m/s)", y = "Cube Root of Change")
+
+p15 <- ggplot(df, aes(x = temperature_avg, y = butterfly_difference_log)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "loess", se = TRUE, color = "maroon") +
+  labs(title = "Temperature vs Log Change", x = "Average Temperature (°C)", y = "Log of Change")
+
+p16 <- ggplot(df, aes(x = avg_sustained, y = butterfly_difference_log)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "loess", se = TRUE, color = "maroon") +
+  labs(title = "Wind vs Log Change", x = "Avg Sustained Wind (m/s)", y = "Log of Change")
+
+grid.arrange(p13, p14, p15, p16, ncol = 2)
+```
+
+## Investigating Bimodal Distribution
+
+The total butterfly count distribution shows a clear bimodal pattern. Let's explore potential sources of this pattern.
+
+```{r bimodal-investigation}
+#| output: true
+#| fig-width: 12
+#| fig-height: 10
+
+# Explore by categorical variables
+p13 <- ggplot(df, aes(x = total_butterflies_t, fill = Observer)) +
+  geom_histogram(bins = 30, alpha = 0.7, position = "identity") +
+  facet_wrap(~Observer) +
+  labs(title = "Butterfly Counts by Observer", x = "Total Butterflies", y = "Frequency")
+
+p14 <- ggplot(df, aes(x = total_butterflies_t, fill = deployment_id)) +
+  geom_histogram(bins = 30, alpha = 0.7, position = "identity") +
+  facet_wrap(~deployment_id) +
+  labs(title = "Butterfly Counts by Deployment", x = "Total Butterflies", y = "Frequency") +
+  theme(legend.position = "none")
+
+p15 <- ggplot(df, aes(x = total_butterflies_t, fill = view_id)) +
+  geom_histogram(bins = 30, alpha = 0.7, position = "identity") +
+  facet_wrap(~view_id) +
+  labs(title = "Butterfly Counts by View ID", x = "Total Butterflies", y = "Frequency")
+
+p16 <- ggplot(df, aes(x = total_butterflies_t, fill = grove)) +
+  geom_histogram(bins = 30, alpha = 0.7, position = "identity") +
+  facet_wrap(~grove) +
+  labs(title = "Butterfly Counts by Grove", x = "Total Butterflies", y = "Frequency")
+
+grid.arrange(p13, p14, ncol = 1)
+```
+
+```{r bimodal-investigation-2}
+#| output: true
+#| fig-width: 12
+#| fig-height: 6
+
+grid.arrange(p15, p16, ncol = 1)
+```
+
+```{r temporal-patterns}
+#| output: true
+#| fig-width: 12
+#| fig-height: 8
+
+# Temporal patterns
+df_temporal <- df %>%
+  mutate(
+    hour = hour(timestamp_t),
+    date = as.Date(timestamp_t)
+  )
+
+p17 <- ggplot(df_temporal, aes(x = hour, y = total_butterflies_t)) +
+  geom_boxplot(aes(group = hour)) +
+  labs(title = "Butterfly Counts by Hour of Day", x = "Hour", y = "Total Butterflies")
+
+p18 <- ggplot(df_temporal, aes(x = date, y = total_butterflies_t)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "loess", se = TRUE) +
+  labs(title = "Butterfly Counts Over Time", x = "Date", y = "Total Butterflies") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+grid.arrange(p17, p18, ncol = 2)
+```
+
+```{r mixture-analysis}
+#| output: true
+
+# Summary statistics to identify potential cutoff
+cat("Summary of total_butterflies_t:\n")
+summary(df$total_butterflies_t)
+
+cat("\nCounts by ranges:\n")
+cat("Zero butterflies:", sum(df$total_butterflies_t == 0), "\n")
+cat("1-50 butterflies:", sum(df$total_butterflies_t > 0 & df$total_butterflies_t <= 50), "\n")
+cat("51-100 butterflies:", sum(df$total_butterflies_t > 50 & df$total_butterflies_t <= 100), "\n")
+cat("101+ butterflies:", sum(df$total_butterflies_t > 100), "\n")
+
+# Create a binary variable to explore the two modes
+df$high_count <- ifelse(df$total_butterflies_t > 50, "High (>50)", "Low (≤50)")
+
+# Table of high vs low counts by key variables
+cat("\nHigh vs Low counts by Observer:\n")
+print(table(df$Observer, df$high_count))
+
+cat("\nHigh vs Low counts by Grove:\n")
+print(table(df$grove, df$high_count))
+```
+
+
+
+
+
+
+
+
+
+
+
+
+

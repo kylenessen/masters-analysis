@@ -1,0 +1,493 @@
+---
+title: "Data Preparation - Complete Days Analysis"
+format:
+  html:
+    toc: true
+    number-sections: false
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+# Complete Days Data Preparation Pipeline
+
+This streamlined script consolidates all data preparation steps for complete days analysis, 
+combining butterfly abundance, wind data, temperature, and deployment metadata.
+
+```{r setup}
+library(jsonlite)
+library(dplyr)
+library(purrr)
+library(tidyr)
+library(stringr)
+library(tibble)
+library(ggplot2)
+library(lubridate)
+library(furrr)
+library(DBI)
+library(RSQLite)
+library(readr)
+
+# Configuration
+WIND_THRESHOLD <- 2
+local_tz <- "America/Los_Angeles"
+
+theme_set(theme_minimal(base_size = 12))
+```
+
+## Step 1: Load Deployment Data
+
+```{r load-deployments}
+# Helper function for null coalescing
+`%||%` <- function(x, y) if (is.null(x)) y else x
+
+# Load deployment data
+load_deployments <- function() {
+  # Read QGIS data
+  qgis_data <- list()
+  if (file.exists('data/deployments/deployments_QGIS.csv')) {
+    qgis_raw <- read_csv('data/deployments/deployments_QGIS.csv', show_col_types = FALSE)
+    for (i in 1:nrow(qgis_raw)) {
+      deployment_id <- qgis_raw$deployment_id[i]
+      if (!is.na(deployment_id) && deployment_id != "") {
+        qgis_data[[deployment_id]] <- qgis_raw[i, ]
+      }
+    }
+  }
+  
+  # Read label data
+  label_data <- list()
+  if (file.exists('data/deployments/deployments_label.csv')) {
+    label_raw <- read_csv('data/deployments/deployments_label.csv', show_col_types = FALSE)
+    for (i in 1:nrow(label_raw)) {
+      deployment_id <- label_raw$`Deployment ID`[i]
+      if (!is.na(deployment_id) && deployment_id != "") {
+        label_data[[deployment_id]] <- label_raw[i, ]
+      }
+    }
+  }
+  
+  # Get all unique deployment IDs
+  all_ids <- union(names(qgis_data), names(label_data))
+  
+  # Create combined data more efficiently
+  deployments_list <- map(sort(all_ids), function(deployment_id) {
+    combined_row <- tibble(deployment_id = deployment_id)
+    
+    # Add QGIS data
+    if (deployment_id %in% names(qgis_data)) {
+      qgis_row <- qgis_data[[deployment_id]]
+      # Add all QGIS columns except deployment_id (already have it)
+      qgis_cols <- setdiff(names(qgis_row), "deployment_id")
+      for (col in qgis_cols) {
+        combined_row[[col]] <- qgis_row[[col]]
+      }
+    }
+    
+    # Add label data with renamed columns
+    if (deployment_id %in% names(label_data)) {
+      label_row <- label_data[[deployment_id]]
+      combined_row$label_status <- label_row$Status %||% NA
+      combined_row$`Percent Complete` <- label_row$`Percent Complete` %||% NA
+      combined_row$Observer <- label_row$Observer %||% NA
+      combined_row$Effort <- label_row$Effort %||% NA
+      combined_row$label_notes <- label_row$Notes %||% NA
+      combined_row$label_youtube_url <- label_row$`Youtube Link` %||% NA
+      combined_row$view_id <- label_row$`View ID` %||% NA
+    }
+    
+    combined_row
+  })
+  
+  bind_rows(deployments_list)
+}
+
+deployments <- load_deployments()
+cat("Loaded", nrow(deployments), "deployment records\n")
+```
+
+## Step 2: Load Wind Data
+
+```{r load-wind}
+# Load wind data efficiently
+wind_all <- {
+  wind_db_dir <- "data/wind"
+  db_files <- list.files(wind_db_dir, pattern = "\\.s3db$", full.names = TRUE)
+  
+  if (length(db_files) == 0) {
+    tibble(wind_meter_name = character(), time = as.POSIXct(character()), 
+           speed = numeric(), gust = numeric())
+  } else {
+    # Function to extract all wind data from a database
+    fetch_all_wind <- function(db_path) {
+      con <- dbConnect(RSQLite::SQLite(), db_path)
+      on.exit(dbDisconnect(con), add = TRUE)
+      
+      q <- "select time, speed, gust from Wind order by time"
+      dbGetQuery(con, q) %>%
+        mutate(
+          time = ymd_hms(time, tz = local_tz, quiet = TRUE),
+          speed = as.numeric(speed),
+          gust = as.numeric(gust),
+          wind_meter_name = tools::file_path_sans_ext(basename(db_path))
+        )
+    }
+    
+    # Process all databases
+    map_dfr(db_files, fetch_all_wind) %>%
+      relocate(wind_meter_name, .before = time)
+  }
+}
+
+cat("Loaded", nrow(wind_all), "wind records from", n_distinct(wind_all$wind_meter_name), "meters\n")
+```
+
+## Step 3: Process Butterfly Abundance
+
+```{r butterfly-abundance}
+# Helper functions
+or_else <- function(x, default) if (is.null(x)) default else x
+
+# Simplified count parsing
+count_min_value_vec <- function(x) {
+  result <- rep(NA_real_, length(x))
+  
+  for (i in seq_along(x)) {
+    val <- x[[i]]
+    if (is.null(val)) {
+      result[i] <- NA_real_
+    } else if (is.numeric(val)) {
+      result[i] <- as.numeric(val)
+    } else {
+      val_str <- trimws(as.character(val))
+      if (val_str == "0") {
+        result[i] <- 0
+      } else if (grepl("^\\d+-\\d+$", val_str)) {
+        # Range like "1-9"
+        result[i] <- as.numeric(str_extract(val_str, "^\\d+"))
+      } else if (grepl("^\\d+\\+$", val_str)) {
+        # Plus like "1000+"
+        result[i] <- as.numeric(str_extract(val_str, "^\\d+"))
+      } else {
+        suppressWarnings({
+          num_val <- as.numeric(val_str)
+          result[i] <- if (is.na(num_val)) NA_real_ else num_val
+        })
+      }
+    }
+  }
+  
+  result
+}
+
+# Extract cells data
+extract_cells_df <- function(cells) {
+  if (is.null(cells) || length(cells) == 0) return(tibble())
+  
+  keys <- names(cells)
+  counts <- map(cells, ~ or_else(.x[["count"]], NA))
+  direct_sun <- map_lgl(cells, function(.x) {
+    !is.null(.x[["directSun"]]) && isTRUE(.x[["directSun"]]) ||
+    !is.null(.x[["sunlight"]]) && isTRUE(.x[["sunlight"]])
+  })
+  
+  tibble(
+    cell = keys,
+    count_raw = counts,
+    direct_sun = direct_sun,
+    count_min = count_min_value_vec(counts)
+  )
+}
+
+# Parse deployment function
+parse_deployment <- function(file) {
+  deployment_id <- tools::file_path_sans_ext(basename(file))
+  x <- read_json(file, simplifyVector = FALSE)
+  
+  # Determine structure
+  cls <- if (is.list(x) && !is.null(x$classifications)) x$classifications else x
+  
+  if (length(cls) == 0) {
+    return(tibble(
+      deployment_id = deployment_id,
+      image_filename = NA_character_,
+      total_butterflies = NA_real_,
+      butterflies_direct_sun = NA_real_
+    ))
+  }
+  
+  # Build dataframe
+  im_names <- names(cls)
+  
+  tibble(
+    deployment_id = deployment_id,
+    image_filename = im_names,
+    im_obj = cls
+  ) %>%
+    # Filter out night frames
+    filter(!map_lgl(im_obj, ~ isTRUE(or_else(.x[["isNight"]], FALSE)))) %>%
+    mutate(
+      # Extract cells data
+      cells_df = map(im_obj, ~ extract_cells_df(or_else(.x$cells, NULL))),
+      # Calculate totals
+      total_butterflies = map_dbl(cells_df, function(df) {
+        if (nrow(df) == 0) NA_real_ else sum(df$count_min, na.rm = TRUE)
+      }),
+      butterflies_direct_sun = map_dbl(cells_df, function(df) {
+        if (nrow(df) == 0) NA_real_ else sum(df$count_min[df$direct_sun], na.rm = TRUE)
+      })
+    ) %>%
+    select(-im_obj, -cells_df)
+}
+
+# Process all JSON files
+deploy_dir <- "data/deployments"
+json_files <- list.files(deploy_dir, pattern = "\\.json$", full.names = TRUE)
+cat("Found", length(json_files), "JSON files\n")
+
+# Parse in parallel
+plan(multisession, workers = min(4, length(json_files)))
+abundance_index <- future_map_dfr(json_files, function(f) {
+  tryCatch(parse_deployment(f), error = function(e) {
+    warning(sprintf("Failed to parse %s: %s", f, conditionMessage(e)))
+    tibble(
+      deployment_id = tools::file_path_sans_ext(basename(f)),
+      image_filename = NA_character_,
+      total_butterflies = NA_real_,
+      butterflies_direct_sun = NA_real_
+    )
+  })
+}, .options = furrr_options(seed = TRUE))
+plan(sequential)
+
+cat("Processed", nrow(abundance_index), "observations from", n_distinct(abundance_index$deployment_id), "deployments\n")
+```
+
+## Step 4: Apply Filtering and Create Complete Days
+
+```{r filtering}
+# Night filtering setup
+parse_ts <- function(s) as.POSIXct(strptime(s, "%Y%m%d%H%M%S", tz = "UTC"))
+
+night_periods <- list(
+  SC1 = list(
+    list(start = "20231117174001", end = "20231118062001"),
+    list(start = "20231118172501", end = "20231119061501"),
+    list(start = "20231119171001", end = "20231120062001"),
+    list(start = "20231120172001", end = "20231121063001")
+  ),
+  SC2 = list(
+    list(start = "20231117172501", end = "20231118062001"),
+    list(start = "20231118171501", end = "20231119061501")
+  )
+)
+
+night_intervals <- map(night_periods, function(periods) {
+  map(periods, ~ list(start = parse_ts(.x$start), end = parse_ts(.x$end)))
+})
+
+# Vectorized night checking
+is_night_vec <- function(ids, timestamps) {
+  result <- rep(FALSE, length(ids))
+  
+  for (dep_id in names(night_intervals)) {
+    mask <- ids == dep_id & !is.na(timestamps)
+    if (!any(mask)) next
+    
+    dep_ts <- timestamps[mask]
+    is_night_mask <- rep(FALSE, sum(mask))
+    
+    for (period in night_intervals[[dep_id]]) {
+      is_night_mask <- is_night_mask | (dep_ts >= period$start & dep_ts <= period$end)
+    }
+    
+    result[mask] <- is_night_mask
+  }
+  
+  result
+}
+
+# Apply filtering pipeline
+abundance_filtered <- abundance_index %>%
+  mutate(
+    timestamp_str = str_match(replace_na(image_filename, ""), ".*_(\\d{14})")[, 2],
+    timestamp = parse_ts(timestamp_str)
+  ) %>%
+  filter(
+    !is.na(timestamp),
+    !is_night_vec(deployment_id, timestamp),
+    # Downsampling filters
+    !(deployment_id %in% c("SC1", "SC2") & (minute(timestamp) %% 30 != 0)),
+    !(deployment_id %in% c("SC12", "SC9", "SLC6_2") & !(minute(timestamp) %in% c(0, 30)))
+  ) %>%
+  mutate(
+    date = as.Date(timestamp),
+    day_id = paste0(deployment_id, "-", format(date, "%Y%m%d"))
+  ) %>%
+  # Filter out days with all zero butterflies
+  group_by(day_id) %>%
+  filter(!(all(total_butterflies == 0 | is.na(total_butterflies)))) %>%
+  ungroup()
+
+# Compute complete days
+complete_days_lookup <- abundance_filtered %>%
+  distinct(deployment_id, day_id, date) %>%
+  group_by(deployment_id) %>%
+  arrange(date) %>%
+  mutate(
+    has_prev = !is.na(lag(date)),
+    has_next = !is.na(lead(date)),
+    complete_day = has_prev & has_next
+  ) %>%
+  # Manual patches
+  mutate(
+    complete_day = case_when(
+      day_id %in% c("SC1-20231120", "SC10-20240106", "SC10-20240131", "SC9-20240129") ~ TRUE,
+      TRUE ~ complete_day
+    )
+  ) %>%
+  ungroup() %>%
+  select(day_id, complete_day)
+
+# Add complete day info and AR_start - make sure we keep all original columns
+abundance_complete <- abundance_filtered %>%
+  left_join(complete_days_lookup, by = "day_id") %>%
+  arrange(day_id, timestamp) %>%
+  group_by(day_id) %>%
+  mutate(AR_start = row_number() == 1) %>%
+  ungroup()
+
+# Debug: check what columns we have
+cat("Columns in abundance_complete:", paste(names(abundance_complete), collapse = ", "), "\n")
+
+cat("After filtering:", nrow(abundance_complete), "observations\n")
+cat("Complete days:", sum(complete_days_lookup$complete_day, na.rm = TRUE), "\n")
+```
+
+## Step 5: Add Wind Features (Optimized)
+
+```{r wind-features}
+# Optimized wind feature calculation
+add_wind_features <- function(df, wind_data) {
+  cat("Adding wind features...\n")
+  
+  # Add deployment metadata
+  df_with_meta <- df %>%
+    left_join(deployments %>% select(deployment_id, wind_meter_name), by = "deployment_id")
+  
+  # Initialize wind feature columns
+  df_with_meta$wind_mean <- NA_real_
+  df_with_meta$wind_max_gust <- NA_real_
+  df_with_meta$wind_sd <- NA_real_
+  df_with_meta$gust_differential_mean <- NA_real_
+  df_with_meta$cumulative_wind <- NA_real_
+  df_with_meta$n_strong_gusts <- NA_real_
+  df_with_meta$time_above_threshold <- NA_real_
+  df_with_meta$n_wind_records <- 0
+  
+  # Process each row with wind meter data
+  rows_with_wind <- which(!is.na(df_with_meta$wind_meter_name))
+  
+  for (i in rows_with_wind) {
+    row <- df_with_meta[i, ]
+    
+    # Define time window
+    end_time <- row$timestamp
+    start_time <- if (isTRUE(row$AR_start)) {
+      end_time
+    } else {
+      end_time - minutes(30)
+    }
+    
+    if (isTRUE(row$AR_start)) {
+      end_time <- start_time + minutes(30)
+    }
+    
+    # Get wind data for this window
+    wind_subset <- wind_data %>%
+      filter(
+        wind_meter_name == row$wind_meter_name,
+        time >= start_time,
+        time < end_time
+      )
+    
+    if (nrow(wind_subset) > 0) {
+      df_with_meta$wind_mean[i] <- mean(wind_subset$speed, na.rm = TRUE)
+      df_with_meta$wind_max_gust[i] <- max(wind_subset$gust, na.rm = TRUE)
+      df_with_meta$wind_sd[i] <- sd(wind_subset$speed, na.rm = TRUE)
+      df_with_meta$gust_differential_mean[i] <- mean(wind_subset$gust - wind_subset$speed, na.rm = TRUE)
+      df_with_meta$cumulative_wind[i] <- sum(wind_subset$speed, na.rm = TRUE)
+      df_with_meta$n_strong_gusts[i] <- sum(wind_subset$gust > WIND_THRESHOLD, na.rm = TRUE)
+      df_with_meta$time_above_threshold[i] <- sum(wind_subset$speed > WIND_THRESHOLD, na.rm = TRUE)
+      df_with_meta$n_wind_records[i] <- nrow(wind_subset)
+    }
+    
+    if (i %% 100 == 0) {
+      cat("Processed", i, "of", length(rows_with_wind), "rows with wind data\n")
+    }
+  }
+  
+  df_with_meta
+}
+
+# Apply wind feature calculation  
+analysis_df <- add_wind_features(abundance_complete, wind_all)
+cat("Wind features added\n")
+```
+
+## Step 6: Final Integration and Export
+
+```{r final-integration}
+# Load temperature data if available
+temperature_data <- if (file.exists("data/temperature_data_2023.csv")) {
+  read_csv("data/temperature_data_2023.csv", show_col_types = FALSE)
+} else {
+  tibble(filename = character(), temperature = numeric())
+}
+
+# Create final dataset
+final_dataset <- analysis_df %>%
+  # Add temperature
+  left_join(temperature_data %>% select(filename, temperature), 
+            by = c("image_filename" = "filename")) %>%
+  # Add remaining deployment info
+  left_join(deployments %>% select(deployment_id, Observer, view_id), 
+            by = "deployment_id") %>%
+  # Add proportion in direct sunlight
+  mutate(
+    proportion_butterflies_direct_sun = case_when(
+      is.na(total_butterflies) | is.na(butterflies_direct_sun) ~ NA_real_,
+      total_butterflies == 0 ~ 0,
+      TRUE ~ butterflies_direct_sun / total_butterflies
+    )
+  ) %>%
+  # Keep only complete days with valid wind data
+  filter(complete_day == TRUE, !is.na(wind_mean)) %>%
+  # Clean up columns
+  select(-date, -complete_day, -timestamp_str, -wind_meter_name, -n_wind_records, -n_strong_gusts)
+
+# Export final dataset
+output_file <- "data/analysis_complete_days.csv"
+write_csv(final_dataset, output_file)
+
+cat("Final dataset:", nrow(final_dataset), "observations\n")
+cat("Unique deployments:", n_distinct(final_dataset$deployment_id), "\n")
+cat("Unique complete days:", n_distinct(final_dataset$day_id), "\n")
+cat("Exported to:", output_file, "\n")
+
+# Show first few rows
+head(final_dataset, 5)
+```
+
+# Summary
+
+This streamlined script has successfully combined:
+
+- **Deployment metadata** from QGIS and label files
+- **Wind data** from SQLite databases with 30-minute window features  
+- **Butterfly abundance** from JSON classification files with night filtering and downsampling
+- **Temperature data** from trail camera sensors
+- **Complete day filtering** ensuring only days with observations before and after are included
+
+The resulting dataset contains **`r nrow(final_dataset)`** observations from **`r n_distinct(final_dataset$deployment_id)`** deployments across **`r n_distinct(final_dataset$day_id)`** complete observation days, ready for downstream analysis.
