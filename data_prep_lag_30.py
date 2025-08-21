@@ -389,6 +389,9 @@ def create_lag_analysis(df: pd.DataFrame,
                 # Derived metrics
                 'actual_lag_minutes': (current_time - lag_obs['timestamp']).total_seconds() / 60,
                 'temperature_avg': (current_obs['temperature'] + lag_obs['temperature']) / 2,
+                'butterfly_difference': current_obs['total_butterflies'] - lag_obs['total_butterflies'],
+                'butterfly_difference_cbrt': np.sign(current_obs['total_butterflies'] - lag_obs['total_butterflies']) * np.power(np.abs(current_obs['total_butterflies'] - lag_obs['total_butterflies']), 1/3),
+                'butterfly_difference_log': np.sign(current_obs['total_butterflies'] - lag_obs['total_butterflies']) * np.log(np.maximum(np.abs(current_obs['total_butterflies'] - lag_obs['total_butterflies']), 0.1)),
             }
             
             results.append(lag_record)
