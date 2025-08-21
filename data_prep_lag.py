@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Data preprocessing script with 30-min lag analysis
+Data preprocessing script with configurable lag analysis
 """
 
 import pandas as pd
@@ -8,6 +8,7 @@ import json
 import re
 import sqlite3
 import numpy as np
+import argparse
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional
@@ -423,7 +424,8 @@ def create_lag_analysis(df: pd.DataFrame,
 
 def add_wind_data(lag_df: pd.DataFrame, 
                  deployments_df: pd.DataFrame,
-                 wind_db_dir: str = 'data/wind') -> pd.DataFrame:
+                 wind_db_dir: str = 'data/wind',
+                 lag_minutes: int = 30) -> pd.DataFrame:
     """Add wind metrics to lag analysis data by querying SQLite databases"""
     if lag_df.empty:
         raise ValueError("Cannot add wind data to empty lag DataFrame")
@@ -474,15 +476,19 @@ def add_wind_data(lag_df: pd.DataFrame,
                 row['timestamp_t']
             )
             
-            # Check for diagnostic issues
+            # Check for diagnostic issues - calculate expected range based on lag period
+            # Wind data is typically recorded every minute, so expect ~lag_minutes observations
+            # Allow ±5 minute tolerance around the expected count
+            expected_min = lag_minutes - 5
+            expected_max = lag_minutes + 5
             obs_count = wind_metrics['wind_obs_count']
-            if obs_count < 25 or obs_count > 35:
+            if obs_count < expected_min or obs_count > expected_max:
                 diagnostic_issues.append({
                     'deployment_day': row['deployment_day'],
                     'timestamp_t': row['timestamp_t'],
                     'wind_meter': wind_meter_name,
                     'obs_count': obs_count,
-                    'expected_range': '25-35'
+                    'expected_range': f'{expected_min}-{expected_max}'
                 })
         
         # Combine original row with wind metrics
@@ -508,6 +514,8 @@ def add_wind_data(lag_df: pd.DataFrame,
         print(f"Wind observations per lag period: {obs_stats.min():.0f}-{obs_stats.max():.0f} (mean: {obs_stats.mean():.1f})")
     
     # Report and filter out diagnostic issues
+    expected_min = lag_minutes - 5
+    expected_max = lag_minutes + 5
     if diagnostic_issues:
         print(f"\n⚠️ FILTERING OUT {len(diagnostic_issues)} pairs with unusual wind observation counts:")
         # Show first 10 examples
@@ -532,7 +540,7 @@ def add_wind_data(lag_df: pd.DataFrame,
         
         return wind_df_filtered
     else:
-        print(f"✅ All wind observation counts within expected range (25-35)")
+        print(f"✅ All wind observation counts within expected range ({expected_min}-{expected_max})")
         return wind_df
 
 
@@ -676,9 +684,62 @@ def add_deployment_metadata(df: pd.DataFrame, deployments_df: pd.DataFrame) -> p
     return merged_df
 
 
-def load_deployments():
+
+
+def parse_arguments():
+    """Parse command line arguments"""
+    parser = argparse.ArgumentParser(
+        description="Data preprocessing script with configurable lag analysis",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+    
+    # Core parameters
+    parser.add_argument('--lag-minutes', type=int, default=30,
+                        help='Lag period for analysis in minutes')
+    parser.add_argument('--tolerance-minutes', type=int, default=5,
+                        help='Tolerance window for finding lagged observations in minutes')
+    parser.add_argument('--keep-zero-pairs', action='store_true',
+                        help='Keep zero-zero butterfly pairs (default is to remove them)')
+    
+    # Data paths
+    parser.add_argument('--json-dir', default='data/deployments',
+                        help='Directory containing JSON deployment files')
+    parser.add_argument('--temp-file', default='data/temperature_data_2023.csv',
+                        help='Temperature data file')
+    parser.add_argument('--wind-db-dir', default='data/wind',
+                        help='Wind database directory')
+    parser.add_argument('--deployments-file', default='data/deployments.csv',
+                        help='Deployments metadata file')
+    
+    # Output options
+    parser.add_argument('--output-file', 
+                        help='Output CSV filename (auto-generated if not specified)')
+    parser.add_argument('--output-dir', default='data',
+                        help='Output directory')
+    
+    return parser.parse_args()
+
+
+def generate_output_filename(args):
+    """Generate output filename based on arguments"""
+    if args.output_file:
+        return args.output_file
+    
+    # Base filename with lag minutes
+    filename = f"monarch_analysis_lag{args.lag_minutes}min"
+    
+    # Add zero pairs flag if keeping them
+    if args.keep_zero_pairs:
+        filename += "_withzeros"
+    
+    filename += ".csv"
+    
+    return str(Path(args.output_dir) / filename)
+
+
+def load_deployments(deployments_file):
     """Load deployment data"""
-    deployments = pd.read_csv('data/deployments.csv')
+    deployments = pd.read_csv(deployments_file)
     print(f"Loaded {len(deployments)} deployments")
     print(f"Columns: {list(deployments.columns)}")
     return deployments
@@ -686,10 +747,24 @@ def load_deployments():
 
 def main():
     """Main function for data preprocessing"""
-    print("Starting data preprocessing with 30-day lag...")
+    args = parse_arguments()
+    
+    print(f"Starting data preprocessing with {args.lag_minutes}-minute lag...")
+    print(f"Configuration:")
+    print(f"  Lag minutes: {args.lag_minutes}")
+    print(f"  Tolerance: ±{args.tolerance_minutes} minutes")
+    print(f"  Zero pairs: {'kept' if args.keep_zero_pairs else 'removed'}")
+    print(f"  JSON directory: {args.json_dir}")
+    print(f"  Temperature file: {args.temp_file}")
+    print(f"  Wind database directory: {args.wind_db_dir}")
+    print(f"  Deployments file: {args.deployments_file}")
+    
+    # Generate output filename
+    output_path = generate_output_filename(args)
+    print(f"  Output file: {output_path}")
     
     # Load deployment metadata
-    deployments = load_deployments()
+    deployments = load_deployments(args.deployments_file)
     print(f"\nDeployment overview:")
     print(deployments.head())
     
@@ -697,7 +772,7 @@ def main():
     print(f"\n" + "="*50)
     print("Processing butterfly count data...")
     processor = ButterflyCountProcessor()
-    butterfly_counts = processor.process_deployments()
+    butterfly_counts = processor.process_deployments(args.json_dir)
     
     if not butterfly_counts.empty:
         print(f"\nButterfly count data overview:")
@@ -719,7 +794,7 @@ def main():
         print(f"\n" + "="*50)
         print("Adding temperature data...")
         try:
-            final_data = add_temperature_data(butterfly_counts)
+            final_data = add_temperature_data(butterfly_counts, args.temp_file)
             print(f"\nFinal dataset overview:")
             print(f"Shape: {final_data.shape}")
             print(f"Columns: {list(final_data.columns)}")
@@ -740,7 +815,12 @@ def main():
         print(f"\n" + "="*50)
         print("Creating lag analysis...")
         try:
-            lag_data = create_lag_analysis(final_data, lag_minutes=30, remove_zero_pairs=True)
+            lag_data = create_lag_analysis(
+                final_data, 
+                lag_minutes=args.lag_minutes, 
+                remove_zero_pairs=not args.keep_zero_pairs,
+                tolerance_minutes=args.tolerance_minutes
+            )
             
             if not lag_data.empty:
                 print(f"\nLag analysis overview:")
@@ -759,7 +839,7 @@ def main():
         print(f"\n" + "="*50)
         print("Adding wind data...")
         try:
-            final_data_with_wind = add_wind_data(lag_data, deployments, wind_db_dir='data/wind')
+            final_data_with_wind = add_wind_data(lag_data, deployments, wind_db_dir=args.wind_db_dir, lag_minutes=args.lag_minutes)
             
             if not final_data_with_wind.empty:
                 print(f"\nFinal dataset with wind:")
@@ -798,7 +878,7 @@ def main():
                 print(f"\n" + "="*50)
                 print("Exporting final research dataset...")
                 try:
-                    export_path = export_final_dataset(final_dataset)
+                    export_path = export_final_dataset(final_dataset, output_path)
                     print(f"\n🎉 Data preprocessing pipeline completed successfully!")
                     print(f"📊 Final research dataset ready at: {export_path}")
                 except Exception as e:
