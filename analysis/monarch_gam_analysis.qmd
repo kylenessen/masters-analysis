@@ -1,9 +1,10 @@
 ---
-title: "Monarch Abundance Analysis with GAM"
+title: "Analysis of distruptive winds to overwintering monarch butterflies"
 author: "Kyle Nessen"
 date: "`r Sys.Date()`"
 format: 
   html:
+    embed-resources: true
     toc: true
     toc-depth: 3
     code-fold: true
@@ -15,9 +16,11 @@ execute:
 
 ## Introduction
 
-This analysis examines changes in monarch abundance using a robust GAM (Generalized Additive Model) approach. We'll explore temporal patterns and potential drivers of monarch population dynamics.
+This analysis investigates the first hypothesis of my master's thesis: that wind acts as a disruptive force to overwintering monarch butterflies. If true, we predict that monarch abundance at roosts will decrease when exposed to disruptive winds. I use labeled photos from my 2023-2024 dataset to test this hypothesis. I employed GAM (Generalized Additive Models) because they allow for non-linear relationships in fixed effects while maintaining the necessary random effect structure to account for temporal autocorrelation and nested sampling design.
 
 ## Setup
+
+Load libraries and data:
 
 ```{r setup}
 library(tidyverse)
@@ -27,27 +30,119 @@ library(plotly)
 library(knitr)
 library(DT)
 library(here)
-```
-
-## Data Loading
-
-```{r load-data}
 # Load the monarch analysis data
 monarch_data <- read_csv(here("data","monarch_analysis_lag30min.csv"))
-
-glimpse(monarch_data)
 ```
 
-## Data Preparation
+## Exploratory Data Analysis
+
+The response variable is the difference in monarch counts between time t and t-1 at 30-minute intervals. I applied a cube root transformation to achieve a more normal distribution. Because the lagged comparisons create overlapping pairs of observations, I include an AR1 autocorrelation structure to account for temporal dependence.
+
+```{r temporal-dependency-diagram}
+#| fig-cap: "Illustration of temporal dependency in observation pairs. Points represent photos with labeled count data at 30-minute intervals. Blue boxes show non-overlapping pairs of observations. The red box shows an overlapping comparison where one observation is shared between adjacent pairs, creating temporal autocorrelation that is controlled by the AR1 structure."
+#| out-width: "80%"
+#| fig-align: "center"
+knitr::include_graphics("images/clipboard-1435734413.png")
+```
+
+```{r exploratory-plots}
+library(corrplot)
+library(gridExtra)
+
+# Select variables used in the models
+model_vars <- monarch_data %>%
+  select(butterfly_difference_cbrt, total_butterflies_t_lag, max_gust, 
+         temperature_avg, butterflies_direct_sun_t_lag, time_within_day_t)
+
+# Histograms of key variables
+p1 <- ggplot(monarch_data, aes(x = butterfly_difference_cbrt)) +
+  geom_histogram(bins = 30, fill = "steelblue", alpha = 0.7) +
+  labs(title = "Response: Butterfly Difference (Cube Root)", 
+       x = "Butterfly Difference (cbrt)", y = "Frequency")
+
+p2 <- ggplot(monarch_data, aes(x = total_butterflies_t_lag)) +
+  geom_histogram(bins = 30, fill = "orange", alpha = 0.7) +
+  labs(title = "Previous Butterfly Count", 
+       x = "Total Butterflies (t-lag)", y = "Frequency")
+
+p3 <- ggplot(monarch_data, aes(x = temperature_avg)) +
+  geom_histogram(bins = 30, fill = "red", alpha = 0.7) +
+  labs(title = "Temperature Distribution", 
+       x = "Average Temperature (°C)", y = "Frequency")
+
+p4 <- ggplot(monarch_data, aes(x = max_gust)) +
+  geom_histogram(bins = 30, fill = "lightblue", alpha = 0.7) +
+  labs(title = "Wind Gust Distribution", 
+       x = "Max Gust (m/s)", y = "Frequency")
+
+grid.arrange(p1, p2, p3, p4, ncol = 2)
+```
+
+```{r correlation-analysis}
+# Correlation matrix for model variables
+cor_matrix <- cor(model_vars, use = "complete.obs")
+
+# Create correlation plot
+corrplot(cor_matrix, 
+         method = "color",
+         type = "upper",
+         order = "hclust",
+         tl.cex = 0.8,
+         tl.col = "black",
+         tl.srt = 45,
+         addCoef.col = "black",
+         number.cex = 0.7,
+         title = "Correlation Matrix: Model Variables")
+
+# Print correlation table
+kable(round(cor_matrix, 3), 
+      caption = "Correlation Matrix for Model Variables")
+```
+
+```{r diurnal-patterns}
+# Butterfly activity by time of day
+p1 <- ggplot(monarch_data, aes(x = time_within_day_t, y = total_butterflies_t_lag)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "loess", se = TRUE, color = "blue") +
+  labs(title = "Butterfly Abundance Throughout the Day", 
+       x = "Time Within Day (minutes)", y = "Total Butterflies") +
+  theme_minimal()
+
+# Sun exposure patterns by time
+p2 <- ggplot(monarch_data, aes(x = time_within_day_t, y = butterflies_direct_sun_t_lag)) +
+  geom_point(alpha = 0.3, color = "orange") +
+  geom_smooth(method = "loess", se = TRUE, color = "darkorange") +
+  labs(title = "Sun Exposure Throughout the Day", 
+       x = "Time Within Day (minutes)", y = "Butterflies in Direct Sun") +
+  theme_minimal()
+
+# Temperature patterns by time
+p3 <- ggplot(monarch_data, aes(x = time_within_day_t, y = temperature_avg)) +
+  geom_point(alpha = 0.3, color = "red") +
+  geom_smooth(method = "loess", se = TRUE, color = "darkred") +
+  labs(title = "Temperature Throughout the Day", 
+       x = "Time Within Day (minutes)", y = "Average Temperature (°C)") +
+  theme_minimal()
+
+# Response variable by time
+p4 <- ggplot(monarch_data, aes(x = time_within_day_t, y = butterfly_difference_cbrt)) +
+  geom_point(alpha = 0.3, color = "purple") +
+  geom_smooth(method = "loess", se = TRUE, color = "darkviolet") +
+  labs(title = "Butterfly Change Throughout the Day", 
+       x = "Time Within Day (minutes)", y = "Butterfly Difference (cbrt)") +
+  theme_minimal()
+
+grid.arrange(p1, p2, p3, p4, ncol = 2)
+```
 
 ```{r data-prep}
+#| include: false
 # Check grove distribution
 table(monarch_data$grove)
 
 # Remove any rows with missing values in key variables and exclude SC_8
 model_data <- monarch_data %>%
-  filter(deployment_id != "SC_8",
-         !is.na(butterfly_difference_cbrt),
+  filter(!is.na(butterfly_difference_cbrt),
          !is.na(total_butterflies_t_lag),
          !is.na(max_gust),
          !is.na(temperature_avg),
@@ -60,7 +155,13 @@ model_data <- monarch_data %>%
 cat("Clean dataset has", nrow(model_data), "observations\n")
 ```
 
+## Modeling Strategy
+
+Our modeling approach used a comprehensive AIC-based comparison to evaluate all possible combinations of three key environmental predictors: wind speed (max_gust), temperature (temperature_avg), and solar exposure (butterflies_direct_sun_t_lag). We tested two fundamental modeling frameworks: models that include total_butterflies_t_lag as a control variable (testing effects on relative/proportional change) and models that exclude it (testing effects on absolute change). Within each framework, we systematically evaluated linear main effects, two-way and three-way interactions, and non-linear relationships using smooth terms. We also incorporated time-of-day effects to capture diurnal patterns. This resulted in 47 candidate models that comprehensively explore the parameter space while maintaining proper mixed-effects structure with random effects for deployment, observer, and day, plus AR1 correlation for within-day autocorrelation.
+
 ## Model Building and Selection
+
+Please expand the code block to see the full list of models tested.
 
 ```{r model-setup}
 library(nlme)
@@ -148,6 +249,7 @@ cat("Total models to fit:", length(model_specs), "\n")
 ## Model Fitting
 
 ```{r model-fitting}
+#| cache: true
 # Function to safely fit models
 fit_model_safely <- function(formula_str, data) {
   tryCatch({
@@ -221,25 +323,41 @@ summary(best_model$gam)
 
 ## Effect Plots
 
-```{r effect-plots}
-# Plot smooth effects
-par(mfrow = c(2, 2))
-plot(best_model$gam, pages = 1, residuals = TRUE, pch = 19, cex = 0.3)
+### Effect of Previous Butterfly Count
 
-# Individual effect plots with better formatting
-par(mfrow = c(2, 2))
+```{r effect-previous-count}
+#| fig-width: 10
+#| fig-height: 6
 plot(best_model$gam, select = 1, main = "Effect of Previous Butterfly Count", 
      xlab = "Total Butterflies (t-lag)", ylab = "Partial Effect", 
      residuals = TRUE, pch = 19, cex = 0.5)
+```
 
+### Effect of Temperature
+
+```{r effect-temperature}
+#| fig-width: 10
+#| fig-height: 6
 plot(best_model$gam, select = 2, main = "Effect of Temperature", 
      xlab = "Average Temperature (°C)", ylab = "Partial Effect", 
      residuals = TRUE, pch = 19, cex = 0.5)
+```
 
+### Diurnal Pattern
+
+```{r effect-diurnal}
+#| fig-width: 10
+#| fig-height: 6
 plot(best_model$gam, select = 3, main = "Diurnal Pattern", 
      xlab = "Time Within Day (minutes)", ylab = "Partial Effect", 
      residuals = TRUE, pch = 19, cex = 0.5)
+```
 
+### Effect of Sun Exposure (Linear)
+
+```{r effect-sun-exposure}
+#| fig-width: 10
+#| fig-height: 6
 # Linear effect of sun exposure (parametric term)
 sun_effect <- summary(best_model$gam)$p.table["butterflies_direct_sun_t_lag", ]
 plot(model_data$butterflies_direct_sun_t_lag, 
@@ -251,74 +369,179 @@ plot(model_data$butterflies_direct_sun_t_lag,
 abline(h = 0, lty = 2, col = "red")
 ```
 
-```{r effect-interpretation}
-# Create nicer ggplot versions
-library(gratia)
+### Smooth Effects (ggplot2 style)
 
-# All smooth effects in one plot
-draw(best_model$gam) + 
+#### Previous Butterfly Count Effect
+
+```{r gratia-previous-count}
+#| fig-width: 10
+#| fig-height: 6
+library(gratia)
+draw(best_model$gam, select = "s(total_butterflies_t_lag)") + 
   theme_minimal() +
-  labs(title = "Smooth Effects in Best Model")
+  labs(title = "Effect of Previous Butterfly Count (ggplot2 style)")
 ```
 
-```{r model-diagnostics}
-# Model diagnostics
-par(mfrow = c(2, 2))
+#### Temperature Effect
 
-# Residual plots using the lme component
-plot(best_model$lme)
+```{r gratia-temperature}
+#| fig-width: 10
+#| fig-height: 6
+draw(best_model$gam, select = "s(temperature_avg)") + 
+  theme_minimal() +
+  labs(title = "Effect of Temperature (ggplot2 style)")
+```
 
-# Additional residual checks
+#### Diurnal Pattern
+
+```{r gratia-diurnal}
+#| fig-width: 10
+#| fig-height: 6
+draw(best_model$gam, select = "s(time_within_day_t)") + 
+  theme_minimal() +
+  labs(title = "Diurnal Pattern (ggplot2 style)")
+```
+
+## Model Diagnostics
+
+### Residuals vs Fitted Values
+
+```{r diagnostics-residuals-fitted}
+#| fig-width: 10
+#| fig-height: 6
+plot(best_model$lme, main = "Residuals vs Fitted Values")
+```
+
+### Q-Q Plot of Residuals
+
+```{r diagnostics-qq-plot}
+#| fig-width: 10
+#| fig-height: 6
 residuals_df <- data.frame(
   fitted = fitted(best_model$lme),
   residuals = residuals(best_model$lme, type = "normalized")
 )
 
-# Q-Q plot
 qqnorm(residuals_df$residuals, main = "Normal Q-Q Plot of Residuals")
 qqline(residuals_df$residuals)
-
-# Histogram of residuals
-hist(residuals_df$residuals, main = "Distribution of Residuals", xlab = "Residuals")
 ```
 
-```{r coefficient-interpretation}
-# Extract and display coefficients
-coef_table <- summary(best_model$gam)$p.table
-coef_df <- data.frame(
-  Variable = rownames(coef_table),
-  Estimate = coef_table[, "Estimate"],
-  SE = coef_table[, "Std. Error"],
-  t_value = coef_table[, "t value"],
-  p_value = coef_table[, "Pr(>|t|)"]
-) %>%
-  mutate(
-    Significant = ifelse(p_value < 0.001, "***",
-                        ifelse(p_value < 0.01, "**", 
-                              ifelse(p_value < 0.05, "*", 
-                                    ifelse(p_value < 0.1, ".", ""))))
-  )
+### Distribution of Residuals
 
-coef_df %>%
-  kable(digits = 4, caption = "Coefficient estimates for best model")
+```{r diagnostics-histogram}
+#| fig-width: 10
+#| fig-height: 6
+hist(residuals_df$residuals, main = "Distribution of Residuals", xlab = "Residuals", breaks = 30)
 ```
 
-```{r model-performance}
-# Model performance metrics
-cat("Model Performance:\n")
-cat("AIC:", AIC(best_model$lme), "\n")
-cat("Log-likelihood:", logLik(best_model$lme)[1], "\n")
-cat("R-squared (approximate):", summary(best_model$gam)$r.sq, "\n")
-cat("Deviance explained:", summary(best_model$gam)$dev.expl * 100, "%\n")
+## Second Best Model Analysis (Wind)
 
-# Random effects variance
-cat("\nRandom Effects Variance Components:\n")
-print(VarCorr(best_model$lme))
+```{r second-best-model-analysis}
+# Get the second best model
+second_best_model_name <- aic_results$Model[2]
+second_best_model <- successful_models[[second_best_model_name]]
+
+cat("Second best model:", second_best_model_name, "\n")
+cat("Formula:", aic_results$Formula[2], "\n\n")
+
+# Model summary
+summary(second_best_model$gam)
 ```
+
+### Effect Plots - Second Best Model
+
+#### Effect of Previous Butterfly Count
+
+```{r second-effect-previous-count}
+#| fig-width: 10
+#| fig-height: 6
+plot(second_best_model$gam, select = 1, main = "Effect of Previous Butterfly Count (Second Best Model)", 
+     xlab = "Total Butterflies (t-lag)", ylab = "Partial Effect", 
+     residuals = TRUE, pch = 19, cex = 0.5)
+```
+
+#### Effect of Wind Gust
+
+```{r second-effect-wind}
+#| fig-width: 10
+#| fig-height: 6
+plot(second_best_model$gam, select = 2, main = "Effect of Wind Gust (Second Best Model)", 
+     xlab = "Max Gust (m/s)", ylab = "Partial Effect", 
+     residuals = TRUE, pch = 19, cex = 0.5)
+```
+
+#### Effect of Temperature
+
+```{r second-effect-temperature}
+#| fig-width: 10
+#| fig-height: 6
+plot(second_best_model$gam, select = 3, main = "Effect of Temperature (Second Best Model)", 
+     xlab = "Average Temperature (°C)", ylab = "Partial Effect", 
+     residuals = TRUE, pch = 19, cex = 0.5)
+```
+
+#### Effect of Sun Exposure
+
+```{r second-effect-sun}
+#| fig-width: 10
+#| fig-height: 6
+plot(second_best_model$gam, select = 4, main = "Effect of Sun Exposure (Second Best Model)", 
+     xlab = "Butterflies in Direct Sun (t-lag)", ylab = "Partial Effect", 
+     residuals = TRUE, pch = 19, cex = 0.5)
+```
+
+#### Diurnal Pattern
+
+```{r second-effect-diurnal}
+#| fig-width: 10
+#| fig-height: 6
+plot(second_best_model$gam, select = 5, main = "Diurnal Pattern (Second Best Model)", 
+     xlab = "Time Within Day (minutes)", ylab = "Partial Effect", 
+     residuals = TRUE, pch = 19, cex = 0.5)
+```
+
+### Model Diagnostics - Second Best Model
+
+#### Residuals vs Fitted Values
+
+```{r second-diagnostics-residuals-fitted}
+#| fig-width: 10
+#| fig-height: 6
+plot(second_best_model$lme, main = "Residuals vs Fitted Values (Second Best Model)")
+```
+
+#### Q-Q Plot of Residuals
+
+```{r second-diagnostics-qq-plot}
+#| fig-width: 10
+#| fig-height: 6
+second_residuals_df <- data.frame(
+  fitted = fitted(second_best_model$lme),
+  residuals = residuals(second_best_model$lme, type = "normalized")
+)
+
+qqnorm(second_residuals_df$residuals, main = "Normal Q-Q Plot of Residuals (Second Best Model)")
+qqline(second_residuals_df$residuals)
+```
+
+#### Distribution of Residuals
+
+```{r second-diagnostics-histogram}
+#| fig-width: 10
+#| fig-height: 6
+hist(second_residuals_df$residuals, main = "Distribution of Residuals (Second Best Model)", 
+     xlab = "Residuals", breaks = 30)
+```
+
 
 ## Results Summary
 
-The analysis tested 15 different model configurations to determine which environmental factors best predict changes in monarch butterfly abundance. The models included various combinations of wind speed (max_gust), temperature (temperature_avg), and solar exposure (butterflies_direct_sun_t_lag), along with their interactions.
+This analysis provides robust evidence regarding wind effects on overwintering monarch butterfly movement through comprehensive model comparison across 47 candidate models. The results reveal several key findings:
 
-Key findings will be interpreted based on the best-performing model according to AIC criteria.
+**Wind Effects:** Wind was not selected in the best-performing model and appeared only in the second-best model with a non-significant effect (p = 0.218). This suggests that wind is not a primary driver of short-term monarch movement patterns at the temporal and spatial scales examined.
 
+**Primary Drivers:** Temperature and diurnal patterns emerged as the strongest predictors of monarch movement. The best model revealed non-linear temperature responses with apparent thermal optima, and strong diurnal cycles consistent with monarch thermoregulatory behavior.
+
+**Model Performance:** Including smooth terms substantially improved model fit (R² increased from 2.74% to 5.61%), highlighting the importance of capturing non-linear relationships in ecological modeling.
+
+**Hypothesis Evaluation:** These results do not support the hypothesis that wind acts as a disruptive force to overwintering monarchs at the 30-minute temporal scale examined.
