@@ -538,7 +538,7 @@ hist(second_residuals_df$residuals, main = "Distribution of Residuals (Second Be
 
 This analysis provides robust evidence regarding wind effects on overwintering monarch butterfly movement through comprehensive model comparison across 47 candidate models. The results reveal several key findings:
 
-**Wind Effects:** Wind was not selected in the best-performing model and appeared only in the second-best model with a non-significant effect (p = 0.218). This suggests that wind is not a primary driver of short-term monarch movement patterns at the temporal and spatial scales examined.
+**Wind Effects:** Wind was not selected in the best-performing model and only appeared once in the top 5 models (plotted above) with a non-significant effect (p = 0.218). This suggests that wind is not a primary driver of short-term monarch movement patterns at the temporal and spatial scales examined.
 
 **Primary Drivers:** Temperature and diurnal patterns emerged as the strongest predictors of monarch movement. The best model revealed non-linear temperature responses with apparent thermal optima, and strong diurnal cycles consistent with monarch thermoregulatory behavior.
 
