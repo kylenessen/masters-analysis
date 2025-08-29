@@ -31,7 +31,7 @@ library(knitr)
 library(DT)
 library(here)
 # Load the monarch analysis data
-monarch_data <- read_csv(here("data","monarch_analysis_lag30min.csv"))
+monarch_data <- read_csv(here("data", "monarch_analysis_lag30min.csv"))
 ```
 
 ## Exploratory Data Analysis
@@ -45,35 +45,68 @@ The response variable is the difference in monarch counts between time t and t-1
 knitr::include_graphics("images/clipboard-1435734413.png")
 ```
 
+```{r data-comparison}
+library(gridExtra)
+
+# Compare total butterfly counts with and without SC8
+p_all <- ggplot(monarch_data, aes(x = total_butterflies_t_lag)) +
+    geom_histogram(bins = 30, fill = "steelblue", alpha = 0.7) +
+    labs(
+        title = "Total Butterflies - All Data",
+        x = "Total Butterflies (t-lag)", y = "Frequency"
+    ) +
+    theme_minimal()
+
+p_no_sc8 <- ggplot(monarch_data %>% filter(deployment_id != "SC8"), aes(x = total_butterflies_t_lag)) +
+    geom_histogram(bins = 30, fill = "orange", alpha = 0.7) +
+    labs(
+        title = "Total Butterflies - SC8 Excluded",
+        x = "Total Butterflies (t-lag)", y = "Frequency"
+    ) +
+    theme_minimal()
+
+grid.arrange(p_all, p_no_sc8, ncol = 2)
+```
+
 ```{r exploratory-plots}
 library(corrplot)
 library(gridExtra)
 
 # Select variables used in the models
 model_vars <- monarch_data %>%
-  select(butterfly_difference_cbrt, total_butterflies_t_lag, max_gust, 
-         temperature_avg, butterflies_direct_sun_t_lag, time_within_day_t)
+    select(
+        butterfly_difference_cbrt, total_butterflies_t_lag, max_gust,
+        temperature_avg, butterflies_direct_sun_t_lag, time_within_day_t
+    )
 
 # Histograms of key variables
 p1 <- ggplot(monarch_data, aes(x = butterfly_difference_cbrt)) +
-  geom_histogram(bins = 30, fill = "steelblue", alpha = 0.7) +
-  labs(title = "Response: Butterfly Difference (Cube Root)", 
-       x = "Butterfly Difference (cbrt)", y = "Frequency")
+    geom_histogram(bins = 30, fill = "steelblue", alpha = 0.7) +
+    labs(
+        title = "Response: Butterfly Difference (Cube Root)",
+        x = "Butterfly Difference (cbrt)", y = "Frequency"
+    )
 
 p2 <- ggplot(monarch_data, aes(x = total_butterflies_t_lag)) +
-  geom_histogram(bins = 30, fill = "orange", alpha = 0.7) +
-  labs(title = "Previous Butterfly Count", 
-       x = "Total Butterflies (t-lag)", y = "Frequency")
+    geom_histogram(bins = 30, fill = "orange", alpha = 0.7) +
+    labs(
+        title = "Previous Butterfly Count",
+        x = "Total Butterflies (t-lag)", y = "Frequency"
+    )
 
 p3 <- ggplot(monarch_data, aes(x = temperature_avg)) +
-  geom_histogram(bins = 30, fill = "red", alpha = 0.7) +
-  labs(title = "Temperature Distribution", 
-       x = "Average Temperature (°C)", y = "Frequency")
+    geom_histogram(bins = 30, fill = "red", alpha = 0.7) +
+    labs(
+        title = "Temperature Distribution",
+        x = "Average Temperature (°C)", y = "Frequency"
+    )
 
 p4 <- ggplot(monarch_data, aes(x = max_gust)) +
-  geom_histogram(bins = 30, fill = "lightblue", alpha = 0.7) +
-  labs(title = "Wind Gust Distribution", 
-       x = "Max Gust (m/s)", y = "Frequency")
+    geom_histogram(bins = 30, fill = "lightblue", alpha = 0.7) +
+    labs(
+        title = "Wind Gust Distribution",
+        x = "Max Gust (m/s)", y = "Frequency"
+    )
 
 grid.arrange(p1, p2, p3, p4, ncol = 2)
 ```
@@ -83,54 +116,64 @@ grid.arrange(p1, p2, p3, p4, ncol = 2)
 cor_matrix <- cor(model_vars, use = "complete.obs")
 
 # Create correlation plot
-corrplot(cor_matrix, 
-         method = "color",
-         type = "upper",
-         order = "hclust",
-         tl.cex = 0.8,
-         tl.col = "black",
-         tl.srt = 45,
-         addCoef.col = "black",
-         number.cex = 0.7,
-         title = "Correlation Matrix: Model Variables")
+corrplot(cor_matrix,
+    method = "color",
+    type = "upper",
+    order = "hclust",
+    tl.cex = 0.8,
+    tl.col = "black",
+    tl.srt = 45,
+    addCoef.col = "black",
+    number.cex = 0.7,
+    title = "Correlation Matrix: Model Variables"
+)
 
 # Print correlation table
-kable(round(cor_matrix, 3), 
-      caption = "Correlation Matrix for Model Variables")
+kable(round(cor_matrix, 3),
+    caption = "Correlation Matrix for Model Variables"
+)
 ```
 
 ```{r diurnal-patterns}
 # Butterfly activity by time of day
 p1 <- ggplot(monarch_data, aes(x = time_within_day_t, y = total_butterflies_t_lag)) +
-  geom_point(alpha = 0.3) +
-  geom_smooth(method = "loess", se = TRUE, color = "blue") +
-  labs(title = "Butterfly Abundance Throughout the Day", 
-       x = "Time Within Day (minutes)", y = "Total Butterflies") +
-  theme_minimal()
+    geom_point(alpha = 0.3) +
+    geom_smooth(method = "loess", se = TRUE, color = "blue") +
+    labs(
+        title = "Butterfly Abundance Throughout the Day",
+        x = "Time Within Day (minutes)", y = "Total Butterflies"
+    ) +
+    theme_minimal()
 
 # Sun exposure patterns by time
 p2 <- ggplot(monarch_data, aes(x = time_within_day_t, y = butterflies_direct_sun_t_lag)) +
-  geom_point(alpha = 0.3, color = "orange") +
-  geom_smooth(method = "loess", se = TRUE, color = "darkorange") +
-  labs(title = "Sun Exposure Throughout the Day", 
-       x = "Time Within Day (minutes)", y = "Butterflies in Direct Sun") +
-  theme_minimal()
+    geom_point(alpha = 0.3, color = "orange") +
+    geom_smooth(method = "loess", se = TRUE, color = "darkorange") +
+    labs(
+        title = "Sun Exposure Throughout the Day",
+        x = "Time Within Day (minutes)", y = "Butterflies in Direct Sun"
+    ) +
+    theme_minimal()
 
 # Temperature patterns by time
 p3 <- ggplot(monarch_data, aes(x = time_within_day_t, y = temperature_avg)) +
-  geom_point(alpha = 0.3, color = "red") +
-  geom_smooth(method = "loess", se = TRUE, color = "darkred") +
-  labs(title = "Temperature Throughout the Day", 
-       x = "Time Within Day (minutes)", y = "Average Temperature (°C)") +
-  theme_minimal()
+    geom_point(alpha = 0.3, color = "red") +
+    geom_smooth(method = "loess", se = TRUE, color = "darkred") +
+    labs(
+        title = "Temperature Throughout the Day",
+        x = "Time Within Day (minutes)", y = "Average Temperature (°C)"
+    ) +
+    theme_minimal()
 
 # Response variable by time
 p4 <- ggplot(monarch_data, aes(x = time_within_day_t, y = butterfly_difference_cbrt)) +
-  geom_point(alpha = 0.3, color = "purple") +
-  geom_smooth(method = "loess", se = TRUE, color = "darkviolet") +
-  labs(title = "Butterfly Change Throughout the Day", 
-       x = "Time Within Day (minutes)", y = "Butterfly Difference (cbrt)") +
-  theme_minimal()
+    geom_point(alpha = 0.3, color = "purple") +
+    geom_smooth(method = "loess", se = TRUE, color = "darkviolet") +
+    labs(
+        title = "Butterfly Change Throughout the Day",
+        x = "Time Within Day (minutes)", y = "Butterfly Difference (cbrt)"
+    ) +
+    theme_minimal()
 
 grid.arrange(p1, p2, p3, p4, ncol = 2)
 ```
@@ -142,15 +185,17 @@ table(monarch_data$grove)
 
 # Remove any rows with missing values in key variables and exclude SC_8
 model_data <- monarch_data %>%
-  filter(!is.na(butterfly_difference_cbrt),
-         !is.na(total_butterflies_t_lag),
-         !is.na(max_gust),
-         !is.na(temperature_avg),
-         !is.na(butterflies_direct_sun_t_lag),
-         !is.na(deployment_id),
-         !is.na(deployment_day),
-         !is.na(Observer),
-         !is.na(observation_order_within_day_t))
+    filter(
+        !is.na(butterfly_difference_cbrt),
+        !is.na(total_butterflies_t_lag),
+        !is.na(max_gust),
+        !is.na(temperature_avg),
+        !is.na(butterflies_direct_sun_t_lag),
+        !is.na(deployment_id),
+        !is.na(deployment_day),
+        !is.na(Observer),
+        !is.na(observation_order_within_day_t)
+    )
 
 cat("Clean dataset has", nrow(model_data), "observations\n")
 ```
@@ -167,80 +212,80 @@ Please expand the code block to see the full list of models tested.
 library(nlme)
 
 # Define the random effects structure and correlation
-random_structure <- list(deployment_id = ~ 1, Observer = ~ 1, deployment_day = ~ 1)
+random_structure <- list(deployment_id = ~1, Observer = ~1, deployment_day = ~1)
 correlation_structure <- corAR1(form = ~ observation_order_within_day_t | deployment_day)
 
 # Model specifications for AIC comparison
 model_specs <- list(
-  # Null model
-  "M0_null" = "butterfly_difference_cbrt ~ total_butterflies_t_lag",
-  
-  # Single variable models
-  "M1_gust" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust",
-  "M2_temp" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + temperature_avg", 
-  "M3_sun" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + butterflies_direct_sun_t_lag",
-  
-  # Two-variable combinations
-  "M4_gust_temp" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust + temperature_avg",
-  "M5_gust_sun" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust + butterflies_direct_sun_t_lag",
-  "M6_temp_sun" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + temperature_avg + butterflies_direct_sun_t_lag",
-  
-  # Three-variable model (main effects only)
-  "M7_all_main" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust + temperature_avg + butterflies_direct_sun_t_lag",
-  
-  # Two-way interactions
-  "M8_gust_temp_int" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust * temperature_avg",
-  "M9_gust_sun_int" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust * butterflies_direct_sun_t_lag",
-  "M10_temp_sun_int" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + temperature_avg * butterflies_direct_sun_t_lag",
-  
-  # Two-way interactions with third variable as main effect
-  "M11_gust_temp_int_plus_sun" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust * temperature_avg + butterflies_direct_sun_t_lag",
-  "M12_gust_sun_int_plus_temp" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust * butterflies_direct_sun_t_lag + temperature_avg",
-  "M13_temp_sun_int_plus_gust" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + temperature_avg * butterflies_direct_sun_t_lag + max_gust",
-  
-  # All two-way interactions
-  "M14_all_two_way" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust * temperature_avg + max_gust * butterflies_direct_sun_t_lag + temperature_avg * butterflies_direct_sun_t_lag",
-  
-  # Three-way interaction
-  "M15_three_way" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust * temperature_avg * butterflies_direct_sun_t_lag",
-  
-  # Smooth terms models (with lag term)
-  "M16_smooth_temp" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + s(temperature_avg) + butterflies_direct_sun_t_lag",
-  "M17_smooth_sun" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + temperature_avg + s(butterflies_direct_sun_t_lag)",
-  "M18_smooth_gust" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + s(max_gust) + temperature_avg + butterflies_direct_sun_t_lag",
-  "M19_smooth_temp_sun" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + s(temperature_avg) + s(butterflies_direct_sun_t_lag)",
-  "M20_smooth_all_main" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + s(max_gust) + s(temperature_avg) + s(butterflies_direct_sun_t_lag)",
-  "M21_time_of_day" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + temperature_avg + butterflies_direct_sun_t_lag + s(time_within_day_t)",
-  "M22_temp_time" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + s(temperature_avg) + butterflies_direct_sun_t_lag + s(time_within_day_t)",
-  "M23_all_smooth_time" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + s(max_gust) + s(temperature_avg) + s(butterflies_direct_sun_t_lag) + s(time_within_day_t)",
-  
-  # Models WITHOUT lag term - testing environmental effects on absolute change
-  "M24_no_lag_null" = "butterfly_difference_cbrt ~ 1",
-  "M25_no_lag_gust" = "butterfly_difference_cbrt ~ max_gust",
-  "M26_no_lag_temp" = "butterfly_difference_cbrt ~ temperature_avg",
-  "M27_no_lag_sun" = "butterfly_difference_cbrt ~ butterflies_direct_sun_t_lag",
-  "M28_no_lag_gust_temp" = "butterfly_difference_cbrt ~ max_gust + temperature_avg",
-  "M29_no_lag_gust_sun" = "butterfly_difference_cbrt ~ max_gust + butterflies_direct_sun_t_lag",
-  "M30_no_lag_temp_sun" = "butterfly_difference_cbrt ~ temperature_avg + butterflies_direct_sun_t_lag",
-  "M31_no_lag_all_main" = "butterfly_difference_cbrt ~ max_gust + temperature_avg + butterflies_direct_sun_t_lag",
-  "M32_no_lag_gust_temp_int" = "butterfly_difference_cbrt ~ max_gust * temperature_avg",
-  "M33_no_lag_gust_sun_int" = "butterfly_difference_cbrt ~ max_gust * butterflies_direct_sun_t_lag",
-  "M34_no_lag_temp_sun_int" = "butterfly_difference_cbrt ~ temperature_avg * butterflies_direct_sun_t_lag",
-  "M35_no_lag_gust_temp_int_plus_sun" = "butterfly_difference_cbrt ~ max_gust * temperature_avg + butterflies_direct_sun_t_lag",
-  "M36_no_lag_gust_sun_int_plus_temp" = "butterfly_difference_cbrt ~ max_gust * butterflies_direct_sun_t_lag + temperature_avg",
-  "M37_no_lag_temp_sun_int_plus_gust" = "butterfly_difference_cbrt ~ temperature_avg * butterflies_direct_sun_t_lag + max_gust",
-  "M38_no_lag_all_two_way" = "butterfly_difference_cbrt ~ max_gust * temperature_avg + max_gust * butterflies_direct_sun_t_lag + temperature_avg * butterflies_direct_sun_t_lag",
-  "M39_no_lag_three_way" = "butterfly_difference_cbrt ~ max_gust * temperature_avg * butterflies_direct_sun_t_lag",
-  
-  # Smooth terms models WITHOUT lag term
-  "M40_no_lag_smooth_temp" = "butterfly_difference_cbrt ~ s(temperature_avg) + butterflies_direct_sun_t_lag",
-  "M41_no_lag_smooth_sun" = "butterfly_difference_cbrt ~ temperature_avg + s(butterflies_direct_sun_t_lag)",
-  "M42_no_lag_smooth_gust" = "butterfly_difference_cbrt ~ s(max_gust) + temperature_avg + butterflies_direct_sun_t_lag",
-  "M43_no_lag_smooth_temp_sun" = "butterfly_difference_cbrt ~ s(temperature_avg) + s(butterflies_direct_sun_t_lag)",
-  "M44_no_lag_smooth_all_main" = "butterfly_difference_cbrt ~ s(max_gust) + s(temperature_avg) + s(butterflies_direct_sun_t_lag)",
-  "M45_no_lag_time_of_day" = "butterfly_difference_cbrt ~ temperature_avg + butterflies_direct_sun_t_lag + s(time_within_day_t)",
-  "M46_no_lag_temp_time" = "butterfly_difference_cbrt ~ s(temperature_avg) + butterflies_direct_sun_t_lag + s(time_within_day_t)",
-  "M47_no_lag_all_smooth_time" = "butterfly_difference_cbrt ~ s(max_gust) + s(temperature_avg) + s(butterflies_direct_sun_t_lag) + s(time_within_day_t)"
+    # Null model
+    "M0_null" = "butterfly_difference_cbrt ~ total_butterflies_t_lag",
+
+    # Single variable models
+    "M1_gust" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust",
+    "M2_temp" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + temperature_avg",
+    "M3_sun" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + butterflies_direct_sun_t_lag",
+
+    # Two-variable combinations
+    "M4_gust_temp" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust + temperature_avg",
+    "M5_gust_sun" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust + butterflies_direct_sun_t_lag",
+    "M6_temp_sun" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + temperature_avg + butterflies_direct_sun_t_lag",
+
+    # Three-variable model (main effects only)
+    "M7_all_main" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust + temperature_avg + butterflies_direct_sun_t_lag",
+
+    # Two-way interactions
+    "M8_gust_temp_int" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust * temperature_avg",
+    "M9_gust_sun_int" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust * butterflies_direct_sun_t_lag",
+    "M10_temp_sun_int" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + temperature_avg * butterflies_direct_sun_t_lag",
+
+    # Two-way interactions with third variable as main effect
+    "M11_gust_temp_int_plus_sun" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust * temperature_avg + butterflies_direct_sun_t_lag",
+    "M12_gust_sun_int_plus_temp" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust * butterflies_direct_sun_t_lag + temperature_avg",
+    "M13_temp_sun_int_plus_gust" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + temperature_avg * butterflies_direct_sun_t_lag + max_gust",
+
+    # All two-way interactions
+    "M14_all_two_way" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust * temperature_avg + max_gust * butterflies_direct_sun_t_lag + temperature_avg * butterflies_direct_sun_t_lag",
+
+    # Three-way interaction
+    "M15_three_way" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust * temperature_avg * butterflies_direct_sun_t_lag",
+
+    # Smooth terms models (with lag term)
+    "M16_smooth_temp" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + s(temperature_avg) + s(butterflies_direct_sun_t_lag)",
+    "M17_smooth_sun" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + temperature_avg + s(butterflies_direct_sun_t_lag)",
+    "M18_smooth_gust" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + s(max_gust) + temperature_avg + s(butterflies_direct_sun_t_lag)",
+    "M19_smooth_temp_sun" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + s(temperature_avg) + s(butterflies_direct_sun_t_lag)",
+    "M20_smooth_all_main" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + s(max_gust) + s(temperature_avg) + s(butterflies_direct_sun_t_lag)",
+    "M21_time_of_day" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + temperature_avg + s(butterflies_direct_sun_t_lag) + s(time_within_day_t)",
+    "M22_temp_time" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + s(temperature_avg) + s(butterflies_direct_sun_t_lag) + s(time_within_day_t)",
+    "M23_all_smooth_time" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + s(max_gust) + s(temperature_avg) + s(butterflies_direct_sun_t_lag) + s(time_within_day_t)",
+
+    # Models WITHOUT lag term - testing environmental effects on absolute change
+    "M24_no_lag_null" = "butterfly_difference_cbrt ~ 1",
+    "M25_no_lag_gust" = "butterfly_difference_cbrt ~ max_gust",
+    "M26_no_lag_temp" = "butterfly_difference_cbrt ~ temperature_avg",
+    "M27_no_lag_sun" = "butterfly_difference_cbrt ~ butterflies_direct_sun_t_lag",
+    "M28_no_lag_gust_temp" = "butterfly_difference_cbrt ~ max_gust + temperature_avg",
+    "M29_no_lag_gust_sun" = "butterfly_difference_cbrt ~ max_gust + butterflies_direct_sun_t_lag",
+    "M30_no_lag_temp_sun" = "butterfly_difference_cbrt ~ temperature_avg + butterflies_direct_sun_t_lag",
+    "M31_no_lag_all_main" = "butterfly_difference_cbrt ~ max_gust + temperature_avg + butterflies_direct_sun_t_lag",
+    "M32_no_lag_gust_temp_int" = "butterfly_difference_cbrt ~ max_gust * temperature_avg",
+    "M33_no_lag_gust_sun_int" = "butterfly_difference_cbrt ~ max_gust * butterflies_direct_sun_t_lag",
+    "M34_no_lag_temp_sun_int" = "butterfly_difference_cbrt ~ temperature_avg * butterflies_direct_sun_t_lag",
+    "M35_no_lag_gust_temp_int_plus_sun" = "butterfly_difference_cbrt ~ max_gust * temperature_avg + butterflies_direct_sun_t_lag",
+    "M36_no_lag_gust_sun_int_plus_temp" = "butterfly_difference_cbrt ~ max_gust * butterflies_direct_sun_t_lag + temperature_avg",
+    "M37_no_lag_temp_sun_int_plus_gust" = "butterfly_difference_cbrt ~ temperature_avg * butterflies_direct_sun_t_lag + max_gust",
+    "M38_no_lag_all_two_way" = "butterfly_difference_cbrt ~ max_gust * temperature_avg + max_gust * butterflies_direct_sun_t_lag + temperature_avg * butterflies_direct_sun_t_lag",
+    "M39_no_lag_three_way" = "butterfly_difference_cbrt ~ max_gust * temperature_avg * butterflies_direct_sun_t_lag",
+
+    # Smooth terms models WITHOUT lag term
+    "M40_no_lag_smooth_temp" = "butterfly_difference_cbrt ~ s(temperature_avg) + s(butterflies_direct_sun_t_lag)",
+    "M41_no_lag_smooth_sun" = "butterfly_difference_cbrt ~ temperature_avg + s(butterflies_direct_sun_t_lag)",
+    "M42_no_lag_smooth_gust" = "butterfly_difference_cbrt ~ s(max_gust) + temperature_avg + s(butterflies_direct_sun_t_lag)",
+    "M43_no_lag_smooth_temp_sun" = "butterfly_difference_cbrt ~ s(temperature_avg) + s(butterflies_direct_sun_t_lag)",
+    "M44_no_lag_smooth_all_main" = "butterfly_difference_cbrt ~ s(max_gust) + s(temperature_avg) + s(butterflies_direct_sun_t_lag)",
+    "M45_no_lag_time_of_day" = "butterfly_difference_cbrt ~ temperature_avg + s(butterflies_direct_sun_t_lag) + s(time_within_day_t)",
+    "M46_no_lag_temp_time" = "butterfly_difference_cbrt ~ s(temperature_avg) + s(butterflies_direct_sun_t_lag) + s(time_within_day_t)",
+    "M47_no_lag_all_smooth_time" = "butterfly_difference_cbrt ~ s(max_gust) + s(temperature_avg) + s(butterflies_direct_sun_t_lag) + s(time_within_day_t)"
 )
 
 cat("Total models to fit:", length(model_specs), "\n")
@@ -252,23 +297,27 @@ cat("Total models to fit:", length(model_specs), "\n")
 #| cache: true
 # Function to safely fit models
 fit_model_safely <- function(formula_str, data) {
-  tryCatch({
-    formula_obj <- as.formula(formula_str)
-    gamm(formula_obj, 
-         data = data,
-         random = random_structure,
-         correlation = correlation_structure,
-         method = "REML")
-  }, error = function(e) {
-    message("Failed to fit model: ", formula_str)
-    message("Error: ", e$message)
-    return(NULL)
-  })
+    tryCatch(
+        {
+            formula_obj <- as.formula(formula_str)
+            gamm(formula_obj,
+                data = data,
+                random = random_structure,
+                correlation = correlation_structure,
+                method = "REML"
+            )
+        },
+        error = function(e) {
+            message("Failed to fit model: ", formula_str)
+            message("Error: ", e$message)
+            return(NULL)
+        }
+    )
 }
 
 # Fit all models
 cat("Fitting models...\n")
-fitted_models <- map(model_specs, ~fit_model_safely(.x, model_data))
+fitted_models <- map(model_specs, ~ fit_model_safely(.x, model_data))
 
 # Remove failed models
 successful_models <- fitted_models[!map_lgl(fitted_models, is.null)]
@@ -280,31 +329,31 @@ cat("Successfully fitted", length(successful_models), "out of", length(model_spe
 ```{r model-comparison}
 # Extract AIC values
 aic_results <- map_dfr(names(successful_models), function(model_name) {
-  model <- successful_models[[model_name]]
-  data.frame(
-    Model = model_name,
-    Formula = model_specs[[model_name]],
-    AIC = AIC(model$lme),
-    LogLik = logLik(model$lme)[1],
-    df = attr(logLik(model$lme), "df")
-  )
+    model <- successful_models[[model_name]]
+    data.frame(
+        Model = model_name,
+        Formula = model_specs[[model_name]],
+        AIC = AIC(model$lme),
+        LogLik = logLik(model$lme)[1],
+        df = attr(logLik(model$lme), "df")
+    )
 }) %>%
-  arrange(AIC) %>%
-  mutate(
-    Delta_AIC = AIC - min(AIC),
-    AIC_weight = exp(-0.5 * Delta_AIC) / sum(exp(-0.5 * Delta_AIC))
-  )
+    arrange(AIC) %>%
+    mutate(
+        Delta_AIC = AIC - min(AIC),
+        AIC_weight = exp(-0.5 * Delta_AIC) / sum(exp(-0.5 * Delta_AIC))
+    )
 
 # Display results
 aic_results %>%
-  select(Model, AIC, Delta_AIC, AIC_weight, df) %>%
-  kable(digits = 3, caption = "Model comparison by AIC")
+    select(Model, AIC, Delta_AIC, AIC_weight, df) %>%
+    kable(digits = 3, caption = "Model comparison by AIC")
 
 # Show top 5 models
 cat("\nTop 5 models by AIC:\n")
 head(aic_results, 5) %>%
-  select(Model, Formula, AIC, Delta_AIC) %>%
-  kable(digits = 3)
+    select(Model, Formula, AIC, Delta_AIC) %>%
+    kable(digits = 3)
 ```
 
 ## Best Model Analysis
@@ -328,9 +377,11 @@ summary(best_model$gam)
 ```{r effect-previous-count}
 #| fig-width: 10
 #| fig-height: 6
-plot(best_model$gam, select = 1, main = "Effect of Previous Butterfly Count", 
-     xlab = "Total Butterflies (t-lag)", ylab = "Partial Effect", 
-     residuals = TRUE, pch = 19, cex = 0.5)
+plot(best_model$gam,
+    select = 1, main = "Effect of Previous Butterfly Count",
+    xlab = "Total Butterflies (t-lag)", ylab = "Partial Effect",
+    residuals = TRUE, pch = 19, cex = 0.5
+)
 ```
 
 ### Effect of Temperature
@@ -338,9 +389,11 @@ plot(best_model$gam, select = 1, main = "Effect of Previous Butterfly Count",
 ```{r effect-temperature}
 #| fig-width: 10
 #| fig-height: 6
-plot(best_model$gam, select = 2, main = "Effect of Temperature", 
-     xlab = "Average Temperature (°C)", ylab = "Partial Effect", 
-     residuals = TRUE, pch = 19, cex = 0.5)
+plot(best_model$gam,
+    select = 2, main = "Effect of Temperature",
+    xlab = "Average Temperature (°C)", ylab = "Partial Effect",
+    residuals = TRUE, pch = 19, cex = 0.5
+)
 ```
 
 ### Diurnal Pattern
@@ -348,25 +401,24 @@ plot(best_model$gam, select = 2, main = "Effect of Temperature",
 ```{r effect-diurnal}
 #| fig-width: 10
 #| fig-height: 6
-plot(best_model$gam, select = 3, main = "Diurnal Pattern", 
-     xlab = "Time Within Day (minutes)", ylab = "Partial Effect", 
-     residuals = TRUE, pch = 19, cex = 0.5)
+plot(best_model$gam,
+    select = 3, main = "Diurnal Pattern",
+    xlab = "Time Within Day (minutes)", ylab = "Partial Effect",
+    residuals = TRUE, pch = 19, cex = 0.5
+)
 ```
 
-### Effect of Sun Exposure (Linear)
+### Effect of Sun Exposure (Smooth)
 
 ```{r effect-sun-exposure}
 #| fig-width: 10
 #| fig-height: 6
-# Linear effect of sun exposure (parametric term)
-sun_effect <- summary(best_model$gam)$p.table["butterflies_direct_sun_t_lag", ]
-plot(model_data$butterflies_direct_sun_t_lag, 
-     model_data$butterflies_direct_sun_t_lag * sun_effect["Estimate"],
-     xlab = "Butterflies in Direct Sun (t-lag)", 
-     ylab = "Linear Effect",
-     main = "Effect of Sun Exposure (Linear)",
-     pch = 19, cex = 0.5, col = "blue")
-abline(h = 0, lty = 2, col = "red")
+# Smooth effect of sun exposure
+plot(best_model$gam,
+    select = 4, main = "Effect of Sun Exposure (Smooth)",
+    xlab = "Butterflies in Direct Sun (t-lag)", ylab = "Partial Effect",
+    residuals = TRUE, pch = 19, cex = 0.5
+)
 ```
 
 ### Smooth Effects (ggplot2 style)
@@ -377,9 +429,9 @@ abline(h = 0, lty = 2, col = "red")
 #| fig-width: 10
 #| fig-height: 6
 library(gratia)
-draw(best_model$gam, select = "s(total_butterflies_t_lag)") + 
-  theme_minimal() +
-  labs(title = "Effect of Previous Butterfly Count (ggplot2 style)")
+draw(best_model$gam, select = "s(total_butterflies_t_lag)") +
+    theme_minimal() +
+    labs(title = "Effect of Previous Butterfly Count (ggplot2 style)")
 ```
 
 #### Temperature Effect
@@ -387,9 +439,19 @@ draw(best_model$gam, select = "s(total_butterflies_t_lag)") +
 ```{r gratia-temperature}
 #| fig-width: 10
 #| fig-height: 6
-draw(best_model$gam, select = "s(temperature_avg)") + 
-  theme_minimal() +
-  labs(title = "Effect of Temperature (ggplot2 style)")
+draw(best_model$gam, select = "s(temperature_avg)") +
+    theme_minimal() +
+    labs(title = "Effect of Temperature (ggplot2 style)")
+```
+
+#### Sun Exposure Effect
+
+```{r gratia-sun-exposure}
+#| fig-width: 10
+#| fig-height: 6
+draw(best_model$gam, select = "s(butterflies_direct_sun_t_lag)") +
+    theme_minimal() +
+    labs(title = "Effect of Sun Exposure (ggplot2 style)")
 ```
 
 #### Diurnal Pattern
@@ -397,9 +459,9 @@ draw(best_model$gam, select = "s(temperature_avg)") +
 ```{r gratia-diurnal}
 #| fig-width: 10
 #| fig-height: 6
-draw(best_model$gam, select = "s(time_within_day_t)") + 
-  theme_minimal() +
-  labs(title = "Diurnal Pattern (ggplot2 style)")
+draw(best_model$gam, select = "s(time_within_day_t)") +
+    theme_minimal() +
+    labs(title = "Diurnal Pattern (ggplot2 style)")
 ```
 
 ## Model Diagnostics
@@ -418,8 +480,8 @@ plot(best_model$lme, main = "Residuals vs Fitted Values")
 #| fig-width: 10
 #| fig-height: 6
 residuals_df <- data.frame(
-  fitted = fitted(best_model$lme),
-  residuals = residuals(best_model$lme, type = "normalized")
+    fitted = fitted(best_model$lme),
+    residuals = residuals(best_model$lme, type = "normalized")
 )
 
 qqnorm(residuals_df$residuals, main = "Normal Q-Q Plot of Residuals")
@@ -455,9 +517,11 @@ summary(second_best_model$gam)
 ```{r second-effect-previous-count}
 #| fig-width: 10
 #| fig-height: 6
-plot(second_best_model$gam, select = 1, main = "Effect of Previous Butterfly Count (Second Best Model)", 
-     xlab = "Total Butterflies (t-lag)", ylab = "Partial Effect", 
-     residuals = TRUE, pch = 19, cex = 0.5)
+plot(second_best_model$gam,
+    select = 1, main = "Effect of Previous Butterfly Count (Second Best Model)",
+    xlab = "Total Butterflies (t-lag)", ylab = "Partial Effect",
+    residuals = TRUE, pch = 19, cex = 0.5
+)
 ```
 
 #### Effect of Wind Gust
@@ -465,9 +529,11 @@ plot(second_best_model$gam, select = 1, main = "Effect of Previous Butterfly Cou
 ```{r second-effect-wind}
 #| fig-width: 10
 #| fig-height: 6
-plot(second_best_model$gam, select = 2, main = "Effect of Wind Gust (Second Best Model)", 
-     xlab = "Max Gust (m/s)", ylab = "Partial Effect", 
-     residuals = TRUE, pch = 19, cex = 0.5)
+plot(second_best_model$gam,
+    select = 2, main = "Effect of Wind Gust (Second Best Model)",
+    xlab = "Max Gust (m/s)", ylab = "Partial Effect",
+    residuals = TRUE, pch = 19, cex = 0.5
+)
 ```
 
 #### Effect of Temperature
@@ -475,9 +541,11 @@ plot(second_best_model$gam, select = 2, main = "Effect of Wind Gust (Second Best
 ```{r second-effect-temperature}
 #| fig-width: 10
 #| fig-height: 6
-plot(second_best_model$gam, select = 3, main = "Effect of Temperature (Second Best Model)", 
-     xlab = "Average Temperature (°C)", ylab = "Partial Effect", 
-     residuals = TRUE, pch = 19, cex = 0.5)
+plot(second_best_model$gam,
+    select = 3, main = "Effect of Temperature (Second Best Model)",
+    xlab = "Average Temperature (°C)", ylab = "Partial Effect",
+    residuals = TRUE, pch = 19, cex = 0.5
+)
 ```
 
 #### Effect of Sun Exposure
@@ -485,9 +553,11 @@ plot(second_best_model$gam, select = 3, main = "Effect of Temperature (Second Be
 ```{r second-effect-sun}
 #| fig-width: 10
 #| fig-height: 6
-plot(second_best_model$gam, select = 4, main = "Effect of Sun Exposure (Second Best Model)", 
-     xlab = "Butterflies in Direct Sun (t-lag)", ylab = "Partial Effect", 
-     residuals = TRUE, pch = 19, cex = 0.5)
+plot(second_best_model$gam,
+    select = 4, main = "Effect of Sun Exposure (Second Best Model)",
+    xlab = "Butterflies in Direct Sun (t-lag)", ylab = "Partial Effect",
+    residuals = TRUE, pch = 19, cex = 0.5
+)
 ```
 
 #### Diurnal Pattern
@@ -495,9 +565,11 @@ plot(second_best_model$gam, select = 4, main = "Effect of Sun Exposure (Second B
 ```{r second-effect-diurnal}
 #| fig-width: 10
 #| fig-height: 6
-plot(second_best_model$gam, select = 5, main = "Diurnal Pattern (Second Best Model)", 
-     xlab = "Time Within Day (minutes)", ylab = "Partial Effect", 
-     residuals = TRUE, pch = 19, cex = 0.5)
+plot(second_best_model$gam,
+    select = 5, main = "Diurnal Pattern (Second Best Model)",
+    xlab = "Time Within Day (minutes)", ylab = "Partial Effect",
+    residuals = TRUE, pch = 19, cex = 0.5
+)
 ```
 
 ### Model Diagnostics - Second Best Model
@@ -516,8 +588,8 @@ plot(second_best_model$lme, main = "Residuals vs Fitted Values (Second Best Mode
 #| fig-width: 10
 #| fig-height: 6
 second_residuals_df <- data.frame(
-  fitted = fitted(second_best_model$lme),
-  residuals = residuals(second_best_model$lme, type = "normalized")
+    fitted = fitted(second_best_model$lme),
+    residuals = residuals(second_best_model$lme, type = "normalized")
 )
 
 qqnorm(second_residuals_df$residuals, main = "Normal Q-Q Plot of Residuals (Second Best Model)")
@@ -529,8 +601,10 @@ qqline(second_residuals_df$residuals)
 ```{r second-diagnostics-histogram}
 #| fig-width: 10
 #| fig-height: 6
-hist(second_residuals_df$residuals, main = "Distribution of Residuals (Second Best Model)", 
-     xlab = "Residuals", breaks = 30)
+hist(second_residuals_df$residuals,
+    main = "Distribution of Residuals (Second Best Model)",
+    xlab = "Residuals", breaks = 30
+)
 ```
 
 
