@@ -182,6 +182,78 @@ p4 <- ggplot(monarch_data, aes(x = time_within_day_t, y = butterfly_difference_c
 grid.arrange(p1, p2, p3, p4, ncol = 2)
 ```
 
+## Individual Predictor GAM Plots
+
+Exploring the relationship between each model predictor and butterfly_difference_cbrt with GAM smoothed lines to understand the shape of relationships before modeling.
+
+```{r individual-predictor-gams}
+#| fig-width: 10
+#| fig-height: 6
+library(mgcv)
+
+# Max Gust vs Butterfly Difference
+p1 <- ggplot(monarch_data, aes(x = max_gust, y = butterfly_difference_cbrt)) +
+    geom_point(alpha = 0.3, color = "steelblue") +
+    geom_smooth(method = "gam", se = TRUE, color = "darkblue") +
+    labs(
+        title = "Max Gust vs Butterfly Change",
+        x = "Max Gust (m/s)", 
+        y = "Butterfly Difference (cbrt)"
+    ) +
+    theme_minimal()
+
+# Temperature vs Butterfly Difference  
+p2 <- ggplot(monarch_data, aes(x = temperature_avg, y = butterfly_difference_cbrt)) +
+    geom_point(alpha = 0.3, color = "red") +
+    geom_smooth(method = "gam", se = TRUE, color = "darkred") +
+    labs(
+        title = "Temperature vs Butterfly Change",
+        x = "Average Temperature (°C)", 
+        y = "Butterfly Difference (cbrt)"
+    ) +
+    theme_minimal()
+
+# Butterflies in Direct Sun vs Butterfly Difference
+p3 <- ggplot(monarch_data, aes(x = butterflies_direct_sun_t_lag, y = butterfly_difference_cbrt)) +
+    geom_point(alpha = 0.3, color = "orange") +
+    geom_smooth(method = "gam", se = TRUE, color = "darkorange") +
+    labs(
+        title = "Direct Sun Exposure vs Butterfly Change",
+        x = "Butterflies in Direct Sun (t-lag)", 
+        y = "Butterfly Difference (cbrt)"
+    ) +
+    theme_minimal()
+
+# Time of Day vs Butterfly Difference
+p4 <- ggplot(monarch_data, aes(x = time_within_day_t, y = butterfly_difference_cbrt)) +
+    geom_point(alpha = 0.3, color = "purple") +
+    geom_smooth(method = "gam", se = TRUE, color = "darkviolet") +
+    labs(
+        title = "Time of Day vs Butterfly Change",
+        x = "Time Within Day (minutes)", 
+        y = "Butterfly Difference (cbrt)"
+    ) +
+    theme_minimal()
+
+# Total Butterflies (previous) vs Butterfly Difference  
+p5 <- ggplot(monarch_data, aes(x = total_butterflies_t_lag, y = butterfly_difference_cbrt)) +
+    geom_point(alpha = 0.3, color = "darkgreen") +
+    geom_smooth(method = "gam", se = TRUE, color = "forestgreen") +
+    labs(
+        title = "Previous Butterfly Count vs Change",
+        x = "Total Butterflies (t-lag)", 
+        y = "Butterfly Difference (cbrt)"
+    ) +
+    theme_minimal()
+
+# Display plots in grid
+p1
+p2
+p3
+p4
+p5
+```
+
 ```{r data-prep}
 #| include: false
 # Check grove distribution
