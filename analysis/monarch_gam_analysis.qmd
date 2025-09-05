@@ -2,7 +2,7 @@
 title: "Analysis of distruptive winds to overwintering monarch butterflies"
 author: "Kyle Nessen"
 date: "`r Sys.Date()`"
-format: 
+format:
     #html:
         #embed-resources: true
         #toc: true
@@ -612,6 +612,281 @@ hist(second_residuals_df$residuals,
 ```
 
 
+# Threshold-Based Wind Models
+
+Now we'll explore an alternative approach using `minutes_above_threshold` instead of `max_gust` to represent sustained high wind periods rather than instantaneous peak wind speeds.
+
+## Threshold Model Specifications
+
+```{r threshold-model-setup}
+# Model specifications for threshold-based analysis
+threshold_model_specs <- list(
+    # Null model (same as before)
+    "T0_null" = "butterfly_difference_cbrt ~ total_butterflies_t_lag",
+
+    # Single variable models
+    "T1_threshold" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + minutes_above_threshold",
+    "T2_temp" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + temperature_avg",
+    "T3_sun" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + butterflies_direct_sun_t_lag",
+
+    # Two-variable combinations
+    "T4_threshold_temp" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + minutes_above_threshold + temperature_avg",
+    "T5_threshold_sun" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + minutes_above_threshold + butterflies_direct_sun_t_lag",
+    "T6_temp_sun" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + temperature_avg + butterflies_direct_sun_t_lag",
+
+    # Three-variable model (main effects only)
+    "T7_all_main" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + minutes_above_threshold + temperature_avg + butterflies_direct_sun_t_lag",
+
+    # Two-way interactions
+    "T8_threshold_temp_int" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + minutes_above_threshold * temperature_avg",
+    "T9_threshold_sun_int" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + minutes_above_threshold * butterflies_direct_sun_t_lag",
+    "T10_temp_sun_int" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + temperature_avg * butterflies_direct_sun_t_lag",
+
+    # Two-way interactions with third variable as main effect
+    "T11_threshold_temp_int_plus_sun" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + minutes_above_threshold * temperature_avg + butterflies_direct_sun_t_lag",
+    "T12_threshold_sun_int_plus_temp" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + minutes_above_threshold * butterflies_direct_sun_t_lag + temperature_avg",
+    "T13_temp_sun_int_plus_threshold" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + temperature_avg * butterflies_direct_sun_t_lag + minutes_above_threshold",
+
+    # All two-way interactions
+    "T14_all_two_way" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + minutes_above_threshold * temperature_avg + minutes_above_threshold * butterflies_direct_sun_t_lag + temperature_avg * butterflies_direct_sun_t_lag",
+
+    # Three-way interaction
+    "T15_three_way" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + minutes_above_threshold * temperature_avg * butterflies_direct_sun_t_lag",
+
+    # Smooth terms models (with lag term)
+    "T16_smooth_temp" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + s(temperature_avg) + s(butterflies_direct_sun_t_lag)",
+    "T17_smooth_sun" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + temperature_avg + s(butterflies_direct_sun_t_lag)",
+    "T18_smooth_threshold" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + s(minutes_above_threshold) + temperature_avg + s(butterflies_direct_sun_t_lag)",
+    "T19_smooth_temp_sun" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + s(temperature_avg) + s(butterflies_direct_sun_t_lag)",
+    "T20_smooth_all_main" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + s(minutes_above_threshold) + s(temperature_avg) + s(butterflies_direct_sun_t_lag)",
+    "T21_time_of_day" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + temperature_avg + s(butterflies_direct_sun_t_lag) + s(time_within_day_t)",
+    "T22_temp_time" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + s(temperature_avg) + s(butterflies_direct_sun_t_lag) + s(time_within_day_t)",
+    "T23_all_smooth_time" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + s(minutes_above_threshold) + s(temperature_avg) + s(butterflies_direct_sun_t_lag) + s(time_within_day_t)",
+
+    # Models WITHOUT lag term - testing environmental effects on absolute change
+    "T24_no_lag_null" = "butterfly_difference_cbrt ~ 1",
+    "T25_no_lag_threshold" = "butterfly_difference_cbrt ~ minutes_above_threshold",
+    "T26_no_lag_temp" = "butterfly_difference_cbrt ~ temperature_avg",
+    "T27_no_lag_sun" = "butterfly_difference_cbrt ~ butterflies_direct_sun_t_lag",
+    "T28_no_lag_threshold_temp" = "butterfly_difference_cbrt ~ minutes_above_threshold + temperature_avg",
+    "T29_no_lag_threshold_sun" = "butterfly_difference_cbrt ~ minutes_above_threshold + butterflies_direct_sun_t_lag",
+    "T30_no_lag_temp_sun" = "butterfly_difference_cbrt ~ temperature_avg + butterflies_direct_sun_t_lag",
+    "T31_no_lag_all_main" = "butterfly_difference_cbrt ~ minutes_above_threshold + temperature_avg + butterflies_direct_sun_t_lag",
+    "T32_no_lag_threshold_temp_int" = "butterfly_difference_cbrt ~ minutes_above_threshold * temperature_avg",
+    "T33_no_lag_threshold_sun_int" = "butterfly_difference_cbrt ~ minutes_above_threshold * butterflies_direct_sun_t_lag",
+    "T34_no_lag_temp_sun_int" = "butterfly_difference_cbrt ~ temperature_avg * butterflies_direct_sun_t_lag",
+    "T35_no_lag_threshold_temp_int_plus_sun" = "butterfly_difference_cbrt ~ minutes_above_threshold * temperature_avg + butterflies_direct_sun_t_lag",
+    "T36_no_lag_threshold_sun_int_plus_temp" = "butterfly_difference_cbrt ~ minutes_above_threshold * butterflies_direct_sun_t_lag + temperature_avg",
+    "T37_no_lag_temp_sun_int_plus_threshold" = "butterfly_difference_cbrt ~ temperature_avg * butterflies_direct_sun_t_lag + minutes_above_threshold",
+    "T38_no_lag_all_two_way" = "butterfly_difference_cbrt ~ minutes_above_threshold * temperature_avg + minutes_above_threshold * butterflies_direct_sun_t_lag + temperature_avg * butterflies_direct_sun_t_lag",
+    "T39_no_lag_three_way" = "butterfly_difference_cbrt ~ minutes_above_threshold * temperature_avg * butterflies_direct_sun_t_lag",
+
+    # Smooth terms models WITHOUT lag term
+    "T40_no_lag_smooth_temp" = "butterfly_difference_cbrt ~ s(temperature_avg) + s(butterflies_direct_sun_t_lag)",
+    "T41_no_lag_smooth_sun" = "butterfly_difference_cbrt ~ temperature_avg + s(butterflies_direct_sun_t_lag)",
+    "T42_no_lag_smooth_threshold" = "butterfly_difference_cbrt ~ s(minutes_above_threshold) + temperature_avg + s(butterflies_direct_sun_t_lag)",
+    "T43_no_lag_smooth_temp_sun" = "butterfly_difference_cbrt ~ s(temperature_avg) + s(butterflies_direct_sun_t_lag)",
+    "T44_no_lag_smooth_all_main" = "butterfly_difference_cbrt ~ s(minutes_above_threshold) + s(temperature_avg) + s(butterflies_direct_sun_t_lag)",
+    "T45_no_lag_time_of_day" = "butterfly_difference_cbrt ~ temperature_avg + s(butterflies_direct_sun_t_lag) + s(time_within_day_t)",
+    "T46_no_lag_temp_time" = "butterfly_difference_cbrt ~ s(temperature_avg) + s(butterflies_direct_sun_t_lag) + s(time_within_day_t)",
+    "T47_no_lag_all_smooth_time" = "butterfly_difference_cbrt ~ s(minutes_above_threshold) + s(temperature_avg) + s(butterflies_direct_sun_t_lag) + s(time_within_day_t)"
+)
+
+cat("Total threshold-based models to fit:", length(threshold_model_specs), "\n")
+```
+
+## Threshold Model Fitting
+
+```{r threshold-model-fitting}
+#| cache: true
+# Fit all threshold models
+cat("Fitting threshold-based models...\n")
+threshold_fitted_models <- map(threshold_model_specs, ~ fit_model_safely(.x, model_data))
+
+# Remove failed models
+threshold_successful_models <- threshold_fitted_models[!map_lgl(threshold_fitted_models, is.null)]
+cat("Successfully fitted", length(threshold_successful_models), "out of", length(threshold_model_specs), "threshold models\n")
+```
+
+## Threshold Model Comparison
+
+```{r threshold-model-comparison}
+# Extract AIC values for threshold models
+threshold_aic_results <- map_dfr(names(threshold_successful_models), function(model_name) {
+    model <- threshold_successful_models[[model_name]]
+    data.frame(
+        Model = model_name,
+        Formula = threshold_model_specs[[model_name]],
+        AIC = AIC(model$lme),
+        LogLik = logLik(model$lme)[1],
+        df = attr(logLik(model$lme), "df")
+    )
+}) %>%
+    arrange(AIC) %>%
+    mutate(
+        Delta_AIC = AIC - min(AIC),
+        AIC_weight = exp(-0.5 * Delta_AIC) / sum(exp(-0.5 * Delta_AIC))
+    )
+
+# Display results
+threshold_aic_results %>%
+    select(Model, AIC, Delta_AIC, AIC_weight, df) %>%
+    kable(digits = 3, caption = "Threshold model comparison by AIC")
+
+# Show top 5 models
+cat("\nTop 5 threshold models by AIC:\n")
+head(threshold_aic_results, 5) %>%
+    select(Model, Formula, AIC, Delta_AIC) %>%
+    kable(digits = 3)
+```
+
+## Best Threshold Model Analysis
+
+```{r best-threshold-model-analysis}
+# Check if we have successfully fitted threshold models
+if(length(threshold_successful_models) > 0 && nrow(threshold_aic_results) > 0) {
+    # Get the best threshold model
+    best_threshold_model_name <- threshold_aic_results$Model[1]
+    best_threshold_model <- threshold_successful_models[[best_threshold_model_name]]
+
+    cat("Best threshold model:", best_threshold_model_name, "\n")
+    cat("Formula:", threshold_aic_results$Formula[1], "\n\n")
+
+    # Model summary
+    summary(best_threshold_model$gam)
+} else {
+    cat("No threshold models were successfully fitted, so no analysis can be performed.\n")
+}
+```
+
+## Threshold Model Effect Plots
+
+### Effect of Previous Butterfly Count
+
+```{r threshold-effect-previous-count}
+#| fig-width: 10
+#| fig-height: 6
+if(exists("best_threshold_model") && !is.null(best_threshold_model)) {
+    plot(best_threshold_model$gam,
+        select = 1, main = "Effect of Previous Butterfly Count (Threshold Model)",
+        xlab = "Total Butterflies (t-lag)", ylab = "Partial Effect",
+        residuals = TRUE, pch = 19, cex = 0.5
+    )
+} else {
+    cat("No threshold model available for plotting\n")
+}
+```
+
+### Effect of Minutes Above Threshold
+
+```{r threshold-effect-minutes}
+#| fig-width: 10
+#| fig-height: 6
+if(exists("best_threshold_model") && !is.null(best_threshold_model)) {
+    # Find which smooth corresponds to minutes_above_threshold
+    threshold_smooth_terms <- summary(best_threshold_model$gam)$s.table
+    if("s(minutes_above_threshold)" %in% rownames(threshold_smooth_terms)) {
+        select_num <- which(grepl("minutes_above_threshold", rownames(threshold_smooth_terms))) + 1
+        plot(best_threshold_model$gam,
+            select = select_num, main = "Effect of Minutes Above Threshold",
+            xlab = "Minutes Above Threshold", ylab = "Partial Effect",
+            residuals = TRUE, pch = 19, cex = 0.5
+        )
+    } else {
+        cat("Minutes above threshold is not a smooth term in the best model\n")
+    }
+} else {
+    cat("No threshold model available for plotting\n")
+}
+```
+
+### Comparison: Max Gust vs Minutes Above Threshold
+
+```{r comparison-plot}
+#| fig-width: 12
+#| fig-height: 8
+# Create comparison plots
+p1 <- ggplot(model_data, aes(x = max_gust)) +
+    geom_histogram(bins = 30, fill = "lightblue", alpha = 0.7) +
+    labs(title = "Distribution of Max Gust", x = "Max Gust (m/s)", y = "Frequency") +
+    theme_minimal()
+
+p2 <- ggplot(model_data, aes(x = minutes_above_threshold)) +
+    geom_histogram(bins = 30, fill = "lightcoral", alpha = 0.7) +
+    labs(title = "Distribution of Minutes Above Threshold", x = "Minutes Above Threshold", y = "Frequency") +
+    theme_minimal()
+
+p3 <- ggplot(model_data, aes(x = max_gust, y = minutes_above_threshold)) +
+    geom_point(alpha = 0.5) +
+    geom_smooth(method = "lm", se = TRUE) +
+    labs(title = "Relationship: Max Gust vs Minutes Above Threshold",
+         x = "Max Gust (m/s)", y = "Minutes Above Threshold") +
+    theme_minimal()
+
+# Show correlation
+correlation <- cor(model_data$max_gust, model_data$minutes_above_threshold, use = "complete.obs")
+p4 <- ggplot(model_data, aes(x = minutes_above_threshold, y = butterfly_difference_cbrt)) +
+    geom_point(alpha = 0.3) +
+    geom_smooth(method = "loess", se = TRUE, color = "red") +
+    labs(title = "Minutes Above Threshold vs Butterfly Change",
+         x = "Minutes Above Threshold", y = "Butterfly Difference (cbrt)") +
+    theme_minimal()
+
+grid.arrange(p1, p2, p3, p4, ncol = 2)
+cat("Correlation between max_gust and minutes_above_threshold:", round(correlation, 3), "\n")
+```
+
+## Model Comparison: Gust vs Threshold Approaches
+
+```{r model-approaches-comparison}
+# Compare best models from each approach
+
+# Check if threshold models were successfully fitted
+if(length(threshold_successful_models) > 0 && exists("threshold_aic_results") && nrow(threshold_aic_results) > 0) {
+    # Get the best threshold model
+    best_threshold_model_name <- threshold_aic_results$Model[1]
+    best_threshold_model <- threshold_successful_models[[best_threshold_model_name]]
+
+    # Get model statistics
+    gust_r_sq <- summary(best_model$gam)$r.sq
+    threshold_r_sq <- summary(best_threshold_model$gam)$r.sq
+    gust_dev <- summary(best_model$gam)$dev.expl
+    threshold_dev <- summary(best_threshold_model$gam)$dev.expl
+
+
+
+            comparison_df <- data.frame(
+                Approach = c("Max Gust (Original)", "Minutes Above Threshold"),
+                Best_Model = c(best_model_name, best_threshold_model_name),
+                AIC = c(min(aic_results$AIC), min(threshold_aic_results$AIC)),
+                R_squared = c(gust_r_sq, threshold_r_sq),
+                Dev_Explained = c(
+                    ifelse(is.null(gust_dev) || length(gust_dev) == 0, NA, gust_dev),
+                    ifelse(is.null(threshold_dev) || length(threshold_dev) == 0, NA, threshold_dev)
+                )
+            )
+
+    kable(comparison_df, digits = 4,
+          caption = "Comparison of Max Gust vs Minutes Above Threshold Approaches")
+} else {
+    cat("No threshold models were successfully fitted. This may be due to:\n")
+    cat("- Missing or invalid minutes_above_threshold data\n")
+    cat("- Model convergence issues\n")
+    cat("- Data structure problems\n")
+
+    # Check the minutes_above_threshold variable
+    cat("\nSummary of minutes_above_threshold variable:\n")
+    summary(model_data$minutes_above_threshold)
+
+    cat("\nFirst few values:\n")
+    head(model_data$minutes_above_threshold, 10)
+
+    cat("\nNumber of non-missing values:", sum(!is.na(model_data$minutes_above_threshold)), "\n")
+    cat("Number of zero values:", sum(model_data$minutes_above_threshold == 0, na.rm = TRUE), "\n")
+    cat("Number of positive values:", sum(model_data$minutes_above_threshold > 0, na.rm = TRUE), "\n")
+}
+```
+
 ## Results Summary
 
 This analysis provides robust evidence regarding wind effects on overwintering monarch butterfly movement through comprehensive model comparison across 47 candidate models. The results reveal several key findings:
@@ -622,4 +897,6 @@ This analysis provides robust evidence regarding wind effects on overwintering m
 
 **Model Performance:** Including smooth terms substantially improved model fit (R² increased from 2.74% to 5.61%), highlighting the importance of capturing non-linear relationships in ecological modeling.
 
-**Hypothesis Evaluation:** These results do not support the hypothesis that wind acts as a disruptive force to overwintering monarchs at the 30-minute temporal scale examined.
+**Threshold vs Peak Wind Analysis:** The comparison between maximum gust speed and minutes above threshold provides insight into different aspects of wind exposure. While both approaches test wind effects, minutes above threshold captures sustained high wind periods rather than instantaneous peaks.
+
+**Hypothesis Evaluation:** These results do not support the hypothesis that wind acts as a disruptive force to overwintering monarchs at the 30-minute temporal scale examined, regardless of whether wind is measured as peak gusts or sustained periods above threshold.
