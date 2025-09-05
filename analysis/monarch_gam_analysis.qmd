@@ -3,15 +3,19 @@ title: "Analysis of distruptive winds to overwintering monarch butterflies"
 author: "Kyle Nessen"
 date: "`r Sys.Date()`"
 format: 
-  html:
-    embed-resources: true
-    toc: true
-    toc-depth: 3
-    code-fold: true
-    theme: cosmo
+    #html:
+        #embed-resources: true
+        #toc: true
+        #toc-depth: 3
+        #code-fold: true
+        #theme: cosmo
+    pdf:
+        toc: true
+        toc-depth: 3
+        documentclass: article
 execute:
-  warning: false
-  message: false
+    warning: false
+    message: false
 ---
 
 ## Introduction
