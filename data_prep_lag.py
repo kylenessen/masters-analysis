@@ -513,6 +513,9 @@ def add_wind_data(lag_df: pd.DataFrame,
     # Create final DataFrame
     wind_df = pd.DataFrame(results)
     
+    # Add column for instances where max_gust >= 2
+    wind_df['minutes_above_threshold'] = (wind_df['max_gust'] >= 2).astype(int)
+    
     # Print diagnostics
     print(f"\n=== WIND DATA INTEGRATION SUMMARY ===")
     print(f"Lag pairs processed: {len(wind_df)}")
