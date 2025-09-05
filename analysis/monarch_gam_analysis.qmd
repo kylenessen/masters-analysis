@@ -294,74 +294,74 @@ correlation_structure <- corAR1(form = ~ observation_order_within_day_t | deploy
 # Model specifications for AIC comparison
 model_specs <- list(
     # Null model
-    "M0_null" = "butterfly_difference_cbrt ~ total_butterflies_t_lag",
+    "M1" = "butterfly_difference_cbrt ~ total_butterflies_t_lag",
 
     # Single variable models
-    "M1_gust" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust",
-    "M2_temp" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + temperature_avg",
-    "M3_sun" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + butterflies_direct_sun_t_lag",
+    "M2" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust",
+    "M3" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + temperature_avg",
+    "M4" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + butterflies_direct_sun_t_lag",
 
     # Two-variable combinations
-    "M4_gust_temp" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust + temperature_avg",
-    "M5_gust_sun" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust + butterflies_direct_sun_t_lag",
-    "M6_temp_sun" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + temperature_avg + butterflies_direct_sun_t_lag",
+    "M5" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust + temperature_avg",
+    "M6" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust + butterflies_direct_sun_t_lag",
+    "M7" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + temperature_avg + butterflies_direct_sun_t_lag",
 
     # Three-variable model (main effects only)
-    "M7_all_main" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust + temperature_avg + butterflies_direct_sun_t_lag",
+    "M8" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust + temperature_avg + butterflies_direct_sun_t_lag",
 
     # Two-way interactions
-    "M8_gust_temp_int" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust * temperature_avg",
-    "M9_gust_sun_int" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust * butterflies_direct_sun_t_lag",
-    "M10_temp_sun_int" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + temperature_avg * butterflies_direct_sun_t_lag",
+    "M9" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust * temperature_avg",
+    "M10" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust * butterflies_direct_sun_t_lag",
+    "M11" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + temperature_avg * butterflies_direct_sun_t_lag",
 
     # Two-way interactions with third variable as main effect
-    "M11_gust_temp_int_plus_sun" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust * temperature_avg + butterflies_direct_sun_t_lag",
-    "M12_gust_sun_int_plus_temp" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust * butterflies_direct_sun_t_lag + temperature_avg",
-    "M13_temp_sun_int_plus_gust" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + temperature_avg * butterflies_direct_sun_t_lag + max_gust",
+    "M12" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust * temperature_avg + butterflies_direct_sun_t_lag",
+    "M13" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust * butterflies_direct_sun_t_lag + temperature_avg",
+    "M14" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + temperature_avg * butterflies_direct_sun_t_lag + max_gust",
 
     # All two-way interactions
-    "M14_all_two_way" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust * temperature_avg + max_gust * butterflies_direct_sun_t_lag + temperature_avg * butterflies_direct_sun_t_lag",
+    "M15" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust * temperature_avg + max_gust * butterflies_direct_sun_t_lag + temperature_avg * butterflies_direct_sun_t_lag",
 
     # Three-way interaction
-    "M15_three_way" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust * temperature_avg * butterflies_direct_sun_t_lag",
+    "M16" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust * temperature_avg * butterflies_direct_sun_t_lag",
 
     # Smooth terms models (with lag term)
-    "M16_smooth_temp" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + s(temperature_avg) + s(butterflies_direct_sun_t_lag)",
-    "M17_smooth_sun" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + temperature_avg + s(butterflies_direct_sun_t_lag)",
-    "M18_smooth_gust" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + s(max_gust) + temperature_avg + s(butterflies_direct_sun_t_lag)",
-    "M19_smooth_temp_sun" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + s(temperature_avg) + s(butterflies_direct_sun_t_lag)",
-    "M20_smooth_all_main" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + s(max_gust) + s(temperature_avg) + s(butterflies_direct_sun_t_lag)",
-    "M21_time_of_day" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + temperature_avg + s(butterflies_direct_sun_t_lag) + s(time_within_day_t)",
-    "M22_temp_time" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + s(temperature_avg) + s(butterflies_direct_sun_t_lag) + s(time_within_day_t)",
-    "M23_all_smooth_time" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + s(max_gust) + s(temperature_avg) + s(butterflies_direct_sun_t_lag) + s(time_within_day_t)",
+    "M17" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + s(temperature_avg) + s(butterflies_direct_sun_t_lag)",
+    "M18" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + temperature_avg + s(butterflies_direct_sun_t_lag)",
+    "M19" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + s(max_gust) + temperature_avg + s(butterflies_direct_sun_t_lag)",
+    "M20" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + s(temperature_avg) + s(butterflies_direct_sun_t_lag)",
+    "M21" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + s(max_gust) + s(temperature_avg) + s(butterflies_direct_sun_t_lag)",
+    "M22" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + temperature_avg + s(butterflies_direct_sun_t_lag) + s(time_within_day_t)",
+    "M23" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + s(temperature_avg) + s(butterflies_direct_sun_t_lag) + s(time_within_day_t)",
+    "M24" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + s(max_gust) + s(temperature_avg) + s(butterflies_direct_sun_t_lag) + s(time_within_day_t)",
 
     # Models WITHOUT lag term - testing environmental effects on absolute change
-    "M24_no_lag_null" = "butterfly_difference_cbrt ~ 1",
-    "M25_no_lag_gust" = "butterfly_difference_cbrt ~ max_gust",
-    "M26_no_lag_temp" = "butterfly_difference_cbrt ~ temperature_avg",
-    "M27_no_lag_sun" = "butterfly_difference_cbrt ~ butterflies_direct_sun_t_lag",
-    "M28_no_lag_gust_temp" = "butterfly_difference_cbrt ~ max_gust + temperature_avg",
-    "M29_no_lag_gust_sun" = "butterfly_difference_cbrt ~ max_gust + butterflies_direct_sun_t_lag",
-    "M30_no_lag_temp_sun" = "butterfly_difference_cbrt ~ temperature_avg + butterflies_direct_sun_t_lag",
-    "M31_no_lag_all_main" = "butterfly_difference_cbrt ~ max_gust + temperature_avg + butterflies_direct_sun_t_lag",
-    "M32_no_lag_gust_temp_int" = "butterfly_difference_cbrt ~ max_gust * temperature_avg",
-    "M33_no_lag_gust_sun_int" = "butterfly_difference_cbrt ~ max_gust * butterflies_direct_sun_t_lag",
-    "M34_no_lag_temp_sun_int" = "butterfly_difference_cbrt ~ temperature_avg * butterflies_direct_sun_t_lag",
-    "M35_no_lag_gust_temp_int_plus_sun" = "butterfly_difference_cbrt ~ max_gust * temperature_avg + butterflies_direct_sun_t_lag",
-    "M36_no_lag_gust_sun_int_plus_temp" = "butterfly_difference_cbrt ~ max_gust * butterflies_direct_sun_t_lag + temperature_avg",
-    "M37_no_lag_temp_sun_int_plus_gust" = "butterfly_difference_cbrt ~ temperature_avg * butterflies_direct_sun_t_lag + max_gust",
-    "M38_no_lag_all_two_way" = "butterfly_difference_cbrt ~ max_gust * temperature_avg + max_gust * butterflies_direct_sun_t_lag + temperature_avg * butterflies_direct_sun_t_lag",
-    "M39_no_lag_three_way" = "butterfly_difference_cbrt ~ max_gust * temperature_avg * butterflies_direct_sun_t_lag",
+    "M25" = "butterfly_difference_cbrt ~ 1",
+    "M26" = "butterfly_difference_cbrt ~ max_gust",
+    "M27" = "butterfly_difference_cbrt ~ temperature_avg",
+    "M28" = "butterfly_difference_cbrt ~ butterflies_direct_sun_t_lag",
+    "M29" = "butterfly_difference_cbrt ~ max_gust + temperature_avg",
+    "M30" = "butterfly_difference_cbrt ~ max_gust + butterflies_direct_sun_t_lag",
+    "M31" = "butterfly_difference_cbrt ~ temperature_avg + butterflies_direct_sun_t_lag",
+    "M32" = "butterfly_difference_cbrt ~ max_gust + temperature_avg + butterflies_direct_sun_t_lag",
+    "M33" = "butterfly_difference_cbrt ~ max_gust * temperature_avg",
+    "M34" = "butterfly_difference_cbrt ~ max_gust * butterflies_direct_sun_t_lag",
+    "M35" = "butterfly_difference_cbrt ~ temperature_avg * butterflies_direct_sun_t_lag",
+    "M36" = "butterfly_difference_cbrt ~ max_gust * temperature_avg + butterflies_direct_sun_t_lag",
+    "M37" = "butterfly_difference_cbrt ~ max_gust * butterflies_direct_sun_t_lag + temperature_avg",
+    "M38" = "butterfly_difference_cbrt ~ temperature_avg * butterflies_direct_sun_t_lag + max_gust",
+    "M39" = "butterfly_difference_cbrt ~ max_gust * temperature_avg + max_gust * butterflies_direct_sun_t_lag + temperature_avg * butterflies_direct_sun_t_lag",
+    "M40" = "butterfly_difference_cbrt ~ max_gust * temperature_avg * butterflies_direct_sun_t_lag",
 
     # Smooth terms models WITHOUT lag term
-    "M40_no_lag_smooth_temp" = "butterfly_difference_cbrt ~ s(temperature_avg) + s(butterflies_direct_sun_t_lag)",
-    "M41_no_lag_smooth_sun" = "butterfly_difference_cbrt ~ temperature_avg + s(butterflies_direct_sun_t_lag)",
-    "M42_no_lag_smooth_gust" = "butterfly_difference_cbrt ~ s(max_gust) + temperature_avg + s(butterflies_direct_sun_t_lag)",
-    "M43_no_lag_smooth_temp_sun" = "butterfly_difference_cbrt ~ s(temperature_avg) + s(butterflies_direct_sun_t_lag)",
-    "M44_no_lag_smooth_all_main" = "butterfly_difference_cbrt ~ s(max_gust) + s(temperature_avg) + s(butterflies_direct_sun_t_lag)",
-    "M45_no_lag_time_of_day" = "butterfly_difference_cbrt ~ temperature_avg + s(butterflies_direct_sun_t_lag) + s(time_within_day_t)",
-    "M46_no_lag_temp_time" = "butterfly_difference_cbrt ~ s(temperature_avg) + s(butterflies_direct_sun_t_lag) + s(time_within_day_t)",
-    "M47_no_lag_all_smooth_time" = "butterfly_difference_cbrt ~ s(max_gust) + s(temperature_avg) + s(butterflies_direct_sun_t_lag) + s(time_within_day_t)"
+    "M41" = "butterfly_difference_cbrt ~ s(temperature_avg) + s(butterflies_direct_sun_t_lag)",
+    "M42" = "butterfly_difference_cbrt ~ temperature_avg + s(butterflies_direct_sun_t_lag)",
+    "M43" = "butterfly_difference_cbrt ~ s(max_gust) + temperature_avg + s(butterflies_direct_sun_t_lag)",
+    "M44" = "butterfly_difference_cbrt ~ s(temperature_avg) + s(butterflies_direct_sun_t_lag)",
+    "M45" = "butterfly_difference_cbrt ~ s(max_gust) + s(temperature_avg) + s(butterflies_direct_sun_t_lag)",
+    "M46" = "butterfly_difference_cbrt ~ temperature_avg + s(butterflies_direct_sun_t_lag) + s(time_within_day_t)",
+    "M47" = "butterfly_difference_cbrt ~ s(temperature_avg) + s(butterflies_direct_sun_t_lag) + s(time_within_day_t)",
+    "M48" = "butterfly_difference_cbrt ~ s(max_gust) + s(temperature_avg) + s(butterflies_direct_sun_t_lag) + s(time_within_day_t)"
 )
 
 cat("Total models to fit:", length(model_specs), "\n")
@@ -694,74 +694,74 @@ Now we'll explore an alternative approach using `minutes_above_threshold` instea
 # Model specifications for threshold-based analysis
 threshold_model_specs <- list(
     # Null model (same as before)
-    "T0_null" = "butterfly_difference_cbrt ~ total_butterflies_t_lag",
+    "T1" = "butterfly_difference_cbrt ~ total_butterflies_t_lag",
 
     # Single variable models
-    "T1_threshold" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + minutes_above_threshold",
-    "T2_temp" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + temperature_avg",
-    "T3_sun" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + butterflies_direct_sun_t_lag",
+    "T2" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + minutes_above_threshold",
+    "T3" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + temperature_avg",
+    "T4" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + butterflies_direct_sun_t_lag",
 
     # Two-variable combinations
-    "T4_threshold_temp" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + minutes_above_threshold + temperature_avg",
-    "T5_threshold_sun" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + minutes_above_threshold + butterflies_direct_sun_t_lag",
-    "T6_temp_sun" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + temperature_avg + butterflies_direct_sun_t_lag",
+    "T5" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + minutes_above_threshold + temperature_avg",
+    "T6" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + minutes_above_threshold + butterflies_direct_sun_t_lag",
+    "T7" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + temperature_avg + butterflies_direct_sun_t_lag",
 
     # Three-variable model (main effects only)
-    "T7_all_main" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + minutes_above_threshold + temperature_avg + butterflies_direct_sun_t_lag",
+    "T8" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + minutes_above_threshold + temperature_avg + butterflies_direct_sun_t_lag",
 
     # Two-way interactions
-    "T8_threshold_temp_int" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + minutes_above_threshold * temperature_avg",
-    "T9_threshold_sun_int" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + minutes_above_threshold * butterflies_direct_sun_t_lag",
-    "T10_temp_sun_int" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + temperature_avg * butterflies_direct_sun_t_lag",
+    "T9" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + minutes_above_threshold * temperature_avg",
+    "T10" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + minutes_above_threshold * butterflies_direct_sun_t_lag",
+    "T11" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + temperature_avg * butterflies_direct_sun_t_lag",
 
     # Two-way interactions with third variable as main effect
-    "T11_threshold_temp_int_plus_sun" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + minutes_above_threshold * temperature_avg + butterflies_direct_sun_t_lag",
-    "T12_threshold_sun_int_plus_temp" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + minutes_above_threshold * butterflies_direct_sun_t_lag + temperature_avg",
-    "T13_temp_sun_int_plus_threshold" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + temperature_avg * butterflies_direct_sun_t_lag + minutes_above_threshold",
+    "T12" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + minutes_above_threshold * temperature_avg + butterflies_direct_sun_t_lag",
+    "T13" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + minutes_above_threshold * butterflies_direct_sun_t_lag + temperature_avg",
+    "T14" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + temperature_avg * butterflies_direct_sun_t_lag + minutes_above_threshold",
 
     # All two-way interactions
-    "T14_all_two_way" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + minutes_above_threshold * temperature_avg + minutes_above_threshold * butterflies_direct_sun_t_lag + temperature_avg * butterflies_direct_sun_t_lag",
+    "T15" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + minutes_above_threshold * temperature_avg + minutes_above_threshold * butterflies_direct_sun_t_lag + temperature_avg * butterflies_direct_sun_t_lag",
 
     # Three-way interaction
-    "T15_three_way" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + minutes_above_threshold * temperature_avg * butterflies_direct_sun_t_lag",
+    "T16" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + minutes_above_threshold * temperature_avg * butterflies_direct_sun_t_lag",
 
     # Smooth terms models (with lag term)
-    "T16_smooth_temp" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + s(temperature_avg) + s(butterflies_direct_sun_t_lag)",
-    "T17_smooth_sun" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + temperature_avg + s(butterflies_direct_sun_t_lag)",
-    "T18_smooth_threshold" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + s(minutes_above_threshold) + temperature_avg + s(butterflies_direct_sun_t_lag)",
-    "T19_smooth_temp_sun" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + s(temperature_avg) + s(butterflies_direct_sun_t_lag)",
-    "T20_smooth_all_main" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + s(minutes_above_threshold) + s(temperature_avg) + s(butterflies_direct_sun_t_lag)",
-    "T21_time_of_day" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + temperature_avg + s(butterflies_direct_sun_t_lag) + s(time_within_day_t)",
-    "T22_temp_time" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + s(temperature_avg) + s(butterflies_direct_sun_t_lag) + s(time_within_day_t)",
-    "T23_all_smooth_time" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + s(minutes_above_threshold) + s(temperature_avg) + s(butterflies_direct_sun_t_lag) + s(time_within_day_t)",
+    "T17" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + s(temperature_avg) + s(butterflies_direct_sun_t_lag)",
+    "T18" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + temperature_avg + s(butterflies_direct_sun_t_lag)",
+    "T19" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + s(minutes_above_threshold) + temperature_avg + s(butterflies_direct_sun_t_lag)",
+    "T20" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + s(temperature_avg) + s(butterflies_direct_sun_t_lag)",
+    "T21" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + s(minutes_above_threshold) + s(temperature_avg) + s(butterflies_direct_sun_t_lag)",
+    "T22" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + temperature_avg + s(butterflies_direct_sun_t_lag) + s(time_within_day_t)",
+    "T23" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + s(temperature_avg) + s(butterflies_direct_sun_t_lag) + s(time_within_day_t)",
+    "T24" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + s(minutes_above_threshold) + s(temperature_avg) + s(butterflies_direct_sun_t_lag) + s(time_within_day_t)",
 
     # Models WITHOUT lag term - testing environmental effects on absolute change
-    "T24_no_lag_null" = "butterfly_difference_cbrt ~ 1",
-    "T25_no_lag_threshold" = "butterfly_difference_cbrt ~ minutes_above_threshold",
-    "T26_no_lag_temp" = "butterfly_difference_cbrt ~ temperature_avg",
-    "T27_no_lag_sun" = "butterfly_difference_cbrt ~ butterflies_direct_sun_t_lag",
-    "T28_no_lag_threshold_temp" = "butterfly_difference_cbrt ~ minutes_above_threshold + temperature_avg",
-    "T29_no_lag_threshold_sun" = "butterfly_difference_cbrt ~ minutes_above_threshold + butterflies_direct_sun_t_lag",
-    "T30_no_lag_temp_sun" = "butterfly_difference_cbrt ~ temperature_avg + butterflies_direct_sun_t_lag",
-    "T31_no_lag_all_main" = "butterfly_difference_cbrt ~ minutes_above_threshold + temperature_avg + butterflies_direct_sun_t_lag",
-    "T32_no_lag_threshold_temp_int" = "butterfly_difference_cbrt ~ minutes_above_threshold * temperature_avg",
-    "T33_no_lag_threshold_sun_int" = "butterfly_difference_cbrt ~ minutes_above_threshold * butterflies_direct_sun_t_lag",
-    "T34_no_lag_temp_sun_int" = "butterfly_difference_cbrt ~ temperature_avg * butterflies_direct_sun_t_lag",
-    "T35_no_lag_threshold_temp_int_plus_sun" = "butterfly_difference_cbrt ~ minutes_above_threshold * temperature_avg + butterflies_direct_sun_t_lag",
-    "T36_no_lag_threshold_sun_int_plus_temp" = "butterfly_difference_cbrt ~ minutes_above_threshold * butterflies_direct_sun_t_lag + temperature_avg",
-    "T37_no_lag_temp_sun_int_plus_threshold" = "butterfly_difference_cbrt ~ temperature_avg * butterflies_direct_sun_t_lag + minutes_above_threshold",
-    "T38_no_lag_all_two_way" = "butterfly_difference_cbrt ~ minutes_above_threshold * temperature_avg + minutes_above_threshold * butterflies_direct_sun_t_lag + temperature_avg * butterflies_direct_sun_t_lag",
-    "T39_no_lag_three_way" = "butterfly_difference_cbrt ~ minutes_above_threshold * temperature_avg * butterflies_direct_sun_t_lag",
+    "T25" = "butterfly_difference_cbrt ~ 1",
+    "T26" = "butterfly_difference_cbrt ~ minutes_above_threshold",
+    "T27" = "butterfly_difference_cbrt ~ temperature_avg",
+    "T28" = "butterfly_difference_cbrt ~ butterflies_direct_sun_t_lag",
+    "T29" = "butterfly_difference_cbrt ~ minutes_above_threshold + temperature_avg",
+    "T30" = "butterfly_difference_cbrt ~ minutes_above_threshold + butterflies_direct_sun_t_lag",
+    "T31" = "butterfly_difference_cbrt ~ temperature_avg + butterflies_direct_sun_t_lag",
+    "T32" = "butterfly_difference_cbrt ~ minutes_above_threshold + temperature_avg + butterflies_direct_sun_t_lag",
+    "T33" = "butterfly_difference_cbrt ~ minutes_above_threshold * temperature_avg",
+    "T34" = "butterfly_difference_cbrt ~ minutes_above_threshold * butterflies_direct_sun_t_lag",
+    "T35" = "butterfly_difference_cbrt ~ temperature_avg * butterflies_direct_sun_t_lag",
+    "T36" = "butterfly_difference_cbrt ~ minutes_above_threshold * temperature_avg + butterflies_direct_sun_t_lag",
+    "T37" = "butterfly_difference_cbrt ~ minutes_above_threshold * butterflies_direct_sun_t_lag + temperature_avg",
+    "T38" = "butterfly_difference_cbrt ~ temperature_avg * butterflies_direct_sun_t_lag + minutes_above_threshold",
+    "T39" = "butterfly_difference_cbrt ~ minutes_above_threshold * temperature_avg + minutes_above_threshold * butterflies_direct_sun_t_lag + temperature_avg * butterflies_direct_sun_t_lag",
+    "T40" = "butterfly_difference_cbrt ~ minutes_above_threshold * temperature_avg * butterflies_direct_sun_t_lag",
 
     # Smooth terms models WITHOUT lag term
-    "T40_no_lag_smooth_temp" = "butterfly_difference_cbrt ~ s(temperature_avg) + s(butterflies_direct_sun_t_lag)",
-    "T41_no_lag_smooth_sun" = "butterfly_difference_cbrt ~ temperature_avg + s(butterflies_direct_sun_t_lag)",
-    "T42_no_lag_smooth_threshold" = "butterfly_difference_cbrt ~ s(minutes_above_threshold) + temperature_avg + s(butterflies_direct_sun_t_lag)",
-    "T43_no_lag_smooth_temp_sun" = "butterfly_difference_cbrt ~ s(temperature_avg) + s(butterflies_direct_sun_t_lag)",
-    "T44_no_lag_smooth_all_main" = "butterfly_difference_cbrt ~ s(minutes_above_threshold) + s(temperature_avg) + s(butterflies_direct_sun_t_lag)",
-    "T45_no_lag_time_of_day" = "butterfly_difference_cbrt ~ temperature_avg + s(butterflies_direct_sun_t_lag) + s(time_within_day_t)",
-    "T46_no_lag_temp_time" = "butterfly_difference_cbrt ~ s(temperature_avg) + s(butterflies_direct_sun_t_lag) + s(time_within_day_t)",
-    "T47_no_lag_all_smooth_time" = "butterfly_difference_cbrt ~ s(minutes_above_threshold) + s(temperature_avg) + s(butterflies_direct_sun_t_lag) + s(time_within_day_t)"
+    "T41" = "butterfly_difference_cbrt ~ s(temperature_avg) + s(butterflies_direct_sun_t_lag)",
+    "T42" = "butterfly_difference_cbrt ~ temperature_avg + s(butterflies_direct_sun_t_lag)",
+    "T43" = "butterfly_difference_cbrt ~ s(minutes_above_threshold) + temperature_avg + s(butterflies_direct_sun_t_lag)",
+    "T44" = "butterfly_difference_cbrt ~ s(temperature_avg) + s(butterflies_direct_sun_t_lag)",
+    "T45" = "butterfly_difference_cbrt ~ s(minutes_above_threshold) + s(temperature_avg) + s(butterflies_direct_sun_t_lag)",
+    "T46" = "butterfly_difference_cbrt ~ temperature_avg + s(butterflies_direct_sun_t_lag) + s(time_within_day_t)",
+    "T47" = "butterfly_difference_cbrt ~ s(temperature_avg) + s(butterflies_direct_sun_t_lag) + s(time_within_day_t)",
+    "T48" = "butterfly_difference_cbrt ~ s(minutes_above_threshold) + s(temperature_avg) + s(butterflies_direct_sun_t_lag) + s(time_within_day_t)"
 )
 
 cat("Total threshold-based models to fit:", length(threshold_model_specs), "\n")
