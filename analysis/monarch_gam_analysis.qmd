@@ -1012,21 +1012,44 @@ cat("Export directories created successfully\n")
 ### Model Selection Table Export
 
 ```{r export-model-selection-table}
+# Function to extract max_gust p-value from a model
+get_max_gust_pvalue <- function(model_name) {
+  if (model_name %in% names(successful_models)) {
+    model <- successful_models[[model_name]]
+    
+    # Check parametric terms first (linear effects)
+    param_summary <- summary(model$gam)$p.table
+    if ("max_gust" %in% rownames(param_summary)) {
+      return(format.pval(param_summary["max_gust", "Pr(>|t|)"], digits = 3))
+    }
+    
+    # Check smooth terms 
+    smooth_summary <- summary(model$gam)$s.table
+    gust_smooth_rows <- grep("max_gust", rownames(smooth_summary))
+    if (length(gust_smooth_rows) > 0) {
+      return(format.pval(smooth_summary[gust_smooth_rows[1], "p-value"], digits = 3))
+    }
+  }
+  return("NA")
+}
+
 # Create comprehensive model selection table (top 10 models)
 model_selection_table <- aic_results %>%
   head(10) %>%
   mutate(
     AIC_weight = round(AIC_weight, 4),
     Delta_AIC = round(Delta_AIC, 3),
-    AIC = round(AIC, 3)
+    AIC = round(AIC, 3),
+    max_gust_p = map_chr(Model, get_max_gust_pvalue)
   ) %>%
-  select(Model, AIC, Delta_AIC, AIC_weight, df) %>%
+  select(Model, AIC, Delta_AIC, AIC_weight, df, max_gust_p) %>%
   rename(
     "Model ID" = Model,
     "AIC" = AIC,
     "ΔAIC" = Delta_AIC,
     "AIC Weight" = AIC_weight,
-    "df" = df
+    "df" = df,
+    "Wind p-value" = max_gust_p
   )
 
 # Export as CSV
@@ -1036,7 +1059,7 @@ write_csv(model_selection_table, file.path(tab_dir, "model_selection_table.csv")
 kable_output <- kable(model_selection_table, 
                      format = "latex", 
                      booktabs = TRUE,
-                     caption = "Top 10 candidate models ranked by AIC for monarch butterfly abundance change analysis")
+                     caption = "Top 10 candidate models ranked by AIC for monarch butterfly abundance change analysis. Wind p-value shows significance of max_gust term when present in model.")
 
 writeLines(kable_output, file.path(tab_dir, "model_selection_table.tex"))
 
