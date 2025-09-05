@@ -1,11 +1,20 @@
-Model ID,AIC,ΔAIC,AIC Weight,df
-M22_temp_time,8081.848,0,0.8803,14
-M21_time_of_day,8086.644,4.796,0.08,13
-M23_all_smooth_time,8088.049,6.2,0.0397,16
-M46_no_lag_temp_time,8101.296,19.448,1e-4,12
-M16_smooth_temp,8105.876,24.028,0,12
-M19_smooth_temp_sun,8105.876,24.028,0,12
-M47_no_lag_all_smooth_time,8107.724,25.876,0,14
-M45_no_lag_time_of_day,8108.295,26.447,0,11
-M20_smooth_all_main,8109.249,27.401,0,14
-M17_smooth_sun,8114.431,32.583,0,11
+Model ID,Model Terms,AIC,ΔAIC,AIC Weight,df,Wind p-value
+M22_temp_time,"• roost_size
+• temp
+• sun
+• time",8081.848,0,0.8803,14,NA
+M21_time_of_day,"• roost_size
+• temp (linear)
+• sun
+• time",8086.644,4.796,0.08,13,NA
+M23_all_smooth_time,"• roost_size
+• wind
+• temp
+• sun
+• time",8088.049,6.2,0.0397,16,0.218
+M46_no_lag_temp_time,"• temp
+• sun
+• time",8101.296,19.448,1e-4,12,NA
+M16_smooth_temp,"• roost_size
+• temp
+• sun",8105.876,24.028,0,12,NA

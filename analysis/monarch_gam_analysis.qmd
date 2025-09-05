@@ -1033,18 +1033,72 @@ get_max_gust_pvalue <- function(model_name) {
   return("NA")
 }
 
-# Create comprehensive model selection table (top 10 models)
+# Function to create readable model terms
+create_readable_terms <- function(formula_str) {
+  # Store original formula for checking linear vs smooth terms
+  original_formula <- formula_str
+  
+  # Remove response variable
+  formula_clean <- gsub("butterfly_difference_cbrt ~ ", "", formula_str)
+  
+  # Split into terms first before any substitutions
+  original_terms <- trimws(strsplit(formula_clean, "\\+")[[1]])
+  original_terms <- original_terms[original_terms != ""]
+  
+  # Process each term individually
+  formatted_terms <- sapply(original_terms, function(term) {
+    term <- trimws(term)
+    
+    # Check if it's a smooth term
+    is_smooth <- grepl("^s\\(", term)
+    
+    if (is_smooth) {
+      # Extract variable name from s(variable_name)
+      var_name <- gsub("s\\(([^)]+)\\)", "\\1", term)
+    } else {
+      # It's a linear term
+      var_name <- term
+    }
+    
+    # Replace with readable names
+    readable_name <- case_when(
+      var_name == "total_butterflies_t_lag" ~ "roost_size",
+      var_name == "max_gust" ~ "wind", 
+      var_name == "temperature_avg" ~ "temp",
+      var_name == "butterflies_direct_sun_t_lag" ~ "sun",
+      var_name == "time_within_day_t" ~ "time",
+      TRUE ~ var_name
+    )
+    
+    # Format with bullet and linear notation if needed
+    if (is_smooth) {
+      return(paste0("• ", readable_name))
+    } else {
+      return(paste0("• ", readable_name, " (linear)"))
+    }
+  })
+  
+  if (length(formatted_terms) == 0) {
+    return("• intercept only")
+  }
+  
+  return(paste(formatted_terms, collapse = "\n"))
+}
+
+# Create comprehensive model selection table (top 5 models)
 model_selection_table <- aic_results %>%
-  head(10) %>%
+  head(5) %>%
   mutate(
     AIC_weight = round(AIC_weight, 4),
     Delta_AIC = round(Delta_AIC, 3),
     AIC = round(AIC, 3),
-    max_gust_p = map_chr(Model, get_max_gust_pvalue)
+    max_gust_p = map_chr(Model, get_max_gust_pvalue),
+    Terms = map_chr(Formula, create_readable_terms)
   ) %>%
-  select(Model, AIC, Delta_AIC, AIC_weight, df, max_gust_p) %>%
+  select(Model, Terms, AIC, Delta_AIC, AIC_weight, df, max_gust_p) %>%
   rename(
     "Model ID" = Model,
+    "Model Terms" = Terms,
     "AIC" = AIC,
     "ΔAIC" = Delta_AIC,
     "AIC Weight" = AIC_weight,
@@ -1059,7 +1113,7 @@ write_csv(model_selection_table, file.path(tab_dir, "model_selection_table.csv")
 kable_output <- kable(model_selection_table, 
                      format = "latex", 
                      booktabs = TRUE,
-                     caption = "Top 10 candidate models ranked by AIC for monarch butterfly abundance change analysis. Wind p-value shows significance of max_gust term when present in model.")
+                     caption = "Top 5 candidate models ranked by AIC for monarch butterfly abundance change analysis. All terms are smooth unless marked as (linear). Wind p-value shows significance of max_gust term when present in model.")
 
 writeLines(kable_output, file.path(tab_dir, "model_selection_table.tex"))
 
