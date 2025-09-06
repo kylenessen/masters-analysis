@@ -197,18 +197,18 @@ p1 <- ggplot(monarch_data, aes(x = max_gust, y = butterfly_difference_cbrt)) +
     geom_smooth(method = "gam", se = TRUE, color = "darkblue") +
     labs(
         title = "Max Gust vs Butterfly Change",
-        x = "Max Gust (m/s)", 
+        x = "Max Gust (m/s)",
         y = "Butterfly Difference (cbrt)"
     ) +
     theme_minimal()
 
-# Temperature vs Butterfly Difference  
+# Temperature vs Butterfly Difference
 p2 <- ggplot(monarch_data, aes(x = temperature_avg, y = butterfly_difference_cbrt)) +
     geom_point(alpha = 0.3, color = "red") +
     geom_smooth(method = "gam", se = TRUE, color = "darkred") +
     labs(
         title = "Temperature vs Butterfly Change",
-        x = "Average Temperature (°C)", 
+        x = "Average Temperature (°C)",
         y = "Butterfly Difference (cbrt)"
     ) +
     theme_minimal()
@@ -219,7 +219,7 @@ p3 <- ggplot(monarch_data, aes(x = butterflies_direct_sun_t_lag, y = butterfly_d
     geom_smooth(method = "gam", se = TRUE, color = "darkorange") +
     labs(
         title = "Direct Sun Exposure vs Butterfly Change",
-        x = "Butterflies in Direct Sun (t-lag)", 
+        x = "Butterflies in Direct Sun (t-lag)",
         y = "Butterfly Difference (cbrt)"
     ) +
     theme_minimal()
@@ -230,18 +230,18 @@ p4 <- ggplot(monarch_data, aes(x = time_within_day_t, y = butterfly_difference_c
     geom_smooth(method = "gam", se = TRUE, color = "darkviolet") +
     labs(
         title = "Time of Day vs Butterfly Change",
-        x = "Time Within Day (minutes)", 
+        x = "Time Within Day (minutes)",
         y = "Butterfly Difference (cbrt)"
     ) +
     theme_minimal()
 
-# Total Butterflies (previous) vs Butterfly Difference  
+# Total Butterflies (previous) vs Butterfly Difference
 p5 <- ggplot(monarch_data, aes(x = total_butterflies_t_lag, y = butterfly_difference_cbrt)) +
     geom_point(alpha = 0.3, color = "darkgreen") +
     geom_smooth(method = "gam", se = TRUE, color = "forestgreen") +
     labs(
         title = "Previous Butterfly Count vs Change",
-        x = "Total Butterflies (t-lag)", 
+        x = "Total Butterflies (t-lag)",
         y = "Butterfly Difference (cbrt)"
     ) +
     theme_minimal()
@@ -816,7 +816,7 @@ head(threshold_aic_results, 5) %>%
 
 ```{r best-threshold-model-analysis}
 # Check if we have successfully fitted threshold models
-if(length(threshold_successful_models) > 0 && nrow(threshold_aic_results) > 0) {
+if (length(threshold_successful_models) > 0 && nrow(threshold_aic_results) > 0) {
     # Get the best threshold model
     best_threshold_model_name <- threshold_aic_results$Model[1]
     best_threshold_model <- threshold_successful_models[[best_threshold_model_name]]
@@ -838,7 +838,7 @@ if(length(threshold_successful_models) > 0 && nrow(threshold_aic_results) > 0) {
 ```{r threshold-effect-previous-count}
 #| fig-width: 10
 #| fig-height: 6
-if(exists("best_threshold_model") && !is.null(best_threshold_model)) {
+if (exists("best_threshold_model") && !is.null(best_threshold_model)) {
     plot(best_threshold_model$gam,
         select = 1, main = "Effect of Previous Butterfly Count (Threshold Model)",
         xlab = "Total Butterflies (t-lag)", ylab = "Partial Effect",
@@ -854,10 +854,10 @@ if(exists("best_threshold_model") && !is.null(best_threshold_model)) {
 ```{r threshold-effect-minutes}
 #| fig-width: 10
 #| fig-height: 6
-if(exists("best_threshold_model") && !is.null(best_threshold_model)) {
+if (exists("best_threshold_model") && !is.null(best_threshold_model)) {
     # Find which smooth corresponds to minutes_above_threshold
     threshold_smooth_terms <- summary(best_threshold_model$gam)$s.table
-    if("s(minutes_above_threshold)" %in% rownames(threshold_smooth_terms)) {
+    if ("s(minutes_above_threshold)" %in% rownames(threshold_smooth_terms)) {
         select_num <- which(grepl("minutes_above_threshold", rownames(threshold_smooth_terms))) + 1
         plot(best_threshold_model$gam,
             select = select_num, main = "Effect of Minutes Above Threshold",
@@ -891,8 +891,10 @@ p2 <- ggplot(model_data, aes(x = minutes_above_threshold)) +
 p3 <- ggplot(model_data, aes(x = max_gust, y = minutes_above_threshold)) +
     geom_point(alpha = 0.5) +
     geom_smooth(method = "lm", se = TRUE) +
-    labs(title = "Relationship: Max Gust vs Minutes Above Threshold",
-         x = "Max Gust (m/s)", y = "Minutes Above Threshold") +
+    labs(
+        title = "Relationship: Max Gust vs Minutes Above Threshold",
+        x = "Max Gust (m/s)", y = "Minutes Above Threshold"
+    ) +
     theme_minimal()
 
 # Show correlation
@@ -900,8 +902,10 @@ correlation <- cor(model_data$max_gust, model_data$minutes_above_threshold, use 
 p4 <- ggplot(model_data, aes(x = minutes_above_threshold, y = butterfly_difference_cbrt)) +
     geom_point(alpha = 0.3) +
     geom_smooth(method = "loess", se = TRUE, color = "red") +
-    labs(title = "Minutes Above Threshold vs Butterfly Change",
-         x = "Minutes Above Threshold", y = "Butterfly Difference (cbrt)") +
+    labs(
+        title = "Minutes Above Threshold vs Butterfly Change",
+        x = "Minutes Above Threshold", y = "Butterfly Difference (cbrt)"
+    ) +
     theme_minimal()
 
 grid.arrange(p1, p2, p3, p4, ncol = 2)
@@ -914,7 +918,7 @@ cat("Correlation between max_gust and minutes_above_threshold:", round(correlati
 # Compare best models from each approach
 
 # Check if threshold models were successfully fitted
-if(length(threshold_successful_models) > 0 && exists("threshold_aic_results") && nrow(threshold_aic_results) > 0) {
+if (length(threshold_successful_models) > 0 && exists("threshold_aic_results") && nrow(threshold_aic_results) > 0) {
     # Get the best threshold model
     best_threshold_model_name <- threshold_aic_results$Model[1]
     best_threshold_model <- threshold_successful_models[[best_threshold_model_name]]
@@ -927,19 +931,21 @@ if(length(threshold_successful_models) > 0 && exists("threshold_aic_results") &&
 
 
 
-            comparison_df <- data.frame(
-                Approach = c("Max Gust (Original)", "Minutes Above Threshold"),
-                Best_Model = c(best_model_name, best_threshold_model_name),
-                AIC = c(min(aic_results$AIC), min(threshold_aic_results$AIC)),
-                R_squared = c(gust_r_sq, threshold_r_sq),
-                Dev_Explained = c(
-                    ifelse(is.null(gust_dev) || length(gust_dev) == 0, NA, gust_dev),
-                    ifelse(is.null(threshold_dev) || length(threshold_dev) == 0, NA, threshold_dev)
-                )
-            )
+    comparison_df <- data.frame(
+        Approach = c("Max Gust (Original)", "Minutes Above Threshold"),
+        Best_Model = c(best_model_name, best_threshold_model_name),
+        AIC = c(min(aic_results$AIC), min(threshold_aic_results$AIC)),
+        R_squared = c(gust_r_sq, threshold_r_sq),
+        Dev_Explained = c(
+            ifelse(is.null(gust_dev) || length(gust_dev) == 0, NA, gust_dev),
+            ifelse(is.null(threshold_dev) || length(threshold_dev) == 0, NA, threshold_dev)
+        )
+    )
 
-    kable(comparison_df, digits = 4,
-          caption = "Comparison of Max Gust vs Minutes Above Threshold Approaches")
+    kable(comparison_df,
+        digits = 4,
+        caption = "Comparison of Max Gust vs Minutes Above Threshold Approaches"
+    )
 } else {
     cat("No threshold models were successfully fitted. This may be due to:\n")
     cat("- Missing or invalid minutes_above_threshold data\n")
@@ -994,17 +1000,17 @@ library(scales)
 
 # Define publication theme
 pub_theme <- theme_classic(base_size = 12) +
-  theme(
-    axis.text = element_text(color = "black"),
-    axis.title = element_text(color = "black"),
-    legend.text = element_text(color = "black"),
-    legend.title = element_text(color = "black"),
-    strip.text = element_text(color = "black"),
-    plot.title = element_text(color = "black", hjust = 0.5),
-    panel.grid.major = element_line(color = "gray90", size = 0.5),
-    panel.grid.minor = element_blank(),
-    legend.position = "bottom"
-  )
+    theme(
+        axis.text = element_text(color = "black"),
+        axis.title = element_text(color = "black"),
+        legend.text = element_text(color = "black"),
+        legend.title = element_text(color = "black"),
+        strip.text = element_text(color = "black"),
+        plot.title = element_text(color = "black", hjust = 0.5),
+        panel.grid.major = element_line(color = "gray90", size = 0.5),
+        panel.grid.minor = element_blank(),
+        legend.position = "bottom"
+    )
 
 cat("Export directories created successfully\n")
 ```
@@ -1014,106 +1020,107 @@ cat("Export directories created successfully\n")
 ```{r export-model-selection-table}
 # Function to extract max_gust p-value from a model
 get_max_gust_pvalue <- function(model_name) {
-  if (model_name %in% names(successful_models)) {
-    model <- successful_models[[model_name]]
-    
-    # Check parametric terms first (linear effects)
-    param_summary <- summary(model$gam)$p.table
-    if ("max_gust" %in% rownames(param_summary)) {
-      return(format.pval(param_summary["max_gust", "Pr(>|t|)"], digits = 3))
+    if (model_name %in% names(successful_models)) {
+        model <- successful_models[[model_name]]
+
+        # Check parametric terms first (linear effects)
+        param_summary <- summary(model$gam)$p.table
+        if ("max_gust" %in% rownames(param_summary)) {
+            return(format.pval(param_summary["max_gust", "Pr(>|t|)"], digits = 3))
+        }
+
+        # Check smooth terms
+        smooth_summary <- summary(model$gam)$s.table
+        gust_smooth_rows <- grep("max_gust", rownames(smooth_summary))
+        if (length(gust_smooth_rows) > 0) {
+            return(format.pval(smooth_summary[gust_smooth_rows[1], "p-value"], digits = 3))
+        }
     }
-    
-    # Check smooth terms 
-    smooth_summary <- summary(model$gam)$s.table
-    gust_smooth_rows <- grep("max_gust", rownames(smooth_summary))
-    if (length(gust_smooth_rows) > 0) {
-      return(format.pval(smooth_summary[gust_smooth_rows[1], "p-value"], digits = 3))
-    }
-  }
-  return("NA")
+    return("NA")
 }
 
 # Function to create readable model terms
 create_readable_terms <- function(formula_str) {
-  # Store original formula for checking linear vs smooth terms
-  original_formula <- formula_str
-  
-  # Remove response variable
-  formula_clean <- gsub("butterfly_difference_cbrt ~ ", "", formula_str)
-  
-  # Split into terms first before any substitutions
-  original_terms <- trimws(strsplit(formula_clean, "\\+")[[1]])
-  original_terms <- original_terms[original_terms != ""]
-  
-  # Process each term individually
-  formatted_terms <- sapply(original_terms, function(term) {
-    term <- trimws(term)
-    
-    # Check if it's a smooth term
-    is_smooth <- grepl("^s\\(", term)
-    
-    if (is_smooth) {
-      # Extract variable name from s(variable_name)
-      var_name <- gsub("s\\(([^)]+)\\)", "\\1", term)
-    } else {
-      # It's a linear term
-      var_name <- term
+    # Store original formula for checking linear vs smooth terms
+    original_formula <- formula_str
+
+    # Remove response variable
+    formula_clean <- gsub("butterfly_difference_cbrt ~ ", "", formula_str)
+
+    # Split into terms first before any substitutions
+    original_terms <- trimws(strsplit(formula_clean, "\\+")[[1]])
+    original_terms <- original_terms[original_terms != ""]
+
+    # Process each term individually
+    formatted_terms <- sapply(original_terms, function(term) {
+        term <- trimws(term)
+
+        # Check if it's a smooth term
+        is_smooth <- grepl("^s\\(", term)
+
+        if (is_smooth) {
+            # Extract variable name from s(variable_name)
+            var_name <- gsub("s\\(([^)]+)\\)", "\\1", term)
+        } else {
+            # It's a linear term
+            var_name <- term
+        }
+
+        # Replace with readable names
+        readable_name <- case_when(
+            var_name == "total_butterflies_t_lag" ~ "Lagged Total Butterflies",
+            var_name == "max_gust" ~ "Max Gust",
+            var_name == "temperature_avg" ~ "Average Temperature",
+            var_name == "butterflies_direct_sun_t_lag" ~ "Butterflies in Direct Sunlight",
+            var_name == "time_within_day_t" ~ "Minutes Since Dawn",
+            TRUE ~ var_name
+        )
+
+        # Format with bullet and linear notation if needed
+        if (is_smooth) {
+            return(paste0("• ", readable_name))
+        } else {
+            return(paste0("• ", readable_name, " (linear)"))
+        }
+    })
+
+    if (length(formatted_terms) == 0) {
+        return("• intercept only")
     }
-    
-    # Replace with readable names
-    readable_name <- case_when(
-      var_name == "total_butterflies_t_lag" ~ "roost_size",
-      var_name == "max_gust" ~ "wind", 
-      var_name == "temperature_avg" ~ "temp",
-      var_name == "butterflies_direct_sun_t_lag" ~ "sun",
-      var_name == "time_within_day_t" ~ "time",
-      TRUE ~ var_name
-    )
-    
-    # Format with bullet and linear notation if needed
-    if (is_smooth) {
-      return(paste0("• ", readable_name))
-    } else {
-      return(paste0("• ", readable_name, " (linear)"))
-    }
-  })
-  
-  if (length(formatted_terms) == 0) {
-    return("• intercept only")
-  }
-  
-  return(paste(formatted_terms, collapse = "\n"))
+
+    return(paste(formatted_terms, collapse = "\n"))
 }
 
 # Create comprehensive model selection table (top 5 models)
 model_selection_table <- aic_results %>%
-  head(5) %>%
-  mutate(
-    AIC_weight = round(AIC_weight, 4),
-    Delta_AIC = round(Delta_AIC, 3),
-    AIC = round(AIC, 3),
-    max_gust_p = map_chr(Model, get_max_gust_pvalue),
-    Terms = map_chr(Formula, create_readable_terms)
-  ) %>%
-  select(Model, Terms, AIC, Delta_AIC, AIC_weight, df, max_gust_p) %>%
-  rename(
-    "Model ID" = Model,
-    "Model Terms" = Terms,
-    "AIC" = AIC,
-    "ΔAIC" = Delta_AIC,
-    "AIC Weight" = AIC_weight,
-    "df" = df,
-    "Wind p-value" = max_gust_p
-  )
+    head(5) %>%
+    mutate(
+        AIC_weight = round(AIC_weight, 4),
+        Delta_AIC = round(Delta_AIC, 3),
+        AIC = round(AIC, 3),
+        max_gust_p = map_chr(Model, get_max_gust_pvalue),
+        Terms = map_chr(Formula, create_readable_terms)
+    ) %>%
+    select(Model, Terms, AIC, Delta_AIC, AIC_weight, df, max_gust_p) %>%
+    rename(
+        "Model ID" = Model,
+        "Model Terms" = Terms,
+        "AIC" = AIC,
+        "ΔAIC" = Delta_AIC,
+        "AIC Weight" = AIC_weight,
+        "df" = df,
+        "Wind p-value" = max_gust_p
+    )
 
 # Export as CSV
 write_csv(model_selection_table, file.path(tab_dir, "model_selection_table.csv"))
 
 # Export as formatted kable for LaTeX
-kable_output <- kable(model_selection_table, 
-                     format = "latex", 
-                     booktabs = TRUE,
-                     caption = "Top 5 candidate models ranked by AIC for monarch butterfly abundance change analysis. All terms are smooth unless marked as (linear). Wind p-value shows significance of max_gust term when present in model.")
+kable_output <- kable(model_selection_table,
+    format = "latex",
+    booktabs = TRUE,
+    caption = "Top 5 candidate models ranked by AIC for monarch butterfly abundance change analysis. All terms are smooth unless marked as (linear). Wind p-value shows significance of max_gust term when present in model."
+)
 
 writeLines(kable_output, file.path(tab_dir, "model_selection_table.tex"))
 
@@ -1129,31 +1136,32 @@ parametric_summary <- summary(best_model$gam)$p.table
 
 # Create formatted smooth terms table
 smooth_terms_df <- data.frame(
-  Term = rownames(smooth_summary),
-  EDF = round(smooth_summary[, "edf"], 3),
-  Ref_df = round(smooth_summary[, "Ref.df"], 3),
-  F_value = round(smooth_summary[, "F"], 3),
-  p_value = format.pval(smooth_summary[, "p-value"], digits = 3)
+    Term = rownames(smooth_summary),
+    EDF = round(smooth_summary[, "edf"], 3),
+    Ref_df = round(smooth_summary[, "Ref.df"], 3),
+    F_value = round(smooth_summary[, "F"], 3),
+    p_value = format.pval(smooth_summary[, "p-value"], digits = 3)
 ) %>%
-  mutate(
-    Term = case_when(
-      grepl("total_butterflies_t_lag", Term) ~ "Lagged roost size",
-      grepl("temperature_avg", Term) ~ "Average temperature",
-      grepl("butterflies_direct_sun_t_lag", Term) ~ "Direct sun exposure",
-      grepl("time_within_day_t", Term) ~ "Time within day",
-      TRUE ~ Term
+    mutate(
+        Term = case_when(
+            grepl("total_butterflies_t_lag", Term) ~ "Lagged roost size",
+            grepl("temperature_avg", Term) ~ "Average temperature",
+            grepl("butterflies_direct_sun_t_lag", Term) ~ "Direct sun exposure",
+            grepl("time_within_day_t", Term) ~ "Time within day",
+            TRUE ~ Term
+        )
     )
-  )
 
 # Export smooth terms table
 write_csv(smooth_terms_df, file.path(tab_dir, "smooth_terms_summary.csv"))
 
 # Export as LaTeX
 smooth_kable <- kable(smooth_terms_df,
-                     format = "latex",
-                     booktabs = TRUE,
-                     col.names = c("Smooth Term", "EDF", "Ref. df", "F", "p-value"),
-                     caption = "Summary of smooth terms in the best-fit GAM model")
+    format = "latex",
+    booktabs = TRUE,
+    col.names = c("Smooth Term", "EDF", "Ref. df", "F", "p-value"),
+    caption = "Summary of smooth terms in the best-fit GAM model"
+)
 
 writeLines(smooth_kable, file.path(tab_dir, "smooth_terms_summary.tex"))
 
@@ -1167,81 +1175,102 @@ cat("Smooth terms summary exported to:", file.path(tab_dir, "smooth_terms_summar
 # These show the full range and relationship clearly
 
 # Effect of Lagged Roost Size
-png(file.path(fig_dir, "effect_lagged_roost_size.png"), 
-    width = 8, height = 6, units = "in", res = 300)
-plot(best_model$gam, select = 1, 
-     main = "Effect of Lagged Roost Size",
-     xlab = "Total butterflies (t-lag)", 
-     ylab = "Partial effect",
-     shade = TRUE, shade.col = "lightblue",
-     cex.main = 1.2, cex.lab = 1.1, cex.axis = 1.0)
+png(file.path(fig_dir, "effect_lagged_roost_size.png"),
+    width = 8, height = 6, units = "in", res = 300
+)
+plot(best_model$gam,
+    select = 1,
+    main = "Effect of Lagged Roost Size",
+    xlab = "Total butterflies (t-lag)",
+    ylab = "Partial effect",
+    shade = TRUE, shade.col = "lightblue",
+    cex.main = 1.2, cex.lab = 1.1, cex.axis = 1.0
+)
 dev.off()
 
 # Effect of Temperature
-png(file.path(fig_dir, "effect_temperature.png"), 
-    width = 8, height = 6, units = "in", res = 300)
-plot(best_model$gam, select = 2,
-     main = "Effect of Average Temperature",
-     xlab = "Average temperature (°C)", 
-     ylab = "Partial effect",
-     shade = TRUE, shade.col = "lightcoral",
-     cex.main = 1.2, cex.lab = 1.1, cex.axis = 1.0)
+png(file.path(fig_dir, "effect_temperature.png"),
+    width = 8, height = 6, units = "in", res = 300
+)
+plot(best_model$gam,
+    select = 2,
+    main = "Effect of Average Temperature",
+    xlab = "Average temperature (°C)",
+    ylab = "Partial effect",
+    shade = TRUE, shade.col = "lightcoral",
+    cex.main = 1.2, cex.lab = 1.1, cex.axis = 1.0
+)
 dev.off()
 
 # Effect of Direct Sun Exposure
-png(file.path(fig_dir, "effect_sun_exposure.png"), 
-    width = 8, height = 6, units = "in", res = 300)
-plot(best_model$gam, select = 3,
-     main = "Effect of Direct Sun Exposure",
-     xlab = "Butterflies in direct sun (t-lag)", 
-     ylab = "Partial effect",
-     shade = TRUE, shade.col = "orange",
-     cex.main = 1.2, cex.lab = 1.1, cex.axis = 1.0)
+png(file.path(fig_dir, "effect_sun_exposure.png"),
+    width = 8, height = 6, units = "in", res = 300
+)
+plot(best_model$gam,
+    select = 3,
+    main = "Effect of Direct Sun Exposure",
+    xlab = "Butterflies in direct sun (t-lag)",
+    ylab = "Partial effect",
+    shade = TRUE, shade.col = "orange",
+    cex.main = 1.2, cex.lab = 1.1, cex.axis = 1.0
+)
 dev.off()
 
 # Diurnal Pattern
-png(file.path(fig_dir, "effect_diurnal_pattern.png"), 
-    width = 8, height = 6, units = "in", res = 300)
-plot(best_model$gam, select = 4,
-     main = "Diurnal Pattern",
-     xlab = "Time within day (minutes)", 
-     ylab = "Partial effect",
-     shade = TRUE, shade.col = "lightgreen",
-     cex.main = 1.2, cex.lab = 1.1, cex.axis = 1.0)
+png(file.path(fig_dir, "effect_diurnal_pattern.png"),
+    width = 8, height = 6, units = "in", res = 300
+)
+plot(best_model$gam,
+    select = 4,
+    main = "Diurnal Pattern",
+    xlab = "Time within day (minutes)",
+    ylab = "Partial effect",
+    shade = TRUE, shade.col = "lightgreen",
+    cex.main = 1.2, cex.lab = 1.1, cex.axis = 1.0
+)
 dev.off()
 
 # Create combined panel figure
-png(file.path(fig_dir, "combined_partial_effects.png"), 
-    width = 12, height = 10, units = "in", res = 300)
+png(file.path(fig_dir, "combined_partial_effects.png"),
+    width = 12, height = 10, units = "in", res = 300
+)
 par(mfrow = c(2, 2), mar = c(4, 4, 3, 2))
 
-plot(best_model$gam, select = 1, 
-     main = "Effect of Lagged Roost Size",
-     xlab = "Total butterflies (t-lag)", 
-     ylab = "Partial effect",
-     shade = TRUE, shade.col = "lightblue",
-     cex.main = 1.1, cex.lab = 1.0, cex.axis = 0.9)
+plot(best_model$gam,
+    select = 1,
+    main = "Effect of Lagged Roost Size",
+    xlab = "Total butterflies (t-lag)",
+    ylab = "Partial effect",
+    shade = TRUE, shade.col = "lightblue",
+    cex.main = 1.1, cex.lab = 1.0, cex.axis = 0.9
+)
 
-plot(best_model$gam, select = 2,
-     main = "Effect of Average Temperature",
-     xlab = "Average temperature (°C)", 
-     ylab = "Partial effect",
-     shade = TRUE, shade.col = "lightcoral",
-     cex.main = 1.1, cex.lab = 1.0, cex.axis = 0.9)
+plot(best_model$gam,
+    select = 2,
+    main = "Effect of Average Temperature",
+    xlab = "Average temperature (°C)",
+    ylab = "Partial effect",
+    shade = TRUE, shade.col = "lightcoral",
+    cex.main = 1.1, cex.lab = 1.0, cex.axis = 0.9
+)
 
-plot(best_model$gam, select = 3,
-     main = "Effect of Direct Sun Exposure",
-     xlab = "Butterflies in direct sun (t-lag)", 
-     ylab = "Partial effect",
-     shade = TRUE, shade.col = "orange",
-     cex.main = 1.1, cex.lab = 1.0, cex.axis = 0.9)
+plot(best_model$gam,
+    select = 3,
+    main = "Effect of Direct Sun Exposure",
+    xlab = "Butterflies in direct sun (t-lag)",
+    ylab = "Partial effect",
+    shade = TRUE, shade.col = "orange",
+    cex.main = 1.1, cex.lab = 1.0, cex.axis = 0.9
+)
 
-plot(best_model$gam, select = 4,
-     main = "Diurnal Pattern",
-     xlab = "Time within day (minutes)", 
-     ylab = "Partial effect",
-     shade = TRUE, shade.col = "lightgreen",
-     cex.main = 1.1, cex.lab = 1.0, cex.axis = 0.9)
+plot(best_model$gam,
+    select = 4,
+    main = "Diurnal Pattern",
+    xlab = "Time within day (minutes)",
+    ylab = "Partial effect",
+    shade = TRUE, shade.col = "lightgreen",
+    cex.main = 1.1, cex.lab = 1.0, cex.axis = 0.9
+)
 
 dev.off()
 par(mfrow = c(1, 1)) # Reset to single plot
@@ -1254,42 +1283,45 @@ cat("Partial effect plots exported to:", fig_dir, "\n")
 ```{r export-diagnostics}
 # Create publication-ready residuals vs fitted plot
 residuals_df <- data.frame(
-  fitted = fitted(best_model$lme),
-  residuals = residuals(best_model$lme, type = "normalized")
+    fitted = fitted(best_model$lme),
+    residuals = residuals(best_model$lme, type = "normalized")
 )
 
 p_resid <- ggplot(residuals_df, aes(x = fitted, y = residuals)) +
-  geom_point(alpha = 0.4, color = "darkgray") +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
-  geom_smooth(method = "loess", se = TRUE, color = "blue", alpha = 0.3) +
-  labs(
-    title = "Residuals vs Fitted Values",
-    x = "Fitted values",
-    y = "Standardized residuals"
-  ) +
-  pub_theme
+    geom_point(alpha = 0.4, color = "darkgray") +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+    geom_smooth(method = "loess", se = TRUE, color = "blue", alpha = 0.3) +
+    labs(
+        title = "Residuals vs Fitted Values",
+        x = "Fitted values",
+        y = "Standardized residuals"
+    ) +
+    pub_theme
 
 # Create publication-ready Q-Q plot
 p_qq <- ggplot(residuals_df, aes(sample = residuals)) +
-  stat_qq(alpha = 0.4, color = "darkgray") +
-  stat_qq_line(color = "red", linetype = "dashed") +
-  labs(
-    title = "Normal Q-Q Plot",
-    x = "Theoretical quantiles",
-    y = "Sample quantiles"
-  ) +
-  pub_theme
+    stat_qq(alpha = 0.4, color = "darkgray") +
+    stat_qq_line(color = "red", linetype = "dashed") +
+    labs(
+        title = "Normal Q-Q Plot",
+        x = "Theoretical quantiles",
+        y = "Sample quantiles"
+    ) +
+    pub_theme
 
 # Export diagnostic plots
 ggsave(file.path(fig_dir, "residuals_vs_fitted.png"), p_resid,
-       width = 8, height = 6, dpi = 300, bg = "white")
+    width = 8, height = 6, dpi = 300, bg = "white"
+)
 ggsave(file.path(fig_dir, "qq_plot.png"), p_qq,
-       width = 8, height = 6, dpi = 300, bg = "white")
+    width = 8, height = 6, dpi = 300, bg = "white"
+)
 
 # Combined diagnostics plot
 combined_diagnostics <- gridExtra::grid.arrange(p_resid, p_qq, ncol = 2)
 ggsave(file.path(fig_dir, "combined_diagnostics.png"), combined_diagnostics,
-       width = 12, height = 6, dpi = 300, bg = "white")
+    width = 12, height = 6, dpi = 300, bg = "white"
+)
 
 cat("Diagnostic plots exported to:", fig_dir, "\n")
 ```
@@ -1301,19 +1333,20 @@ cat("Diagnostic plots exported to:", fig_dir, "\n")
 wind_cor <- cor(model_data$max_gust, model_data$butterfly_difference_cbrt, use = "complete.obs")
 
 p_wind <- ggplot(model_data, aes(x = max_gust, y = butterfly_difference_cbrt)) +
-  geom_point(alpha = 0.4, color = "darkgray") +
-  geom_smooth(method = "lm", se = TRUE, color = "steelblue", alpha = 0.3) +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "red", alpha = 0.7) +
-  labs(
-    title = "Wind Speed vs Butterfly Abundance Change",
-    subtitle = paste0("Correlation: r = ", round(wind_cor, 3)),
-    x = "Maximum wind gust (m/s)",
-    y = "Butterfly abundance change (cube root transformed)"
-  ) +
-  pub_theme
+    geom_point(alpha = 0.4, color = "darkgray") +
+    geom_smooth(method = "lm", se = TRUE, color = "steelblue", alpha = 0.3) +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "red", alpha = 0.7) +
+    labs(
+        title = "Wind Speed vs Butterfly Abundance Change",
+        subtitle = paste0("Correlation: r = ", round(wind_cor, 3)),
+        x = "Maximum wind gust (m/s)",
+        y = "Butterfly abundance change (cube root transformed)"
+    ) +
+    pub_theme
 
 ggsave(file.path(fig_dir, "wind_hypothesis_scatter.png"), p_wind,
-       width = 8, height = 6, dpi = 300, bg = "white")
+    width = 8, height = 6, dpi = 300, bg = "white"
+)
 
 cat("Wind hypothesis scatter plot exported to:", fig_dir, "\n")
 ```
@@ -1323,41 +1356,42 @@ cat("Wind hypothesis scatter plot exported to:", fig_dir, "\n")
 ```{r export-data-summary}
 # Create data summary statistics
 data_summary <- model_data %>%
-  summarise(
-    N_observations = n(),
-    N_deployments = n_distinct(deployment_id),
-    N_deployment_days = n_distinct(deployment_day),
-    Mean_butterflies = round(mean(total_butterflies_t_lag, na.rm = TRUE), 1),
-    SD_butterflies = round(sd(total_butterflies_t_lag, na.rm = TRUE), 1),
-    Mean_temp = round(mean(temperature_avg, na.rm = TRUE), 1),
-    SD_temp = round(sd(temperature_avg, na.rm = TRUE), 1),
-    Mean_wind = round(mean(max_gust, na.rm = TRUE), 1),
-    SD_wind = round(sd(max_gust, na.rm = TRUE), 1)
-  ) %>%
-  pivot_longer(everything(), names_to = "Statistic", values_to = "Value") %>%
-  mutate(
-    Statistic = case_when(
-      Statistic == "N_observations" ~ "Total observations",
-      Statistic == "N_deployments" ~ "Unique deployments", 
-      Statistic == "N_deployment_days" ~ "Deployment-day combinations",
-      Statistic == "Mean_butterflies" ~ "Mean butterfly count",
-      Statistic == "SD_butterflies" ~ "SD butterfly count",
-      Statistic == "Mean_temp" ~ "Mean temperature (°C)",
-      Statistic == "SD_temp" ~ "SD temperature (°C)", 
-      Statistic == "Mean_wind" ~ "Mean wind gust (m/s)",
-      Statistic == "SD_wind" ~ "SD wind gust (m/s)",
-      TRUE ~ Statistic
+    summarise(
+        N_observations = n(),
+        N_deployments = n_distinct(deployment_id),
+        N_deployment_days = n_distinct(deployment_day),
+        Mean_butterflies = round(mean(total_butterflies_t_lag, na.rm = TRUE), 1),
+        SD_butterflies = round(sd(total_butterflies_t_lag, na.rm = TRUE), 1),
+        Mean_temp = round(mean(temperature_avg, na.rm = TRUE), 1),
+        SD_temp = round(sd(temperature_avg, na.rm = TRUE), 1),
+        Mean_wind = round(mean(max_gust, na.rm = TRUE), 1),
+        SD_wind = round(sd(max_gust, na.rm = TRUE), 1)
+    ) %>%
+    pivot_longer(everything(), names_to = "Statistic", values_to = "Value") %>%
+    mutate(
+        Statistic = case_when(
+            Statistic == "N_observations" ~ "Total observations",
+            Statistic == "N_deployments" ~ "Unique deployments",
+            Statistic == "N_deployment_days" ~ "Deployment-day combinations",
+            Statistic == "Mean_butterflies" ~ "Mean butterfly count",
+            Statistic == "SD_butterflies" ~ "SD butterfly count",
+            Statistic == "Mean_temp" ~ "Mean temperature (°C)",
+            Statistic == "SD_temp" ~ "SD temperature (°C)",
+            Statistic == "Mean_wind" ~ "Mean wind gust (m/s)",
+            Statistic == "SD_wind" ~ "SD wind gust (m/s)",
+            TRUE ~ Statistic
+        )
     )
-  )
 
 write_csv(data_summary, file.path(tab_dir, "data_summary.csv"))
 
 # Export as LaTeX table
 summary_kable <- kable(data_summary,
-                      format = "latex",
-                      booktabs = TRUE,
-                      col.names = c("Statistic", "Value"),
-                      caption = "Summary statistics for the monarch butterfly analysis dataset")
+    format = "latex",
+    booktabs = TRUE,
+    col.names = c("Statistic", "Value"),
+    caption = "Summary statistics for the monarch butterfly analysis dataset"
+)
 
 writeLines(summary_kable, file.path(tab_dir, "data_summary.tex"))
 
@@ -1369,29 +1403,29 @@ cat("Data summary exported to:", file.path(tab_dir, "data_summary.csv"), "\n")
 ```{r export-summary}
 # Create a summary file with all export information
 export_summary <- paste0(
-  "# Monarch GAM Analysis - Thesis Exports\n\n",
-  "Export completed on: ", Sys.time(), "\n\n",
-  "## Files Created:\n\n",
-  "### Tables:\n",
-  "- model_selection_table.csv/tex: Top 10 models by AIC\n",
-  "- smooth_terms_summary.csv/tex: Summary of smooth terms in best model\n", 
-  "- data_summary.csv/tex: Dataset summary statistics\n\n",
-  "### Figures:\n",
-  "- effect_lagged_roost_size.png: Partial effect of previous butterfly count\n",
-  "- effect_temperature.png: Partial effect of temperature\n",
-  "- effect_sun_exposure.png: Partial effect of direct sun exposure\n",
-  "- effect_diurnal_pattern.png: Diurnal pattern effect\n",
-  "- combined_partial_effects.png: All partial effects in one figure\n",
-  "- residuals_vs_fitted.png: Model diagnostic plot\n",
-  "- qq_plot.png: Normal Q-Q plot of residuals\n",
-  "- combined_diagnostics.png: Both diagnostic plots combined\n",
-  "- wind_hypothesis_scatter.png: Wind speed vs butterfly change scatter plot\n\n",
-  "## Key Results for Thesis:\n",
-  "- Best model: ", best_model_name, "\n",
-  "- Best model AIC: ", round(min(aic_results$AIC), 3), "\n",
-  "- Model R²: ", round(summary(best_model$gam)$r.sq, 4), "\n",
-  "- Wind hypothesis: NOT SUPPORTED (wind not in best model)\n\n",
-  "All files are publication-ready with 300 DPI resolution and clean formatting."
+    "# Monarch GAM Analysis - Thesis Exports\n\n",
+    "Export completed on: ", Sys.time(), "\n\n",
+    "## Files Created:\n\n",
+    "### Tables:\n",
+    "- model_selection_table.csv/tex: Top 10 models by AIC\n",
+    "- smooth_terms_summary.csv/tex: Summary of smooth terms in best model\n",
+    "- data_summary.csv/tex: Dataset summary statistics\n\n",
+    "### Figures:\n",
+    "- effect_lagged_roost_size.png: Partial effect of previous butterfly count\n",
+    "- effect_temperature.png: Partial effect of temperature\n",
+    "- effect_sun_exposure.png: Partial effect of direct sun exposure\n",
+    "- effect_diurnal_pattern.png: Diurnal pattern effect\n",
+    "- combined_partial_effects.png: All partial effects in one figure\n",
+    "- residuals_vs_fitted.png: Model diagnostic plot\n",
+    "- qq_plot.png: Normal Q-Q plot of residuals\n",
+    "- combined_diagnostics.png: Both diagnostic plots combined\n",
+    "- wind_hypothesis_scatter.png: Wind speed vs butterfly change scatter plot\n\n",
+    "## Key Results for Thesis:\n",
+    "- Best model: ", best_model_name, "\n",
+    "- Best model AIC: ", round(min(aic_results$AIC), 3), "\n",
+    "- Model R²: ", round(summary(best_model$gam)$r.sq, 4), "\n",
+    "- Wind hypothesis: NOT SUPPORTED (wind not in best model)\n\n",
+    "All files are publication-ready with 300 DPI resolution and clean formatting."
 )
 
 writeLines(export_summary, file.path(export_dir, "export_summary.txt"))
