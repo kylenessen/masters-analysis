@@ -57,7 +57,7 @@ p_all <- ggplot(monarch_data, aes(x = total_butterflies_t_lag)) +
     geom_histogram(bins = 30, fill = "steelblue", alpha = 0.7) +
     labs(
         title = "Total Butterflies - All Data",
-        x = "Total Butterflies (t-lag)", y = "Frequency"
+        x = "Previous Butterfly Count", y = "Frequency"
     ) +
     theme_minimal()
 
@@ -65,7 +65,7 @@ p_no_sc8 <- ggplot(monarch_data %>% filter(deployment_id != "SC8"), aes(x = tota
     geom_histogram(bins = 30, fill = "orange", alpha = 0.7) +
     labs(
         title = "Total Butterflies - SC8 Excluded",
-        x = "Total Butterflies (t-lag)", y = "Frequency"
+        x = "Previous Butterfly Count", y = "Frequency"
     ) +
     theme_minimal()
 
@@ -95,21 +95,21 @@ p2 <- ggplot(monarch_data, aes(x = total_butterflies_t_lag)) +
     geom_histogram(bins = 30, fill = "orange", alpha = 0.7) +
     labs(
         title = "Previous Butterfly Count",
-        x = "Total Butterflies (t-lag)", y = "Frequency"
+        x = "Previous Butterfly Count", y = "Frequency"
     )
 
 p3 <- ggplot(monarch_data, aes(x = temperature_avg)) +
     geom_histogram(bins = 30, fill = "red", alpha = 0.7) +
     labs(
         title = "Temperature Distribution",
-        x = "Average Temperature (°C)", y = "Frequency"
+        x = "Temperature (°C)", y = "Frequency"
     )
 
 p4 <- ggplot(monarch_data, aes(x = max_gust)) +
     geom_histogram(bins = 30, fill = "lightblue", alpha = 0.7) +
     labs(
-        title = "Wind Gust Distribution",
-        x = "Max Gust (m/s)", y = "Frequency"
+        title = "Maximum Wind Speed Distribution",
+        x = "Maximum Wind Speed (m/s)", y = "Frequency"
     )
 
 grid.arrange(p1, p2, p3, p4, ncol = 2)
@@ -145,7 +145,7 @@ p1 <- ggplot(monarch_data, aes(x = time_within_day_t, y = total_butterflies_t_la
     geom_smooth(method = "loess", se = TRUE, color = "blue") +
     labs(
         title = "Butterfly Abundance Throughout the Day",
-        x = "Time Within Day (minutes)", y = "Total Butterflies"
+        x = "Time Since Sunrise (minutes)", y = "Previous Butterfly Count"
     ) +
     theme_minimal()
 
@@ -155,7 +155,7 @@ p2 <- ggplot(monarch_data, aes(x = time_within_day_t, y = butterflies_direct_sun
     geom_smooth(method = "loess", se = TRUE, color = "darkorange") +
     labs(
         title = "Sun Exposure Throughout the Day",
-        x = "Time Within Day (minutes)", y = "Butterflies in Direct Sun"
+        x = "Time Since Sunrise (minutes)", y = "Butterflies in Direct Sun"
     ) +
     theme_minimal()
 
@@ -165,7 +165,7 @@ p3 <- ggplot(monarch_data, aes(x = time_within_day_t, y = temperature_avg)) +
     geom_smooth(method = "loess", se = TRUE, color = "darkred") +
     labs(
         title = "Temperature Throughout the Day",
-        x = "Time Within Day (minutes)", y = "Average Temperature (°C)"
+        x = "Time Since Sunrise (minutes)", y = "Temperature (°C)"
     ) +
     theme_minimal()
 
@@ -175,7 +175,7 @@ p4 <- ggplot(monarch_data, aes(x = time_within_day_t, y = butterfly_difference_c
     geom_smooth(method = "loess", se = TRUE, color = "darkviolet") +
     labs(
         title = "Butterfly Change Throughout the Day",
-        x = "Time Within Day (minutes)", y = "Butterfly Difference (cbrt)"
+        x = "Time Since Sunrise (minutes)", y = "Butterfly Difference (cbrt)"
     ) +
     theme_minimal()
 
@@ -191,13 +191,13 @@ Exploring the relationship between each model predictor and butterfly_difference
 #| fig-height: 6
 library(mgcv)
 
-# Max Gust vs Butterfly Difference
+# Maximum Wind Speed vs Butterfly Difference
 p1 <- ggplot(monarch_data, aes(x = max_gust, y = butterfly_difference_cbrt)) +
     geom_point(alpha = 0.3, color = "steelblue") +
     geom_smooth(method = "gam", se = TRUE, color = "darkblue") +
     labs(
-        title = "Max Gust vs Butterfly Change",
-        x = "Max Gust (m/s)",
+        title = "Maximum Wind Speed vs Butterfly Change",
+        x = "Maximum Wind Speed (m/s)",
         y = "Butterfly Difference (cbrt)"
     ) +
     theme_minimal()
@@ -208,7 +208,7 @@ p2 <- ggplot(monarch_data, aes(x = temperature_avg, y = butterfly_difference_cbr
     geom_smooth(method = "gam", se = TRUE, color = "darkred") +
     labs(
         title = "Temperature vs Butterfly Change",
-        x = "Average Temperature (°C)",
+        x = "Temperature (°C)",
         y = "Butterfly Difference (cbrt)"
     ) +
     theme_minimal()
@@ -219,7 +219,7 @@ p3 <- ggplot(monarch_data, aes(x = butterflies_direct_sun_t_lag, y = butterfly_d
     geom_smooth(method = "gam", se = TRUE, color = "darkorange") +
     labs(
         title = "Direct Sun Exposure vs Butterfly Change",
-        x = "Butterflies in Direct Sun (t-lag)",
+        x = "Butterflies in Direct Sun",
         y = "Butterfly Difference (cbrt)"
     ) +
     theme_minimal()
@@ -229,8 +229,8 @@ p4 <- ggplot(monarch_data, aes(x = time_within_day_t, y = butterfly_difference_c
     geom_point(alpha = 0.3, color = "purple") +
     geom_smooth(method = "gam", se = TRUE, color = "darkviolet") +
     labs(
-        title = "Time of Day vs Butterfly Change",
-        x = "Time Within Day (minutes)",
+        title = "Time Since Sunrise vs Butterfly Change",
+        x = "Time Since Sunrise (minutes)",
         y = "Butterfly Difference (cbrt)"
     ) +
     theme_minimal()
@@ -241,7 +241,7 @@ p5 <- ggplot(monarch_data, aes(x = total_butterflies_t_lag, y = butterfly_differ
     geom_smooth(method = "gam", se = TRUE, color = "forestgreen") +
     labs(
         title = "Previous Butterfly Count vs Change",
-        x = "Total Butterflies (t-lag)",
+        x = "Previous Butterfly Count",
         y = "Butterfly Difference (cbrt)"
     ) +
     theme_minimal()
@@ -467,7 +467,7 @@ plot(best_model$gam,
 #| fig-height: 6
 plot(best_model$gam,
     select = 2, main = "Effect of Temperature",
-    xlab = "Average Temperature (°C)", ylab = "Partial Effect",
+    xlab = "Temperature (°C)", ylab = "Partial Effect",
     residuals = TRUE, pch = 19, cex = 0.5
 )
 ```
@@ -479,20 +479,20 @@ plot(best_model$gam,
 #| fig-height: 6
 plot(best_model$gam,
     select = 3, main = "Diurnal Pattern",
-    xlab = "Time Within Day (minutes)", ylab = "Partial Effect",
+    xlab = "Time Since Sunrise (minutes)", ylab = "Partial Effect",
     residuals = TRUE, pch = 19, cex = 0.5
 )
 ```
 
-### Effect of Sun Exposure (Smooth)
+### Effect of Butterflies in Direct Sun (Smooth)
 
 ```{r effect-sun-exposure}
 #| fig-width: 10
 #| fig-height: 6
 # Smooth effect of sun exposure
 plot(best_model$gam,
-    select = 4, main = "Effect of Sun Exposure (Smooth)",
-    xlab = "Butterflies in Direct Sun (t-lag)", ylab = "Partial Effect",
+    select = 4, main = "Effect of Butterflies in Direct Sun (Smooth)",
+    xlab = "Butterflies in Direct Sun", ylab = "Partial Effect",
     residuals = TRUE, pch = 19, cex = 0.5
 )
 ```
@@ -507,7 +507,7 @@ plot(best_model$gam,
 library(gratia)
 draw(best_model$gam, select = "s(total_butterflies_t_lag)") +
     theme_minimal() +
-    labs(title = "Effect of Previous Butterfly Count (ggplot2 style)")
+    labs(title = "Effect of Previous Butterfly Count")
 ```
 
 #### Temperature Effect
@@ -517,7 +517,7 @@ draw(best_model$gam, select = "s(total_butterflies_t_lag)") +
 #| fig-height: 6
 draw(best_model$gam, select = "s(temperature_avg)") +
     theme_minimal() +
-    labs(title = "Effect of Temperature (ggplot2 style)")
+    labs(title = "Effect of Temperature")
 ```
 
 #### Sun Exposure Effect
@@ -527,7 +527,7 @@ draw(best_model$gam, select = "s(temperature_avg)") +
 #| fig-height: 6
 draw(best_model$gam, select = "s(butterflies_direct_sun_t_lag)") +
     theme_minimal() +
-    labs(title = "Effect of Sun Exposure (ggplot2 style)")
+    labs(title = "Effect of Butterflies in Direct Sun")
 ```
 
 #### Diurnal Pattern
@@ -537,7 +537,7 @@ draw(best_model$gam, select = "s(butterflies_direct_sun_t_lag)") +
 #| fig-height: 6
 draw(best_model$gam, select = "s(time_within_day_t)") +
     theme_minimal() +
-    labs(title = "Diurnal Pattern (ggplot2 style)")
+    labs(title = "Diurnal Patterns")
 ```
 
 ## Model Diagnostics
@@ -600,14 +600,14 @@ plot(second_best_model$gam,
 )
 ```
 
-#### Effect of Wind Gust
+#### Effect of Maximum Wind Speed
 
 ```{r second-effect-wind}
 #| fig-width: 10
 #| fig-height: 6
 plot(second_best_model$gam,
-    select = 2, main = "Effect of Wind Gust (Second Best Model)",
-    xlab = "Max Gust (m/s)", ylab = "Partial Effect",
+    select = 2, main = "Effect of Maximum Wind Speed (Second Best Model)",
+    xlab = "Maximum Wind Speed (m/s)", ylab = "Partial Effect",
     residuals = TRUE, pch = 19, cex = 0.5
 )
 ```
@@ -619,19 +619,19 @@ plot(second_best_model$gam,
 #| fig-height: 6
 plot(second_best_model$gam,
     select = 3, main = "Effect of Temperature (Second Best Model)",
-    xlab = "Average Temperature (°C)", ylab = "Partial Effect",
+    xlab = "Temperature (°C)", ylab = "Partial Effect",
     residuals = TRUE, pch = 19, cex = 0.5
 )
 ```
 
-#### Effect of Sun Exposure
+#### Effect of Butterflies in Direct Sun
 
 ```{r second-effect-sun}
 #| fig-width: 10
 #| fig-height: 6
 plot(second_best_model$gam,
-    select = 4, main = "Effect of Sun Exposure (Second Best Model)",
-    xlab = "Butterflies in Direct Sun (t-lag)", ylab = "Partial Effect",
+    select = 4, main = "Effect of Butterflies in Direct Sun (Second Best Model)",
+    xlab = "Butterflies in Direct Sun", ylab = "Partial Effect",
     residuals = TRUE, pch = 19, cex = 0.5
 )
 ```
@@ -642,8 +642,8 @@ plot(second_best_model$gam,
 #| fig-width: 10
 #| fig-height: 6
 plot(second_best_model$gam,
-    select = 5, main = "Diurnal Pattern (Second Best Model)",
-    xlab = "Time Within Day (minutes)", ylab = "Partial Effect",
+    select = 5, main = "Diurnal Patterns (Second Best Model)",
+    xlab = "Time Since Sunrise (minutes)", ylab = "Partial Effect",
     residuals = TRUE, pch = 19, cex = 0.5
 )
 ```
@@ -872,7 +872,7 @@ if (exists("best_threshold_model") && !is.null(best_threshold_model)) {
 }
 ```
 
-### Comparison: Max Gust vs Minutes Above Threshold
+### Comparison: Maximum Wind Speed vs Minutes Above Threshold
 
 ```{r comparison-plot}
 #| fig-width: 12
@@ -880,7 +880,7 @@ if (exists("best_threshold_model") && !is.null(best_threshold_model)) {
 # Create comparison plots
 p1 <- ggplot(model_data, aes(x = max_gust)) +
     geom_histogram(bins = 30, fill = "lightblue", alpha = 0.7) +
-    labs(title = "Distribution of Max Gust", x = "Max Gust (m/s)", y = "Frequency") +
+    labs(title = "Distribution of Maximum Wind Speed", x = "Maximum Wind Speed (m/s)", y = "Frequency") +
     theme_minimal()
 
 p2 <- ggplot(model_data, aes(x = minutes_above_threshold)) +
@@ -892,8 +892,8 @@ p3 <- ggplot(model_data, aes(x = max_gust, y = minutes_above_threshold)) +
     geom_point(alpha = 0.5) +
     geom_smooth(method = "lm", se = TRUE) +
     labs(
-        title = "Relationship: Max Gust vs Minutes Above Threshold",
-        x = "Max Gust (m/s)", y = "Minutes Above Threshold"
+        title = "Relationship: Maximum Wind Speed vs Minutes Above Threshold",
+        x = "Maximum Wind Speed (m/s)", y = "Minutes Above Threshold"
     ) +
     theme_minimal()
 
@@ -932,7 +932,7 @@ if (length(threshold_successful_models) > 0 && exists("threshold_aic_results") &
 
 
     comparison_df <- data.frame(
-        Approach = c("Max Gust (Original)", "Minutes Above Threshold"),
+        Approach = c("Maximum Wind Speed (Original)", "Minutes Above Threshold"),
         Best_Model = c(best_model_name, best_threshold_model_name),
         AIC = c(min(aic_results$AIC), min(threshold_aic_results$AIC)),
         R_squared = c(gust_r_sq, threshold_r_sq),
@@ -944,7 +944,7 @@ if (length(threshold_successful_models) > 0 && exists("threshold_aic_results") &
 
     kable(comparison_df,
         digits = 4,
-        caption = "Comparison of Max Gust vs Minutes Above Threshold Approaches"
+        caption = "Comparison of Maximum Wind Speed vs Minutes Above Threshold Approaches"
     )
 } else {
     cat("No threshold models were successfully fitted. This may be due to:\n")
@@ -1068,11 +1068,11 @@ create_readable_terms <- function(formula_str) {
 
         # Replace with readable names
         readable_name <- case_when(
-            var_name == "total_butterflies_t_lag" ~ "Lagged Total Butterflies",
-            var_name == "max_gust" ~ "Max Gust",
-            var_name == "temperature_avg" ~ "Average Temperature",
-            var_name == "butterflies_direct_sun_t_lag" ~ "Butterflies in Direct Sunlight",
-            var_name == "time_within_day_t" ~ "Minutes Since Dawn",
+            var_name == "total_butterflies_t_lag" ~ "Previous butterfly count",
+            var_name == "max_gust" ~ "Maximum wind speed",
+            var_name == "temperature_avg" ~ "Temperature",
+            var_name == "butterflies_direct_sun_t_lag" ~ "Butterflies in direct sun",
+            var_name == "time_within_day_t" ~ "Time since sunrise",
             TRUE ~ var_name
         )
 
@@ -1144,10 +1144,10 @@ smooth_terms_df <- data.frame(
 ) %>%
     mutate(
         Term = case_when(
-            grepl("total_butterflies_t_lag", Term) ~ "Lagged roost size",
-            grepl("temperature_avg", Term) ~ "Average temperature",
-            grepl("butterflies_direct_sun_t_lag", Term) ~ "Direct sun exposure",
-            grepl("time_within_day_t", Term) ~ "Time within day",
+            grepl("total_butterflies_t_lag", Term) ~ "Previous butterfly count",
+            grepl("temperature_avg", Term) ~ "Temperature",
+            grepl("butterflies_direct_sun_t_lag", Term) ~ "Butterflies in direct sun",
+            grepl("time_within_day_t", Term) ~ "Time since sunrise",
             TRUE ~ Term
         )
     )
@@ -1174,14 +1174,14 @@ cat("Smooth terms summary exported to:", file.path(tab_dir, "smooth_terms_summar
 # Create individual partial effect plots using base plot() function
 # These show the full range and relationship clearly
 
-# Effect of Lagged Roost Size
-png(file.path(fig_dir, "effect_lagged_roost_size.png"),
+# Effect of Previous Butterfly Count
+png(file.path(fig_dir, "effect_previous_butterfly_count.png"),
     width = 8, height = 6, units = "in", res = 300
 )
 plot(best_model$gam,
     select = 1,
-    main = "Effect of Lagged Roost Size",
-    xlab = "Total butterflies (t-lag)",
+    main = "Effect of Previous Butterfly Count",
+    xlab = "Previous butterfly count",
     ylab = "Partial effect",
     shade = TRUE, shade.col = "lightblue",
     cex.main = 1.2, cex.lab = 1.1, cex.axis = 1.0
@@ -1194,8 +1194,8 @@ png(file.path(fig_dir, "effect_temperature.png"),
 )
 plot(best_model$gam,
     select = 2,
-    main = "Effect of Average Temperature",
-    xlab = "Average temperature (°C)",
+    main = "Effect of Temperature",
+    xlab = "Temperature (°C)",
     ylab = "Partial effect",
     shade = TRUE, shade.col = "lightcoral",
     cex.main = 1.2, cex.lab = 1.1, cex.axis = 1.0
@@ -1203,12 +1203,12 @@ plot(best_model$gam,
 dev.off()
 
 # Effect of Direct Sun Exposure
-png(file.path(fig_dir, "effect_sun_exposure.png"),
+png(file.path(fig_dir, "effect_butterflies_direct_sun.png"),
     width = 8, height = 6, units = "in", res = 300
 )
 plot(best_model$gam,
     select = 3,
-    main = "Effect of Direct Sun Exposure",
+    main = "Effect of Butterflies in Direct Sun",
     xlab = "Butterflies in direct sun (t-lag)",
     ylab = "Partial effect",
     shade = TRUE, shade.col = "orange",
@@ -1216,14 +1216,14 @@ plot(best_model$gam,
 )
 dev.off()
 
-# Diurnal Pattern
-png(file.path(fig_dir, "effect_diurnal_pattern.png"),
+# Diurnal Patterns
+png(file.path(fig_dir, "diurnal_patterns.png"),
     width = 8, height = 6, units = "in", res = 300
 )
 plot(best_model$gam,
     select = 4,
-    main = "Diurnal Pattern",
-    xlab = "Time within day (minutes)",
+    main = "Diurnal Patterns",
+    xlab = "Time since sunrise (minutes)",
     ylab = "Partial effect",
     shade = TRUE, shade.col = "lightgreen",
     cex.main = 1.2, cex.lab = 1.1, cex.axis = 1.0
@@ -1238,8 +1238,8 @@ par(mfrow = c(2, 2), mar = c(4, 4, 3, 2))
 
 plot(best_model$gam,
     select = 1,
-    main = "Effect of Lagged Roost Size",
-    xlab = "Total butterflies (t-lag)",
+    main = "Effect of Previous Butterfly Count",
+    xlab = "Previous butterfly count",
     ylab = "Partial effect",
     shade = TRUE, shade.col = "lightblue",
     cex.main = 1.1, cex.lab = 1.0, cex.axis = 0.9
@@ -1247,8 +1247,8 @@ plot(best_model$gam,
 
 plot(best_model$gam,
     select = 2,
-    main = "Effect of Average Temperature",
-    xlab = "Average temperature (°C)",
+    main = "Effect of Temperature",
+    xlab = "Temperature (°C)",
     ylab = "Partial effect",
     shade = TRUE, shade.col = "lightcoral",
     cex.main = 1.1, cex.lab = 1.0, cex.axis = 0.9
@@ -1256,7 +1256,7 @@ plot(best_model$gam,
 
 plot(best_model$gam,
     select = 3,
-    main = "Effect of Direct Sun Exposure",
+    main = "Effect of Butterflies in Direct Sun",
     xlab = "Butterflies in direct sun (t-lag)",
     ylab = "Partial effect",
     shade = TRUE, shade.col = "orange",
@@ -1265,8 +1265,8 @@ plot(best_model$gam,
 
 plot(best_model$gam,
     select = 4,
-    main = "Diurnal Pattern",
-    xlab = "Time within day (minutes)",
+    main = "Diurnal Patterns",
+    xlab = "Time since sunrise (minutes)",
     ylab = "Partial effect",
     shade = TRUE, shade.col = "lightgreen",
     cex.main = 1.1, cex.lab = 1.0, cex.axis = 0.9
@@ -1337,9 +1337,9 @@ p_wind <- ggplot(model_data, aes(x = max_gust, y = butterfly_difference_cbrt)) +
     geom_smooth(method = "lm", se = TRUE, color = "steelblue", alpha = 0.3) +
     geom_hline(yintercept = 0, linetype = "dashed", color = "red", alpha = 0.7) +
     labs(
-        title = "Wind Speed vs Butterfly Abundance Change",
+        title = "Maximum Wind Speed vs Butterfly Abundance Change",
         subtitle = paste0("Correlation: r = ", round(wind_cor, 3)),
-        x = "Maximum wind gust (m/s)",
+        x = "Maximum wind speed (m/s)",
         y = "Butterfly abundance change (cube root transformed)"
     ) +
     pub_theme
@@ -1411,10 +1411,10 @@ export_summary <- paste0(
     "- smooth_terms_summary.csv/tex: Summary of smooth terms in best model\n",
     "- data_summary.csv/tex: Dataset summary statistics\n\n",
     "### Figures:\n",
-    "- effect_lagged_roost_size.png: Partial effect of previous butterfly count\n",
+    "- effect_previous_butterfly_count.png: Partial effect of previous butterfly count\n",
     "- effect_temperature.png: Partial effect of temperature\n",
-    "- effect_sun_exposure.png: Partial effect of direct sun exposure\n",
-    "- effect_diurnal_pattern.png: Diurnal pattern effect\n",
+    "- effect_butterflies_direct_sun.png: Partial effect of butterflies in direct sun\n",
+    "- diurnal_patterns.png: Diurnal patterns\n",
     "- combined_partial_effects.png: All partial effects in one figure\n",
     "- residuals_vs_fitted.png: Model diagnostic plot\n",
     "- qq_plot.png: Normal Q-Q plot of residuals\n",

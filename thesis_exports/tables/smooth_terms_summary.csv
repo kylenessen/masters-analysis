@@ -1,5 +1,5 @@
 Term,EDF,Ref_df,F_value,p_value
-Lagged roost size,2.621,2.621,12.02,8.26e-07
-Average temperature,3.93,3.93,3.23,0.0283
-Direct sun exposure,1.534,1.534,19.356,1.22e-05
-Time within day,4.898,4.898,8.901,< 2e-16
+Previous butterfly count,2.621,2.621,12.02,8.26e-07
+Temperature,3.93,3.93,3.23,0.0283
+Butterflies in direct sun,1.534,1.534,19.356,1.22e-05
+Time since sunrise,4.898,4.898,8.901,< 2e-16

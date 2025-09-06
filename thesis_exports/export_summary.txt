@@ -1,6 +1,6 @@
 # Monarch GAM Analysis - Thesis Exports
 
-Export completed on: 2025-09-05 15:14:24.265727
+Export completed on: 2025-09-06 15:38:39.364491
 
 ## Files Created:
 
@@ -10,10 +10,10 @@ Export completed on: 2025-09-05 15:14:24.265727
 - data_summary.csv/tex: Dataset summary statistics
 
 ### Figures:
-- effect_lagged_roost_size.png: Partial effect of previous butterfly count
+- effect_previous_butterfly_count.png: Partial effect of previous butterfly count
 - effect_temperature.png: Partial effect of temperature
-- effect_sun_exposure.png: Partial effect of direct sun exposure
-- effect_diurnal_pattern.png: Diurnal pattern effect
+- effect_butterflies_direct_sun.png: Partial effect of butterflies in direct sun
+- diurnal_patterns.png: Diurnal patterns
 - combined_partial_effects.png: All partial effects in one figure
 - residuals_vs_fitted.png: Model diagnostic plot
 - qq_plot.png: Normal Q-Q plot of residuals
