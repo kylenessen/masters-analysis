@@ -1209,7 +1209,7 @@ png(file.path(fig_dir, "effect_butterflies_direct_sun.png"),
 plot(best_model$gam,
     select = 3,
     main = "Effect of Butterflies in Direct Sun",
-    xlab = "Butterflies in direct sun (t-lag)",
+    xlab = "Butterflies in direct sun",
     ylab = "Partial effect",
     shade = TRUE, shade.col = "orange",
     cex.main = 1.2, cex.lab = 1.1, cex.axis = 1.0
@@ -1222,7 +1222,7 @@ png(file.path(fig_dir, "diurnal_patterns.png"),
 )
 plot(best_model$gam,
     select = 4,
-    main = "Diurnal Patterns",
+    main = "Effect of Diurnal Patterns",
     xlab = "Time since sunrise (minutes)",
     ylab = "Partial effect",
     shade = TRUE, shade.col = "lightgreen",
@@ -1257,7 +1257,7 @@ plot(best_model$gam,
 plot(best_model$gam,
     select = 3,
     main = "Effect of Butterflies in Direct Sun",
-    xlab = "Butterflies in direct sun (t-lag)",
+    xlab = "Butterflies in direct sun",
     ylab = "Partial effect",
     shade = TRUE, shade.col = "orange",
     cex.main = 1.1, cex.lab = 1.0, cex.axis = 0.9
@@ -1265,7 +1265,7 @@ plot(best_model$gam,
 
 plot(best_model$gam,
     select = 4,
-    main = "Diurnal Patterns",
+    main = "Effect of Diurnal Patterns",
     xlab = "Time since sunrise (minutes)",
     ylab = "Partial effect",
     shade = TRUE, shade.col = "lightgreen",
@@ -1336,6 +1336,7 @@ p_wind <- ggplot(model_data, aes(x = max_gust, y = butterfly_difference_cbrt)) +
     geom_point(alpha = 0.4, color = "darkgray") +
     geom_smooth(method = "lm", se = TRUE, color = "steelblue", alpha = 0.3) +
     geom_hline(yintercept = 0, linetype = "dashed", color = "red", alpha = 0.7) +
+    geom_vline(xintercept = 2, linetype = "dashed", color = "red", alpha = 0.7) +
     labs(
         title = "Maximum Wind Speed vs Butterfly Abundance Change",
         subtitle = paste0("Correlation: r = ", round(wind_cor, 3)),
@@ -1349,6 +1350,7 @@ ggsave(file.path(fig_dir, "wind_hypothesis_scatter.png"), p_wind,
 )
 
 cat("Wind hypothesis scatter plot exported to:", fig_dir, "\n")
+p_wind
 ```
 
 ### Data Summary Export
