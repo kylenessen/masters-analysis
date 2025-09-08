@@ -457,6 +457,7 @@ plot(best_model$gam,
     xlab = "Total Butterflies (t-lag)", ylab = "Partial Effect",
     residuals = TRUE, pch = 19, cex = 0.5
 )
+abline(h = 0, lty = 2, col = "red", lwd = 1.5)
 ```
 
 ### Effect of Temperature
@@ -469,6 +470,7 @@ plot(best_model$gam,
     xlab = "Temperature (°C)", ylab = "Partial Effect",
     residuals = TRUE, pch = 19, cex = 0.5
 )
+abline(h = 0, lty = 2, col = "red", lwd = 1.5)
 ```
 
 ### Diurnal Pattern
@@ -481,6 +483,7 @@ plot(best_model$gam,
     xlab = "Time Since Sunrise (minutes)", ylab = "Partial Effect",
     residuals = TRUE, pch = 19, cex = 0.5
 )
+abline(h = 0, lty = 2, col = "red", lwd = 1.5)
 ```
 
 ### Effect of Butterflies in Direct Sun (Smooth)
@@ -494,6 +497,7 @@ plot(best_model$gam,
     xlab = "Butterflies in Direct Sun", ylab = "Partial Effect",
     residuals = TRUE, pch = 19, cex = 0.5
 )
+abline(h = 0, lty = 2, col = "red", lwd = 1.5)
 ```
 
 ### Smooth Effects (ggplot2 style)
@@ -597,6 +601,7 @@ plot(second_best_model$gam,
     xlab = "Total Butterflies (t-lag)", ylab = "Partial Effect",
     residuals = TRUE, pch = 19, cex = 0.5
 )
+abline(h = 0, lty = 2, col = "red", lwd = 1.5)
 ```
 
 #### Effect of Maximum Wind Speed
@@ -609,6 +614,7 @@ plot(second_best_model$gam,
     xlab = "Maximum Wind Speed (m/s)", ylab = "Partial Effect",
     residuals = TRUE, pch = 19, cex = 0.5
 )
+abline(h = 0, lty = 2, col = "red", lwd = 1.5)
 ```
 
 #### Effect of Temperature
@@ -621,6 +627,7 @@ plot(second_best_model$gam,
     xlab = "Temperature (°C)", ylab = "Partial Effect",
     residuals = TRUE, pch = 19, cex = 0.5
 )
+abline(h = 0, lty = 2, col = "red", lwd = 1.5)
 ```
 
 #### Effect of Butterflies in Direct Sun
@@ -633,6 +640,7 @@ plot(second_best_model$gam,
     xlab = "Butterflies in Direct Sun", ylab = "Partial Effect",
     residuals = TRUE, pch = 19, cex = 0.5
 )
+abline(h = 0, lty = 2, col = "red", lwd = 1.5)
 ```
 
 #### Diurnal Pattern
@@ -645,6 +653,7 @@ plot(second_best_model$gam,
     xlab = "Time Since Sunrise (minutes)", ylab = "Partial Effect",
     residuals = TRUE, pch = 19, cex = 0.5
 )
+abline(h = 0, lty = 2, col = "red", lwd = 1.5)
 ```
 
 ### Model Diagnostics - Second Best Model
@@ -954,6 +963,7 @@ if (exists("best_threshold_model") && !is.null(best_threshold_model)) {
         xlab = "Total Butterflies (t-lag)", ylab = "Partial Effect",
         residuals = TRUE, pch = 19, cex = 0.5
     )
+    abline(h = 0, lty = 2, col = "red", lwd = 1.5)
 } else {
     cat("No threshold model available for plotting\n")
 }
@@ -974,6 +984,7 @@ if (exists("best_threshold_model") && !is.null(best_threshold_model)) {
             xlab = "Minutes Above Threshold", ylab = "Partial Effect",
             residuals = TRUE, pch = 19, cex = 0.5
         )
+        abline(h = 0, lty = 2, col = "red", lwd = 1.5)
     } else {
         cat("Minutes above threshold is not a smooth term in the best model\n")
     }
@@ -1296,6 +1307,7 @@ plot(best_model$gam,
     shade = TRUE, shade.col = "lightblue",
     cex.main = 1.2, cex.lab = 1.1, cex.axis = 1.0
 )
+abline(h = 0, lty = 2, col = "red", lwd = 1.5)
 dev.off()
 
 # Effect of Temperature
@@ -1310,6 +1322,7 @@ plot(best_model$gam,
     shade = TRUE, shade.col = "lightcoral",
     cex.main = 1.2, cex.lab = 1.1, cex.axis = 1.0
 )
+abline(h = 0, lty = 2, col = "red", lwd = 1.5)
 dev.off()
 
 # Effect of Direct Sun Exposure
@@ -1324,6 +1337,7 @@ plot(best_model$gam,
     shade = TRUE, shade.col = "orange",
     cex.main = 1.2, cex.lab = 1.1, cex.axis = 1.0
 )
+abline(h = 0, lty = 2, col = "red", lwd = 1.5)
 dev.off()
 
 # Diurnal Patterns
@@ -1338,6 +1352,7 @@ plot(best_model$gam,
     shade = TRUE, shade.col = "lightgreen",
     cex.main = 1.2, cex.lab = 1.1, cex.axis = 1.0
 )
+abline(h = 0, lty = 2, col = "red", lwd = 1.5)
 dev.off()
 
 # Create combined panel figure
@@ -1354,6 +1369,7 @@ plot(best_model$gam,
     shade = TRUE, shade.col = "lightblue",
     cex.main = 1.1, cex.lab = 1.0, cex.axis = 0.9
 )
+abline(h = 0, lty = 2, col = "red", lwd = 1.5)
 
 plot(best_model$gam,
     select = 2,
@@ -1363,6 +1379,7 @@ plot(best_model$gam,
     shade = TRUE, shade.col = "lightcoral",
     cex.main = 1.1, cex.lab = 1.0, cex.axis = 0.9
 )
+abline(h = 0, lty = 2, col = "red", lwd = 1.5)
 
 plot(best_model$gam,
     select = 3,
@@ -1372,6 +1389,7 @@ plot(best_model$gam,
     shade = TRUE, shade.col = "orange",
     cex.main = 1.1, cex.lab = 1.0, cex.axis = 0.9
 )
+abline(h = 0, lty = 2, col = "red", lwd = 1.5)
 
 plot(best_model$gam,
     select = 4,
@@ -1381,6 +1399,7 @@ plot(best_model$gam,
     shade = TRUE, shade.col = "lightgreen",
     cex.main = 1.1, cex.lab = 1.0, cex.axis = 0.9
 )
+abline(h = 0, lty = 2, col = "red", lwd = 1.5)
 
 dev.off()
 par(mfrow = c(1, 1)) # Reset to single plot
