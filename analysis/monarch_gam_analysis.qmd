@@ -618,7 +618,7 @@ for (i in seq_along(p2$layers)) {
 p3 <- draw(best_model$gam, select = "s(time_within_day_t)", 
            rug = FALSE, residuals = FALSE) +
   labs(
-    x = "Time since sunrise (minutes)",
+    x = "Time since sunrise (min)",
     y = "",  # Remove y-axis label
     title = NULL  # Remove title
   ) +
@@ -706,27 +706,6 @@ print(p1)
 print(p2)
 print(p3)
 print(p4)
-```
-
-### 2x2 Grid Layout
-
-```{r combined-effects-2x2}
-#| fig-width: 12
-#| fig-height: 10
-# Check that all plots exist before combining
-if (exists("p1") && exists("p2") && exists("p3") && exists("p4")) {
-  # Create 2x2 combined plot with explicit layout
-  combined_2x2 <- (p1 + p2) / (p3 + p4) + 
-    plot_layout(ncol = 2, nrow = 2) +
-    plot_annotation(
-      title = "Partial Effects from Best GAM Model (2x2 Layout)",
-      theme = theme(plot.title = element_text(size = 16, hjust = 0.5, face = "bold"))
-    )
-  
-  print(combined_2x2)
-} else {
-  cat("Error: Not all individual plots were created successfully\n")
-}
 ```
 
 ### 1x4 Grid Layout (Wide Aspect Ratio)
