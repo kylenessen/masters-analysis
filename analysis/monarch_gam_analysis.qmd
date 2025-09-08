@@ -34,6 +34,8 @@ library(plotly)
 library(knitr)
 library(DT)
 library(here)
+library(gratia)  # For ggplot2-based GAM plotting
+library(patchwork)  # For combining ggplot2 plots
 # Load the monarch analysis data
 monarch_data <- read_csv(here("data", "monarch_analysis_lag30min.csv"))
 ```
@@ -445,103 +447,185 @@ cat("Formula:", aic_results$Formula[1], "\n\n")
 summary(best_model$gam)
 ```
 
-## Effect Plots
+## Effect Plots (ggplot2 with Consistent Scaling and Colors)
 
-### Effect of Previous Butterfly Count
+```{r setup-ggplot-theme-updated}
+# Define custom theme with grid lines
+custom_theme <- theme_minimal(base_size = 12) +
+  theme(
+    panel.grid.major = element_line(color = "gray90", size = 0.5),
+    panel.grid.minor = element_line(color = "gray95", size = 0.3),
+    axis.text = element_text(color = "black", size = 11),
+    axis.title = element_text(color = "black", size = 12, face = "bold"),
+    plot.title = element_text(color = "black", size = 14, face = "bold", hjust = 0.5),
+    panel.border = element_rect(color = "black", fill = NA, size = 0.5),
+    plot.margin = margin(10, 10, 10, 10)
+  )
 
-```{r effect-previous-count}
-#| fig-width: 10
-#| fig-height: 6
-plot(best_model$gam,
-    select = 1, main = "Effect of Previous Butterfly Count",
-    xlab = "Total Butterflies (t-lag)", ylab = "Partial Effect",
-    residuals = TRUE, pch = 19, cex = 0.5
-)
-abline(h = 0, lty = 2, col = "red", lwd = 1.5)
-```
-
-### Effect of Temperature
-
-```{r effect-temperature}
-#| fig-width: 10
-#| fig-height: 6
-plot(best_model$gam,
-    select = 2, main = "Effect of Temperature",
-    xlab = "Temperature (°C)", ylab = "Partial Effect",
-    residuals = TRUE, pch = 19, cex = 0.5
-)
-abline(h = 0, lty = 2, col = "red", lwd = 1.5)
-```
-
-### Diurnal Pattern
-
-```{r effect-diurnal}
-#| fig-width: 10
-#| fig-height: 6
-plot(best_model$gam,
-    select = 3, main = "Diurnal Pattern",
-    xlab = "Time Since Sunrise (minutes)", ylab = "Partial Effect",
-    residuals = TRUE, pch = 19, cex = 0.5
-)
-abline(h = 0, lty = 2, col = "red", lwd = 1.5)
-```
-
-### Effect of Butterflies in Direct Sun (Smooth)
-
-```{r effect-sun-exposure}
-#| fig-width: 10
-#| fig-height: 6
-# Smooth effect of sun exposure
-plot(best_model$gam,
-    select = 4, main = "Effect of Butterflies in Direct Sun (Smooth)",
-    xlab = "Butterflies in Direct Sun", ylab = "Partial Effect",
-    residuals = TRUE, pch = 19, cex = 0.5
-)
-abline(h = 0, lty = 2, col = "red", lwd = 1.5)
-```
-
-### Smooth Effects (ggplot2 style)
-
-#### Previous Butterfly Count Effect
-
-```{r gratia-previous-count}
-#| fig-width: 10
-#| fig-height: 6
+# Load required libraries
 library(gratia)
-draw(best_model$gam, select = "s(total_butterflies_t_lag)") +
-    theme_minimal() +
-    labs(title = "Effect of Previous Butterfly Count")
+library(patchwork)
+
+# First, create all individual plots to extract their y-axis ranges
+temp_plots <- list(
+  draw(best_model$gam, select = "s(total_butterflies_t_lag)", rug = FALSE),
+  draw(best_model$gam, select = "s(temperature_avg)", rug = FALSE),
+  draw(best_model$gam, select = "s(butterflies_direct_sun_t_lag)", rug = FALSE),
+  draw(best_model$gam, select = "s(time_within_day_t)", rug = FALSE)
+)
+
+# Extract y-axis ranges from the temporary plots
+y_ranges <- sapply(temp_plots, function(p) {
+  built_plot <- ggplot_build(p)
+  built_plot$layout$panel_scales_y[[1]]$range$range
+})
+
+# Calculate consistent y-axis limits
+y_limits <- c(min(y_ranges[1,]) * 1.1, max(y_ranges[2,]) * 1.1)
+
+cat("Consistent y-axis limits:", round(y_limits, 3), "\n")
 ```
 
-#### Temperature Effect
+```{r create-individual-plots}
+# Define colors for each variable
+plot_colors <- c(
+  "steelblue",    # Previous butterfly count
+  "firebrick",    # Temperature
+  "darkorange",   # Butterflies in direct sun
+  "forestgreen"   # Time since sunrise
+)
 
-```{r gratia-temperature}
-#| fig-width: 10
-#| fig-height: 6
-draw(best_model$gam, select = "s(temperature_avg)") +
-    theme_minimal() +
-    labs(title = "Effect of Temperature")
+# Create individual plots with consistent y-axis and unique colors
+# Note: We'll use coord_cartesian instead of ylim to avoid clipping data
+p1 <- draw(best_model$gam, select = "s(total_butterflies_t_lag)", 
+           rug = FALSE, residuals = FALSE) +
+  labs(
+    title = "Previous Butterfly Count",
+    x = "Previous butterfly count",
+    y = "Partial effect"
+  ) +
+  coord_cartesian(ylim = y_limits) +
+  custom_theme +
+  theme(
+    legend.position = "none",
+    plot.background = element_rect(fill = "white", color = NA),
+    panel.background = element_rect(fill = "white", color = NA)
+  )
+
+# Override the default colors by modifying the plot layers
+if (length(p1$layers) >= 2) {
+  p1$layers[[1]]$aes_params$colour <- plot_colors[1]  # smooth line
+  p1$layers[[2]]$aes_params$fill <- alpha(plot_colors[1], 0.3)  # confidence band
+}
+
+p2 <- draw(best_model$gam, select = "s(temperature_avg)", 
+           rug = FALSE, residuals = FALSE) +
+  labs(
+    title = "Temperature",
+    x = "Temperature (°C)",
+    y = "Partial effect"
+  ) +
+  coord_cartesian(ylim = y_limits) +
+  custom_theme +
+  theme(
+    legend.position = "none",
+    plot.background = element_rect(fill = "white", color = NA),
+    panel.background = element_rect(fill = "white", color = NA)
+  )
+
+if (length(p2$layers) >= 2) {
+  p2$layers[[1]]$aes_params$colour <- plot_colors[2]
+  p2$layers[[2]]$aes_params$fill <- alpha(plot_colors[2], 0.3)
+}
+
+p3 <- draw(best_model$gam, select = "s(butterflies_direct_sun_t_lag)", 
+           rug = FALSE, residuals = FALSE) +
+  labs(
+    title = "Butterflies in Direct Sun",
+    x = "Butterflies in direct sun",
+    y = "Partial effect"
+  ) +
+  coord_cartesian(ylim = y_limits) +
+  custom_theme +
+  theme(
+    legend.position = "none",
+    plot.background = element_rect(fill = "white", color = NA),
+    panel.background = element_rect(fill = "white", color = NA)
+  )
+
+if (length(p3$layers) >= 2) {
+  p3$layers[[1]]$aes_params$colour <- plot_colors[3]
+  p3$layers[[2]]$aes_params$fill <- alpha(plot_colors[3], 0.3)
+}
+
+p4 <- draw(best_model$gam, select = "s(time_within_day_t)", 
+           rug = FALSE, residuals = FALSE) +
+  labs(
+    title = "Time Since Sunrise",
+    x = "Time since sunrise (minutes)",
+    y = "Partial effect"
+  ) +
+  coord_cartesian(ylim = y_limits) +
+  custom_theme +
+  theme(
+    legend.position = "none",
+    plot.background = element_rect(fill = "white", color = NA),
+    panel.background = element_rect(fill = "white", color = NA)
+  )
+
+if (length(p4$layers) >= 2) {
+  p4$layers[[1]]$aes_params$colour <- plot_colors[4]
+  p4$layers[[2]]$aes_params$fill <- alpha(plot_colors[4], 0.3)
+}
+
+# Display individual plots
+print(p1)
+print(p2)
+print(p3)
+print(p4)
 ```
 
-#### Sun Exposure Effect
+### 2x2 Grid Layout
 
-```{r gratia-sun-exposure}
-#| fig-width: 10
-#| fig-height: 6
-draw(best_model$gam, select = "s(butterflies_direct_sun_t_lag)") +
-    theme_minimal() +
-    labs(title = "Effect of Butterflies in Direct Sun")
+```{r combined-effects-2x2}
+#| fig-width: 12
+#| fig-height: 10
+# Check that all plots exist before combining
+if (exists("p1") && exists("p2") && exists("p3") && exists("p4")) {
+  # Create 2x2 combined plot with explicit layout
+  combined_2x2 <- (p1 + p2) / (p3 + p4) + 
+    plot_layout(ncol = 2, nrow = 2) +
+    plot_annotation(
+      title = "Partial Effects from Best GAM Model (2x2 Layout)",
+      theme = theme(plot.title = element_text(size = 16, hjust = 0.5, face = "bold"))
+    )
+  
+  print(combined_2x2)
+} else {
+  cat("Error: Not all individual plots were created successfully\n")
+}
 ```
 
-#### Diurnal Pattern
+### 1x4 Grid Layout (Wide Aspect Ratio)
 
-```{r gratia-diurnal}
-#| fig-width: 10
-#| fig-height: 6
-draw(best_model$gam, select = "s(time_within_day_t)") +
-    theme_minimal() +
-    labs(title = "Diurnal Patterns")
+```{r combined-effects-1x4}
+#| fig-width: 16
+#| fig-height: 5
+# Check that all plots exist before combining
+if (exists("p1") && exists("p2") && exists("p3") && exists("p4")) {
+  # Create 1x4 combined plot with explicit layout
+  combined_1x4 <- wrap_plots(p1, p2, p3, p4, nrow = 1, ncol = 4) +
+    plot_annotation(
+      title = "Partial Effects from Best GAM Model (1x4 Layout)",
+      theme = theme(plot.title = element_text(size = 16, hjust = 0.5, face = "bold"))
+    )
+  
+  print(combined_1x4)
+} else {
+  cat("Error: Not all individual plots were created successfully\n")
+}
 ```
+
 
 ## Model Diagnostics
 
@@ -575,121 +659,6 @@ qqline(residuals_df$residuals)
 hist(residuals_df$residuals, main = "Distribution of Residuals", xlab = "Residuals", breaks = 30)
 ```
 
-## Second Best Model Analysis (Wind)
-
-```{r second-best-model-analysis}
-# Get the second best model
-second_best_model_name <- aic_results$Model[2]
-second_best_model <- successful_models[[second_best_model_name]]
-
-cat("Second best model:", second_best_model_name, "\n")
-cat("Formula:", aic_results$Formula[2], "\n\n")
-
-# Model summary
-summary(second_best_model$gam)
-```
-
-### Effect Plots - Second Best Model
-
-#### Effect of Previous Butterfly Count
-
-```{r second-effect-previous-count}
-#| fig-width: 10
-#| fig-height: 6
-plot(second_best_model$gam,
-    select = 1, main = "Effect of Previous Butterfly Count (Second Best Model)",
-    xlab = "Total Butterflies (t-lag)", ylab = "Partial Effect",
-    residuals = TRUE, pch = 19, cex = 0.5
-)
-abline(h = 0, lty = 2, col = "red", lwd = 1.5)
-```
-
-#### Effect of Maximum Wind Speed
-
-```{r second-effect-wind}
-#| fig-width: 10
-#| fig-height: 6
-plot(second_best_model$gam,
-    select = 2, main = "Effect of Maximum Wind Speed (Second Best Model)",
-    xlab = "Maximum Wind Speed (m/s)", ylab = "Partial Effect",
-    residuals = TRUE, pch = 19, cex = 0.5
-)
-abline(h = 0, lty = 2, col = "red", lwd = 1.5)
-```
-
-#### Effect of Temperature
-
-```{r second-effect-temperature}
-#| fig-width: 10
-#| fig-height: 6
-plot(second_best_model$gam,
-    select = 3, main = "Effect of Temperature (Second Best Model)",
-    xlab = "Temperature (°C)", ylab = "Partial Effect",
-    residuals = TRUE, pch = 19, cex = 0.5
-)
-abline(h = 0, lty = 2, col = "red", lwd = 1.5)
-```
-
-#### Effect of Butterflies in Direct Sun
-
-```{r second-effect-sun}
-#| fig-width: 10
-#| fig-height: 6
-plot(second_best_model$gam,
-    select = 4, main = "Effect of Butterflies in Direct Sun (Second Best Model)",
-    xlab = "Butterflies in Direct Sun", ylab = "Partial Effect",
-    residuals = TRUE, pch = 19, cex = 0.5
-)
-abline(h = 0, lty = 2, col = "red", lwd = 1.5)
-```
-
-#### Diurnal Pattern
-
-```{r second-effect-diurnal}
-#| fig-width: 10
-#| fig-height: 6
-plot(second_best_model$gam,
-    select = 5, main = "Diurnal Patterns (Second Best Model)",
-    xlab = "Time Since Sunrise (minutes)", ylab = "Partial Effect",
-    residuals = TRUE, pch = 19, cex = 0.5
-)
-abline(h = 0, lty = 2, col = "red", lwd = 1.5)
-```
-
-### Model Diagnostics - Second Best Model
-
-#### Residuals vs Fitted Values
-
-```{r second-diagnostics-residuals-fitted}
-#| fig-width: 10
-#| fig-height: 6
-plot(second_best_model$lme, main = "Residuals vs Fitted Values (Second Best Model)")
-```
-
-#### Q-Q Plot of Residuals
-
-```{r second-diagnostics-qq-plot}
-#| fig-width: 10
-#| fig-height: 6
-second_residuals_df <- data.frame(
-    fitted = fitted(second_best_model$lme),
-    residuals = residuals(second_best_model$lme, type = "normalized")
-)
-
-qqnorm(second_residuals_df$residuals, main = "Normal Q-Q Plot of Residuals (Second Best Model)")
-qqline(second_residuals_df$residuals)
-```
-
-#### Distribution of Residuals
-
-```{r second-diagnostics-histogram}
-#| fig-width: 10
-#| fig-height: 6
-hist(second_residuals_df$residuals,
-    main = "Distribution of Residuals (Second Best Model)",
-    xlab = "Residuals", breaks = 30
-)
-```
 
 ## Power Analysis for Wind Effect
 A common concern with non-significant results is whether the study had enough statistical power to detect an effect if one truly existed. A low R-squared value (like the 5.6% in our best model) is common in ecological studies with high natural variability and doesn't invalidate the model, but it does make power a relevant question.
@@ -755,7 +724,7 @@ for (effect_size_coef in effect_sizes_to_test) {
         sim_data$sim_response <- response_with_effect
 
         # Fit the GAM model that includes the wind term
-        # This is the same structure as your second-best model
+        # This uses the same GAM structure with smooth terms
         power_model_formula <- as.formula(
             "sim_response ~ s(total_butterflies_t_lag) + s(max_gust) + s(temperature_avg) + s(butterflies_direct_sun_t_lag) + s(time_within_day_t)"
         )
@@ -1289,122 +1258,132 @@ writeLines(smooth_kable, file.path(tab_dir, "smooth_terms_summary.tex"))
 cat("Smooth terms summary exported to:", file.path(tab_dir, "smooth_terms_summary.csv"), "\n")
 ```
 
-### Publication-Ready Partial Effect Plots
+### Publication-Ready Partial Effect Plots (Updated)
 
-```{r export-partial-effects}
-# Create individual partial effect plots using base plot() function
-# These show the full range and relationship clearly
+```{r export-partial-effects-updated}
+# Define publication theme with grid lines (no horizontal lines)
+pub_theme_grid <- theme_classic(base_size = 12) +
+    theme(
+        axis.text = element_text(color = "black", size = 11),
+        axis.title = element_text(color = "black", size = 12, face = "bold"),
+        legend.text = element_text(color = "black"),
+        legend.title = element_text(color = "black"),
+        strip.text = element_text(color = "black"),
+        plot.title = element_text(color = "black", hjust = 0.5, size = 14, face = "bold"),
+        panel.grid.major = element_line(color = "gray90", size = 0.5),
+        panel.grid.minor = element_line(color = "gray95", size = 0.3),
+        panel.border = element_rect(color = "black", fill = NA, size = 0.5),
+        legend.position = "none",
+        plot.margin = margin(10, 10, 10, 10)
+    )
 
-# Effect of Previous Butterfly Count
-png(file.path(fig_dir, "effect_previous_butterfly_count.png"),
-    width = 8, height = 6, units = "in", res = 300
-)
-plot(best_model$gam,
-    select = 1,
-    main = "Effect of Previous Butterfly Count",
-    xlab = "Previous butterfly count",
-    ylab = "Partial effect",
-    shade = TRUE, shade.col = "lightblue",
-    cex.main = 1.2, cex.lab = 1.1, cex.axis = 1.0
-)
-abline(h = 0, lty = 2, col = "red", lwd = 1.5)
-dev.off()
+# Use the same y-axis limits and colors from the main plots
+# Export individual plots
+pe1 <- draw(best_model$gam, select = "s(total_butterflies_t_lag)", 
+           rug = FALSE, residuals = FALSE) +
+  labs(
+    title = "Previous Butterfly Count",
+    x = "Previous butterfly count",
+    y = "Partial effect"
+  ) +
+  scale_color_manual(values = plot_colors[1]) +
+  scale_fill_manual(values = alpha(plot_colors[1], 0.3)) +
+  ylim(y_limits) +
+  pub_theme_grid
 
-# Effect of Temperature
-png(file.path(fig_dir, "effect_temperature.png"),
-    width = 8, height = 6, units = "in", res = 300
-)
-plot(best_model$gam,
-    select = 2,
-    main = "Effect of Temperature",
-    xlab = "Temperature (°C)",
-    ylab = "Partial effect",
-    shade = TRUE, shade.col = "lightcoral",
-    cex.main = 1.2, cex.lab = 1.1, cex.axis = 1.0
-)
-abline(h = 0, lty = 2, col = "red", lwd = 1.5)
-dev.off()
+pe2 <- draw(best_model$gam, select = "s(temperature_avg)", 
+           rug = FALSE, residuals = FALSE) +
+  labs(
+    title = "Temperature",
+    x = "Temperature (°C)",
+    y = "Partial effect"
+  ) +
+  scale_color_manual(values = plot_colors[2]) +
+  scale_fill_manual(values = alpha(plot_colors[2], 0.3)) +
+  ylim(y_limits) +
+  pub_theme_grid
 
-# Effect of Direct Sun Exposure
-png(file.path(fig_dir, "effect_butterflies_direct_sun.png"),
-    width = 8, height = 6, units = "in", res = 300
-)
-plot(best_model$gam,
-    select = 3,
-    main = "Effect of Butterflies in Direct Sun",
-    xlab = "Butterflies in direct sun",
-    ylab = "Partial effect",
-    shade = TRUE, shade.col = "orange",
-    cex.main = 1.2, cex.lab = 1.1, cex.axis = 1.0
-)
-abline(h = 0, lty = 2, col = "red", lwd = 1.5)
-dev.off()
+pe3 <- draw(best_model$gam, select = "s(butterflies_direct_sun_t_lag)", 
+           rug = FALSE, residuals = FALSE) +
+  labs(
+    title = "Butterflies in Direct Sun",
+    x = "Butterflies in direct sun",
+    y = "Partial effect"
+  ) +
+  scale_color_manual(values = plot_colors[3]) +
+  scale_fill_manual(values = alpha(plot_colors[3], 0.3)) +
+  ylim(y_limits) +
+  pub_theme_grid
 
-# Diurnal Patterns
-png(file.path(fig_dir, "diurnal_patterns.png"),
-    width = 8, height = 6, units = "in", res = 300
-)
-plot(best_model$gam,
-    select = 4,
-    main = "Effect of Diurnal Patterns",
-    xlab = "Time since sunrise (minutes)",
-    ylab = "Partial effect",
-    shade = TRUE, shade.col = "lightgreen",
-    cex.main = 1.2, cex.lab = 1.1, cex.axis = 1.0
-)
-abline(h = 0, lty = 2, col = "red", lwd = 1.5)
-dev.off()
+pe4 <- draw(best_model$gam, select = "s(time_within_day_t)", 
+           rug = FALSE, residuals = FALSE) +
+  labs(
+    title = "Time Since Sunrise",
+    x = "Time since sunrise (minutes)",
+    y = "Partial effect"
+  ) +
+  scale_color_manual(values = plot_colors[4]) +
+  scale_fill_manual(values = alpha(plot_colors[4], 0.3)) +
+  ylim(y_limits) +
+  pub_theme_grid
 
-# Create combined panel figure
-png(file.path(fig_dir, "combined_partial_effects.png"),
-    width = 12, height = 10, units = "in", res = 300
+# Export individual plots
+ggsave(file.path(fig_dir, "effect_previous_butterfly_count_final.png"), pe1,
+    width = 8, height = 6, dpi = 300, bg = "white"
 )
-par(mfrow = c(2, 2), mar = c(4, 4, 3, 2))
-
-plot(best_model$gam,
-    select = 1,
-    main = "Effect of Previous Butterfly Count",
-    xlab = "Previous butterfly count",
-    ylab = "Partial effect",
-    shade = TRUE, shade.col = "lightblue",
-    cex.main = 1.1, cex.lab = 1.0, cex.axis = 0.9
+ggsave(file.path(fig_dir, "effect_temperature_final.png"), pe2,
+    width = 8, height = 6, dpi = 300, bg = "white"
 )
-abline(h = 0, lty = 2, col = "red", lwd = 1.5)
-
-plot(best_model$gam,
-    select = 2,
-    main = "Effect of Temperature",
-    xlab = "Temperature (°C)",
-    ylab = "Partial effect",
-    shade = TRUE, shade.col = "lightcoral",
-    cex.main = 1.1, cex.lab = 1.0, cex.axis = 0.9
+ggsave(file.path(fig_dir, "effect_butterflies_direct_sun_final.png"), pe3,
+    width = 8, height = 6, dpi = 300, bg = "white"
 )
-abline(h = 0, lty = 2, col = "red", lwd = 1.5)
-
-plot(best_model$gam,
-    select = 3,
-    main = "Effect of Butterflies in Direct Sun",
-    xlab = "Butterflies in direct sun",
-    ylab = "Partial effect",
-    shade = TRUE, shade.col = "orange",
-    cex.main = 1.1, cex.lab = 1.0, cex.axis = 0.9
+ggsave(file.path(fig_dir, "diurnal_patterns_final.png"), pe4,
+    width = 8, height = 6, dpi = 300, bg = "white"
 )
-abline(h = 0, lty = 2, col = "red", lwd = 1.5)
 
-plot(best_model$gam,
-    select = 4,
-    main = "Effect of Diurnal Patterns",
-    xlab = "Time since sunrise (minutes)",
-    ylab = "Partial effect",
-    shade = TRUE, shade.col = "lightgreen",
-    cex.main = 1.1, cex.lab = 1.0, cex.axis = 0.9
-)
-abline(h = 0, lty = 2, col = "red", lwd = 1.5)
+# Create and export 2x2 combined figure
+tryCatch({
+  combined_pub_2x2 <- (pe1 + pe2) / (pe3 + pe4) + 
+    plot_layout(ncol = 2, nrow = 2) +
+    plot_annotation(
+      title = "Partial Effects from Best GAM Model",
+      theme = theme(plot.title = element_text(size = 16, hjust = 0.5, face = "bold"))
+    )
+  
+  ggsave(file.path(fig_dir, "combined_partial_effects_2x2_final.png"), combined_pub_2x2,
+      width = 12, height = 10, dpi = 300, bg = "white"
+  )
+  cat("2x2 combined plot exported successfully\n")
+}, error = function(e) {
+  cat("Error creating 2x2 combined plot:", e$message, "\n")
+})
 
-dev.off()
-par(mfrow = c(1, 1)) # Reset to single plot
+# Create and export 1x4 combined figure (wide aspect ratio)
+tryCatch({
+  combined_pub_1x4 <- wrap_plots(pe1, pe2, pe3, pe4, nrow = 1, ncol = 4) +
+    plot_annotation(
+      title = "Partial Effects from Best GAM Model",
+      theme = theme(plot.title = element_text(size = 16, hjust = 0.5, face = "bold"))
+    )
+  
+  ggsave(file.path(fig_dir, "combined_partial_effects_1x4_final.png"), combined_pub_1x4,
+      width = 16, height = 5, dpi = 300, bg = "white"
+  )
+  cat("1x4 combined plot exported successfully\n")
+}, error = function(e) {
+  cat("Error creating 1x4 combined plot:", e$message, "\n")
+})
 
-cat("Partial effect plots exported to:", fig_dir, "\n")
+cat("Updated publication-ready plots exported to:", fig_dir, "\n")
+cat("Files created:\n")
+cat("Individual plots:\n")
+cat("- effect_previous_butterfly_count_final.png\n")
+cat("- effect_temperature_final.png\n")
+cat("- effect_butterflies_direct_sun_final.png\n")
+cat("- diurnal_patterns_final.png\n")
+cat("Combined layouts:\n")
+cat("- combined_partial_effects_2x2_final.png\n")
+cat("- combined_partial_effects_1x4_final.png (16x5, wide aspect ratio)\n")
 ```
 
 ### Model Diagnostics Plots Export
