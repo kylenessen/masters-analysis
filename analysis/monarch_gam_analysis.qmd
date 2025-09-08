@@ -20,7 +20,7 @@ execute:
 
 ## Introduction
 
-This analysis investigates the first hypothesis of my master's thesis: that wind acts as a disruptive force to overwintering monarch butterflies. If true, we predict that monarch abundance at roosts will decrease when exposed to disruptive winds. I use labeled photos from my 2023-2024 dataset to test this hypothesis. I employed GAM (Generalized Additive Models) because they allow for non-linear relationships in fixed effects while maintaining the necessary random effect structure to account for temporal autocorrelation and nested sampling design.
+This analysis investigates the first hypothesis of my master's thesis: that wind acts as a disruptive force to overwintering monarch butterflies. If true, we predict that monarch abundance at roosts will decrease when exposed to disruptive winds. I use labeled photos from my 2023-2024 dataset to test this hypothesis. I employed GAM (Generalized Additive Models) because they allow for non-linear relationships in fixed effects while maintaining the necessary random effect structure to account for temporal autocorrelation and nested sampling design. All smooth terms used thin plate regression splines (TPRS) as the basis function, which is the default in mgcv and provides optimal smoothing for most ecological relationships.
 
 ## Setup
 
@@ -450,7 +450,7 @@ summary(best_model$gam)
 ## Effect Plots (ggplot2 with Consistent Scaling and Colors)
 
 ```{r setup-ggplot-theme-updated}
-# Define custom theme with grid lines
+# Define custom theme with grid lines and darker zero line
 custom_theme <- theme_minimal(base_size = 12) +
   theme(
     panel.grid.major = element_line(color = "gray90", size = 0.5),
@@ -461,6 +461,26 @@ custom_theme <- theme_minimal(base_size = 12) +
     panel.border = element_rect(color = "black", fill = NA, size = 0.5),
     plot.margin = margin(10, 10, 10, 10)
   )
+
+# Function to add darker zero line BEHIND the plot elements
+add_zero_line <- function(plot) {
+  # Insert the zero line as the first layer so it appears behind everything
+  zero_line_layer <- geom_hline(yintercept = 0, color = "gray50", size = 0.8, alpha = 1)
+  
+  # Get existing layers
+  existing_layers <- plot$layers
+  
+  # Clear layers and add zero line first, then add back existing layers
+  plot$layers <- NULL
+  plot <- plot + zero_line_layer
+  
+  # Add back all existing layers on top
+  for (layer in existing_layers) {
+    plot$layers <- c(plot$layers, list(layer))
+  }
+  
+  return(plot)
+}
 
 # Load required libraries
 library(gratia)
@@ -480,102 +500,192 @@ y_ranges <- sapply(temp_plots, function(p) {
   built_plot$layout$panel_scales_y[[1]]$range$range
 })
 
-# Calculate consistent y-axis limits
-y_limits <- c(min(y_ranges[1,]) * 1.1, max(y_ranges[2,]) * 1.1)
+# Set custom y-axis limits as requested
+y_limits <- c(-8, 2)
+y_breaks <- seq(-8, 2, by = 2)
 
-cat("Consistent y-axis limits:", round(y_limits, 3), "\n")
+cat("Custom y-axis limits:", y_limits, "\n")
+cat("Y-axis breaks:", y_breaks, "\n")
 ```
 
 ```{r create-individual-plots}
-# Define colors for each variable
+# Define custom colors for each variable (from your color palette)
+# Order: Butterflies in Direct Sun, Previous Butterfly Count, Time Since Sunrise, Temperature
 plot_colors <- c(
-  "steelblue",    # Previous butterfly count
-  "firebrick",    # Temperature
-  "darkorange",   # Butterflies in direct sun
-  "forestgreen"   # Time since sunrise
+  "#c8743b",    # Butterflies in Direct Sun (orange/brown)
+  "#9673c5",    # Previous Butterfly Count (purple) 
+  "#79a44c",    # Time Since Sunrise (green)
+  "#b86e7e"     # Temperature (mauve/pink)
 )
 
+# Function to create 10% lighter colors for shaded areas
+lighten_color <- function(hex_color, amount = 0.1) {
+  # Convert hex to RGB
+  rgb_vals <- col2rgb(hex_color)
+  # Lighten by moving toward white (255)
+  lightened <- rgb_vals + (255 - rgb_vals) * amount
+  # Convert back to hex
+  rgb(lightened[1], lightened[2], lightened[3], maxColorValue = 255)
+}
+
+# Create lighter versions for shaded areas
+plot_colors_light <- sapply(plot_colors, lighten_color)
+
 # Create individual plots with consistent y-axis and unique colors
-# Note: We'll use coord_cartesian instead of ylim to avoid clipping data
-p1 <- draw(best_model$gam, select = "s(total_butterflies_t_lag)", 
+# Based on your rearrangement: Butterflies in Direct Sun, Previous Butterfly Count, Time Since Sunrise, Temperature
+# Only the first plot (Butterflies in Direct Sun) will have y-axis label to reduce redundancy
+
+p1 <- draw(best_model$gam, select = "s(butterflies_direct_sun_t_lag)", 
            rug = FALSE, residuals = FALSE) +
   labs(
-    title = "Previous Butterfly Count",
-    x = "Previous butterfly count",
-    y = "Partial effect"
-  ) +
-  coord_cartesian(ylim = y_limits) +
-  custom_theme +
-  theme(
-    legend.position = "none",
-    plot.background = element_rect(fill = "white", color = NA),
-    panel.background = element_rect(fill = "white", color = NA)
-  )
-
-# Override the default colors by modifying the plot layers
-if (length(p1$layers) >= 2) {
-  p1$layers[[1]]$aes_params$colour <- plot_colors[1]  # smooth line
-  p1$layers[[2]]$aes_params$fill <- alpha(plot_colors[1], 0.3)  # confidence band
-}
-
-p2 <- draw(best_model$gam, select = "s(temperature_avg)", 
-           rug = FALSE, residuals = FALSE) +
-  labs(
-    title = "Temperature",
-    x = "Temperature (°C)",
-    y = "Partial effect"
-  ) +
-  coord_cartesian(ylim = y_limits) +
-  custom_theme +
-  theme(
-    legend.position = "none",
-    plot.background = element_rect(fill = "white", color = NA),
-    panel.background = element_rect(fill = "white", color = NA)
-  )
-
-if (length(p2$layers) >= 2) {
-  p2$layers[[1]]$aes_params$colour <- plot_colors[2]
-  p2$layers[[2]]$aes_params$fill <- alpha(plot_colors[2], 0.3)
-}
-
-p3 <- draw(best_model$gam, select = "s(butterflies_direct_sun_t_lag)", 
-           rug = FALSE, residuals = FALSE) +
-  labs(
-    title = "Butterflies in Direct Sun",
     x = "Butterflies in direct sun",
-    y = "Partial effect"
+    y = "Partial effect",
+    title = NULL  # Remove title
   ) +
-  coord_cartesian(ylim = y_limits) +
+  scale_y_continuous(limits = y_limits, breaks = y_breaks) +
   custom_theme +
   theme(
     legend.position = "none",
     plot.background = element_rect(fill = "white", color = NA),
-    panel.background = element_rect(fill = "white", color = NA)
+    panel.background = element_rect(fill = "white", color = NA),
+    plot.caption = element_blank()  # Remove basis caption
   )
 
-if (length(p3$layers) >= 2) {
-  p3$layers[[1]]$aes_params$colour <- plot_colors[3]
-  p3$layers[[2]]$aes_params$fill <- alpha(plot_colors[3], 0.3)
+# Add darker zero line BEFORE applying color changes
+p1 <- add_zero_line(p1)
+
+# Override the default colors using a more direct approach
+# Modify all layers to use custom colors
+for (i in seq_along(p1$layers)) {
+  if ("colour" %in% names(p1$layers[[i]]$aes_params)) {
+    p1$layers[[i]]$aes_params$colour <- plot_colors[1]
+  }
+  if ("fill" %in% names(p1$layers[[i]]$aes_params)) {
+    p1$layers[[i]]$aes_params$fill <- plot_colors_light[1]
+  }
+  # Also try to override any default aesthetics
+  if (!is.null(p1$layers[[i]]$geom)) {
+    if (inherits(p1$layers[[i]]$geom, "GeomLine")) {
+      p1$layers[[i]]$aes_params$colour <- plot_colors[1]
+    }
+    if (inherits(p1$layers[[i]]$geom, c("GeomRibbon", "GeomPolygon"))) {
+      p1$layers[[i]]$aes_params$fill <- plot_colors_light[1]
+    }
+  }
 }
 
-p4 <- draw(best_model$gam, select = "s(time_within_day_t)", 
+p2 <- draw(best_model$gam, select = "s(total_butterflies_t_lag)", 
            rug = FALSE, residuals = FALSE) +
   labs(
-    title = "Time Since Sunrise",
-    x = "Time since sunrise (minutes)",
-    y = "Partial effect"
+    x = "Previous butterfly count",
+    y = "",  # Remove y-axis label
+    title = NULL  # Remove title
   ) +
-  coord_cartesian(ylim = y_limits) +
+  scale_y_continuous(limits = y_limits, breaks = y_breaks) +
   custom_theme +
   theme(
     legend.position = "none",
     plot.background = element_rect(fill = "white", color = NA),
-    panel.background = element_rect(fill = "white", color = NA)
+    panel.background = element_rect(fill = "white", color = NA),
+    axis.text.y = element_blank(),  # Remove y-axis text
+    axis.ticks.y = element_blank(),  # Remove y-axis ticks
+    plot.caption = element_blank()  # Remove basis caption
   )
 
-if (length(p4$layers) >= 2) {
-  p4$layers[[1]]$aes_params$colour <- plot_colors[4]
-  p4$layers[[2]]$aes_params$fill <- alpha(plot_colors[4], 0.3)
+# Add darker zero line BEFORE applying color changes
+p2 <- add_zero_line(p2)
+
+for (i in seq_along(p2$layers)) {
+  if ("colour" %in% names(p2$layers[[i]]$aes_params)) {
+    p2$layers[[i]]$aes_params$colour <- plot_colors[2]
+  }
+  if ("fill" %in% names(p2$layers[[i]]$aes_params)) {
+    p2$layers[[i]]$aes_params$fill <- plot_colors_light[2]
+  }
+  if (!is.null(p2$layers[[i]]$geom)) {
+    if (inherits(p2$layers[[i]]$geom, "GeomLine")) {
+      p2$layers[[i]]$aes_params$colour <- plot_colors[2]
+    }
+    if (inherits(p2$layers[[i]]$geom, c("GeomRibbon", "GeomPolygon"))) {
+      p2$layers[[i]]$aes_params$fill <- plot_colors_light[2]
+    }
+  }
+}
+
+p3 <- draw(best_model$gam, select = "s(time_within_day_t)", 
+           rug = FALSE, residuals = FALSE) +
+  labs(
+    x = "Time since sunrise (minutes)",
+    y = "",  # Remove y-axis label
+    title = NULL  # Remove title
+  ) +
+  scale_y_continuous(limits = y_limits, breaks = y_breaks) +
+  custom_theme +
+  theme(
+    legend.position = "none",
+    plot.background = element_rect(fill = "white", color = NA),
+    panel.background = element_rect(fill = "white", color = NA),
+    axis.text.y = element_blank(),  # Remove y-axis text
+    axis.ticks.y = element_blank(),  # Remove y-axis ticks
+    plot.caption = element_blank()  # Remove basis caption
+  )
+
+# Add darker zero line BEFORE applying color changes
+p3 <- add_zero_line(p3)
+
+for (i in seq_along(p3$layers)) {
+  if ("colour" %in% names(p3$layers[[i]]$aes_params)) {
+    p3$layers[[i]]$aes_params$colour <- plot_colors[3]
+  }
+  if ("fill" %in% names(p3$layers[[i]]$aes_params)) {
+    p3$layers[[i]]$aes_params$fill <- plot_colors_light[3]
+  }
+  if (!is.null(p3$layers[[i]]$geom)) {
+    if (inherits(p3$layers[[i]]$geom, "GeomLine")) {
+      p3$layers[[i]]$aes_params$colour <- plot_colors[3]
+    }
+    if (inherits(p3$layers[[i]]$geom, c("GeomRibbon", "GeomPolygon"))) {
+      p3$layers[[i]]$aes_params$fill <- plot_colors_light[3]
+    }
+  }
+}
+
+p4 <- draw(best_model$gam, select = "s(temperature_avg)", 
+           rug = FALSE, residuals = FALSE) +
+  labs(
+    x = "Temperature (°C)",
+    y = "",  # Remove y-axis label
+    title = NULL  # Remove title
+  ) +
+  scale_y_continuous(limits = y_limits, breaks = y_breaks) +
+  custom_theme +
+  theme(
+    legend.position = "none",
+    plot.background = element_rect(fill = "white", color = NA),
+    panel.background = element_rect(fill = "white", color = NA),
+    axis.text.y = element_blank(),  # Remove y-axis text
+    axis.ticks.y = element_blank(),  # Remove y-axis ticks
+    plot.caption = element_blank()  # Remove basis caption
+  )
+
+# Add darker zero line BEFORE applying color changes
+p4 <- add_zero_line(p4)
+
+for (i in seq_along(p4$layers)) {
+  if ("colour" %in% names(p4$layers[[i]]$aes_params)) {
+    p4$layers[[i]]$aes_params$colour <- plot_colors[4]
+  }
+  if ("fill" %in% names(p4$layers[[i]]$aes_params)) {
+    p4$layers[[i]]$aes_params$fill <- plot_colors_light[4]
+  }
+  if (!is.null(p4$layers[[i]]$geom)) {
+    if (inherits(p4$layers[[i]]$geom, "GeomLine")) {
+      p4$layers[[i]]$aes_params$colour <- plot_colors[4]
+    }
+    if (inherits(p4$layers[[i]]$geom, c("GeomRibbon", "GeomPolygon"))) {
+      p4$layers[[i]]$aes_params$fill <- plot_colors_light[4]
+    }
+  }
 }
 
 # Display individual plots
@@ -621,6 +731,12 @@ if (exists("p1") && exists("p2") && exists("p3") && exists("p4")) {
     )
   
   print(combined_1x4)
+  
+  # Save the 1x4 layout to exports folder immediately
+  ggsave(file.path(export_dir, "figures", "partial_effects_1x4_display.png"), combined_1x4,
+    width = 16, height = 5, dpi = 300, bg = "white"
+  )
+  cat("1x4 display plot saved to:", file.path(export_dir, "figures", "partial_effects_1x4_display.png"), "\n")
 } else {
   cat("Error: Not all individual plots were created successfully\n")
 }
@@ -1261,7 +1377,7 @@ cat("Smooth terms summary exported to:", file.path(tab_dir, "smooth_terms_summar
 ### Publication-Ready Partial Effect Plots (Updated)
 
 ```{r export-partial-effects-updated}
-# Define publication theme with grid lines (no horizontal lines)
+# Define publication theme with grid lines and darker zero line
 pub_theme_grid <- theme_classic(base_size = 12) +
     theme(
         axis.text = element_text(color = "black", size = 11),
@@ -1278,54 +1394,145 @@ pub_theme_grid <- theme_classic(base_size = 12) +
     )
 
 # Use the same y-axis limits and colors from the main plots
-# Export individual plots
-pe1 <- draw(best_model$gam, select = "s(total_butterflies_t_lag)", 
-           rug = FALSE, residuals = FALSE) +
-  labs(
-    title = "Previous Butterfly Count",
-    x = "Previous butterfly count",
-    y = "Partial effect"
-  ) +
-  scale_color_manual(values = plot_colors[1]) +
-  scale_fill_manual(values = alpha(plot_colors[1], 0.3)) +
-  ylim(y_limits) +
-  pub_theme_grid
+# Export individual plots with cleaned up labeling (matching your rearranged order)
+# Order: Butterflies in Direct Sun, Previous Butterfly Count, Time Since Sunrise, Temperature
 
-pe2 <- draw(best_model$gam, select = "s(temperature_avg)", 
-           rug = FALSE, residuals = FALSE) +
-  labs(
-    title = "Temperature",
-    x = "Temperature (°C)",
-    y = "Partial effect"
-  ) +
-  scale_color_manual(values = plot_colors[2]) +
-  scale_fill_manual(values = alpha(plot_colors[2], 0.3)) +
-  ylim(y_limits) +
-  pub_theme_grid
-
-pe3 <- draw(best_model$gam, select = "s(butterflies_direct_sun_t_lag)", 
+pe1 <- draw(best_model$gam, select = "s(butterflies_direct_sun_t_lag)", 
            rug = FALSE, residuals = FALSE) +
   labs(
     title = "Butterflies in Direct Sun",
     x = "Butterflies in direct sun",
     y = "Partial effect"
   ) +
-  scale_color_manual(values = plot_colors[3]) +
-  scale_fill_manual(values = alpha(plot_colors[3], 0.3)) +
-  ylim(y_limits) +
-  pub_theme_grid
+  scale_y_continuous(limits = y_limits, breaks = y_breaks) +
+  pub_theme_grid +
+  theme(plot.caption = element_blank())  # Remove Basis: TPRS
 
-pe4 <- draw(best_model$gam, select = "s(time_within_day_t)", 
+# Add darker zero line
+pe1 <- add_zero_line(pe1)
+
+# Override colors using comprehensive layer modification
+for (i in seq_along(pe1$layers)) {
+  if ("colour" %in% names(pe1$layers[[i]]$aes_params)) {
+    pe1$layers[[i]]$aes_params$colour <- plot_colors[1]
+  }
+  if ("fill" %in% names(pe1$layers[[i]]$aes_params)) {
+    pe1$layers[[i]]$aes_params$fill <- plot_colors_light[1]
+  }
+  if (!is.null(pe1$layers[[i]]$geom)) {
+    if (inherits(pe1$layers[[i]]$geom, "GeomLine")) {
+      pe1$layers[[i]]$aes_params$colour <- plot_colors[1]
+    }
+    if (inherits(pe1$layers[[i]]$geom, c("GeomRibbon", "GeomPolygon"))) {
+      pe1$layers[[i]]$aes_params$fill <- plot_colors_light[1]
+    }
+  }
+}
+
+pe2 <- draw(best_model$gam, select = "s(total_butterflies_t_lag)", 
+           rug = FALSE, residuals = FALSE) +
+  labs(
+    title = "Previous Butterfly Count",
+    x = "Previous butterfly count",
+    y = ""  # Remove y-axis label for cleaner 1x4 layout
+  ) +
+  scale_y_continuous(limits = y_limits, breaks = y_breaks) +
+  pub_theme_grid +
+  theme(
+    axis.text.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    plot.caption = element_blank()  # Remove Basis: TPRS
+  )
+
+# Add darker zero line
+pe2 <- add_zero_line(pe2)
+
+for (i in seq_along(pe2$layers)) {
+  if ("colour" %in% names(pe2$layers[[i]]$aes_params)) {
+    pe2$layers[[i]]$aes_params$colour <- plot_colors[2]
+  }
+  if ("fill" %in% names(pe2$layers[[i]]$aes_params)) {
+    pe2$layers[[i]]$aes_params$fill <- plot_colors_light[2]
+  }
+  if (!is.null(pe2$layers[[i]]$geom)) {
+    if (inherits(pe2$layers[[i]]$geom, "GeomLine")) {
+      pe2$layers[[i]]$aes_params$colour <- plot_colors[2]
+    }
+    if (inherits(pe2$layers[[i]]$geom, c("GeomRibbon", "GeomPolygon"))) {
+      pe2$layers[[i]]$aes_params$fill <- plot_colors_light[2]
+    }
+  }
+}
+
+pe3 <- draw(best_model$gam, select = "s(time_within_day_t)", 
            rug = FALSE, residuals = FALSE) +
   labs(
     title = "Time Since Sunrise",
     x = "Time since sunrise (minutes)",
-    y = "Partial effect"
+    y = ""  # Remove y-axis label for cleaner 1x4 layout
   ) +
-  scale_color_manual(values = plot_colors[4]) +
-  scale_fill_manual(values = alpha(plot_colors[4], 0.3)) +
-  ylim(y_limits) +
-  pub_theme_grid
+  scale_y_continuous(limits = y_limits, breaks = y_breaks) +
+  pub_theme_grid +
+  theme(
+    axis.text.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    plot.caption = element_blank()  # Remove Basis: TPRS
+  )
+
+# Add darker zero line
+pe3 <- add_zero_line(pe3)
+
+for (i in seq_along(pe3$layers)) {
+  if ("colour" %in% names(pe3$layers[[i]]$aes_params)) {
+    pe3$layers[[i]]$aes_params$colour <- plot_colors[3]
+  }
+  if ("fill" %in% names(pe3$layers[[i]]$aes_params)) {
+    pe3$layers[[i]]$aes_params$fill <- plot_colors_light[3]
+  }
+  if (!is.null(pe3$layers[[i]]$geom)) {
+    if (inherits(pe3$layers[[i]]$geom, "GeomLine")) {
+      pe3$layers[[i]]$aes_params$colour <- plot_colors[3]
+    }
+    if (inherits(pe3$layers[[i]]$geom, c("GeomRibbon", "GeomPolygon"))) {
+      pe3$layers[[i]]$aes_params$fill <- plot_colors_light[3]
+    }
+  }
+}
+
+pe4 <- draw(best_model$gam, select = "s(temperature_avg)", 
+           rug = FALSE, residuals = FALSE) +
+  labs(
+    x = "Temperature (°C)",
+    y = "",  # Remove y-axis label for cleaner 1x4 layout
+    title = NULL  # Remove title
+  ) +
+  scale_y_continuous(limits = y_limits, breaks = y_breaks) +
+  pub_theme_grid +
+  theme(
+    axis.text.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    plot.caption = element_blank()  # Remove Basis: TPRS
+  )
+
+# Add darker zero line BEFORE applying color changes
+pe4 <- add_zero_line(pe4)
+
+for (i in seq_along(pe4$layers)) {
+  if ("colour" %in% names(pe4$layers[[i]]$aes_params)) {
+    pe4$layers[[i]]$aes_params$colour <- plot_colors[4]
+  }
+  if ("fill" %in% names(pe4$layers[[i]]$aes_params)) {
+    pe4$layers[[i]]$aes_params$fill <- plot_colors_light[4]
+  }
+  if (!is.null(pe4$layers[[i]]$geom)) {
+    if (inherits(pe4$layers[[i]]$geom, "GeomLine")) {
+      pe4$layers[[i]]$aes_params$colour <- plot_colors[4]
+    }
+    if (inherits(pe4$layers[[i]]$geom, c("GeomRibbon", "GeomPolygon"))) {
+      pe4$layers[[i]]$aes_params$fill <- plot_colors_light[4]
+    }
+  }
+}
 
 # Export individual plots
 ggsave(file.path(fig_dir, "effect_previous_butterfly_count_final.png"), pe1,
@@ -1344,11 +1551,7 @@ ggsave(file.path(fig_dir, "diurnal_patterns_final.png"), pe4,
 # Create and export 2x2 combined figure
 tryCatch({
   combined_pub_2x2 <- (pe1 + pe2) / (pe3 + pe4) + 
-    plot_layout(ncol = 2, nrow = 2) +
-    plot_annotation(
-      title = "Partial Effects from Best GAM Model",
-      theme = theme(plot.title = element_text(size = 16, hjust = 0.5, face = "bold"))
-    )
+    plot_layout(ncol = 2, nrow = 2)  # No title
   
   ggsave(file.path(fig_dir, "combined_partial_effects_2x2_final.png"), combined_pub_2x2,
       width = 12, height = 10, dpi = 300, bg = "white"
@@ -1360,11 +1563,7 @@ tryCatch({
 
 # Create and export 1x4 combined figure (wide aspect ratio)
 tryCatch({
-  combined_pub_1x4 <- wrap_plots(pe1, pe2, pe3, pe4, nrow = 1, ncol = 4) +
-    plot_annotation(
-      title = "Partial Effects from Best GAM Model",
-      theme = theme(plot.title = element_text(size = 16, hjust = 0.5, face = "bold"))
-    )
+  combined_pub_1x4 <- wrap_plots(pe1, pe2, pe3, pe4, nrow = 1, ncol = 4)  # No title
   
   ggsave(file.path(fig_dir, "combined_partial_effects_1x4_final.png"), combined_pub_1x4,
       width = 16, height = 5, dpi = 300, bg = "white"
@@ -1384,6 +1583,11 @@ cat("- diurnal_patterns_final.png\n")
 cat("Combined layouts:\n")
 cat("- combined_partial_effects_2x2_final.png\n")
 cat("- combined_partial_effects_1x4_final.png (16x5, wide aspect ratio)\n")
+cat("\nAll plots feature:\n")
+cat("- Custom hex color palette\n")
+cat("- 10% lighter confidence intervals\n")
+cat("- Darker zero reference line (gray50)\n")
+cat("- Clean 1x4 layout with single y-axis label\n")
 ```
 
 ### Model Diagnostics Plots Export
