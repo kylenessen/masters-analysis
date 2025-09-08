@@ -491,11 +491,13 @@ y_ranges <- sapply(temp_plots, function(p) {
   built_plot$layout$panel_scales_y[[1]]$range$range
 })
 
-# Set custom y-axis limits as requested
-y_limits <- c(-8, 2)
-y_breaks <- seq(-8, 2, by = 2)
+# Use calculated min and clipped max with increments of 1
+y_min <- floor(min(y_ranges))
+y_max <- 1.5  # Clip top to remove empty space
+y_limits <- c(y_min, y_max)
+y_breaks <- seq(y_min, y_max, by = 1)
 
-cat("Custom y-axis limits:", y_limits, "\n")
+cat("Calculated y-axis limits:", y_limits, "\n")
 cat("Y-axis breaks:", y_breaks, "\n")
 ```
 
@@ -737,7 +739,6 @@ if (exists("p1") && exists("p2") && exists("p3") && exists("p4")) {
   # Create 1x4 combined plot with explicit layout
   combined_1x4 <- wrap_plots(p1, p2, p3, p4, nrow = 1, ncol = 4) +
     plot_annotation(
-      title = "Partial Effects from Best GAM Model (1x4 Layout)",
       theme = theme(plot.title = element_text(size = 16, hjust = 0.5, face = "bold"))
     )
   
