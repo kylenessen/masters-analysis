@@ -464,20 +464,11 @@ custom_theme <- theme_minimal(base_size = 12) +
 
 # Function to add darker zero line BEHIND the plot elements
 add_zero_line <- function(plot) {
-  # Insert the zero line as the first layer so it appears behind everything
-  zero_line_layer <- geom_hline(yintercept = 0, color = "gray50", size = 0.8, alpha = 1)
+  # Create zero line layer - darker than grid lines but neutral and subtle
+  zero_line_layer <- geom_hline(yintercept = 0, color = "gray70", size = 0.8, alpha = 1)
   
-  # Get existing layers
-  existing_layers <- plot$layers
-  
-  # Clear layers and add zero line first, then add back existing layers
-  plot$layers <- NULL
-  plot <- plot + zero_line_layer
-  
-  # Add back all existing layers on top
-  for (layer in existing_layers) {
-    plot$layers <- c(plot$layers, list(layer))
-  }
+  # Insert zero line as the first layer (background)
+  plot$layers <- c(list(zero_line_layer), plot$layers)
   
   return(plot)
 }
@@ -554,9 +545,14 @@ p1 <- draw(best_model$gam, select = "s(butterflies_direct_sun_t_lag)",
 # Add darker zero line BEFORE applying color changes
 p1 <- add_zero_line(p1)
 
-# Override the default colors using a more direct approach
+# Override the default colors using a more direct approach (skip zero line)
 # Modify all layers to use custom colors
 for (i in seq_along(p1$layers)) {
+  # Skip the zero line (GeomHline) to preserve its neutral gray color
+  if (!is.null(p1$layers[[i]]$geom) && inherits(p1$layers[[i]]$geom, "GeomHline")) {
+    next
+  }
+  
   if ("colour" %in% names(p1$layers[[i]]$aes_params)) {
     p1$layers[[i]]$aes_params$colour <- plot_colors[1]
   }
@@ -596,6 +592,11 @@ p2 <- draw(best_model$gam, select = "s(total_butterflies_t_lag)",
 p2 <- add_zero_line(p2)
 
 for (i in seq_along(p2$layers)) {
+  # Skip the zero line (GeomHline) to preserve its neutral gray color
+  if (!is.null(p2$layers[[i]]$geom) && inherits(p2$layers[[i]]$geom, "GeomHline")) {
+    next
+  }
+  
   if ("colour" %in% names(p2$layers[[i]]$aes_params)) {
     p2$layers[[i]]$aes_params$colour <- plot_colors[2]
   }
@@ -634,6 +635,11 @@ p3 <- draw(best_model$gam, select = "s(time_within_day_t)",
 p3 <- add_zero_line(p3)
 
 for (i in seq_along(p3$layers)) {
+  # Skip the zero line (GeomHline) to preserve its neutral gray color
+  if (!is.null(p3$layers[[i]]$geom) && inherits(p3$layers[[i]]$geom, "GeomHline")) {
+    next
+  }
+  
   if ("colour" %in% names(p3$layers[[i]]$aes_params)) {
     p3$layers[[i]]$aes_params$colour <- plot_colors[3]
   }
@@ -672,6 +678,11 @@ p4 <- draw(best_model$gam, select = "s(temperature_avg)",
 p4 <- add_zero_line(p4)
 
 for (i in seq_along(p4$layers)) {
+  # Skip the zero line (GeomHline) to preserve its neutral gray color
+  if (!is.null(p4$layers[[i]]$geom) && inherits(p4$layers[[i]]$geom, "GeomHline")) {
+    next
+  }
+  
   if ("colour" %in% names(p4$layers[[i]]$aes_params)) {
     p4$layers[[i]]$aes_params$colour <- plot_colors[4]
   }
@@ -1411,8 +1422,13 @@ pe1 <- draw(best_model$gam, select = "s(butterflies_direct_sun_t_lag)",
 # Add darker zero line
 pe1 <- add_zero_line(pe1)
 
-# Override colors using comprehensive layer modification
+# Override colors using comprehensive layer modification (skip zero line)
 for (i in seq_along(pe1$layers)) {
+  # Skip the zero line (GeomHline) to preserve its neutral gray color
+  if (!is.null(pe1$layers[[i]]$geom) && inherits(pe1$layers[[i]]$geom, "GeomHline")) {
+    next
+  }
+  
   if ("colour" %in% names(pe1$layers[[i]]$aes_params)) {
     pe1$layers[[i]]$aes_params$colour <- plot_colors[1]
   }
@@ -1448,6 +1464,11 @@ pe2 <- draw(best_model$gam, select = "s(total_butterflies_t_lag)",
 pe2 <- add_zero_line(pe2)
 
 for (i in seq_along(pe2$layers)) {
+  # Skip the zero line (GeomHline) to preserve its neutral gray color
+  if (!is.null(pe2$layers[[i]]$geom) && inherits(pe2$layers[[i]]$geom, "GeomHline")) {
+    next
+  }
+  
   if ("colour" %in% names(pe2$layers[[i]]$aes_params)) {
     pe2$layers[[i]]$aes_params$colour <- plot_colors[2]
   }
@@ -1483,6 +1504,11 @@ pe3 <- draw(best_model$gam, select = "s(time_within_day_t)",
 pe3 <- add_zero_line(pe3)
 
 for (i in seq_along(pe3$layers)) {
+  # Skip the zero line (GeomHline) to preserve its neutral gray color
+  if (!is.null(pe3$layers[[i]]$geom) && inherits(pe3$layers[[i]]$geom, "GeomHline")) {
+    next
+  }
+  
   if ("colour" %in% names(pe3$layers[[i]]$aes_params)) {
     pe3$layers[[i]]$aes_params$colour <- plot_colors[3]
   }
@@ -1518,6 +1544,11 @@ pe4 <- draw(best_model$gam, select = "s(temperature_avg)",
 pe4 <- add_zero_line(pe4)
 
 for (i in seq_along(pe4$layers)) {
+  # Skip the zero line (GeomHline) to preserve its neutral gray color
+  if (!is.null(pe4$layers[[i]]$geom) && inherits(pe4$layers[[i]]$geom, "GeomHline")) {
+    next
+  }
+  
   if ("colour" %in% names(pe4$layers[[i]]$aes_params)) {
     pe4$layers[[i]]$aes_params$colour <- plot_colors[4]
   }
