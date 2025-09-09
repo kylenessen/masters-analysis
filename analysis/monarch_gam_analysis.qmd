@@ -1545,6 +1545,83 @@ for (i in seq_along(pe4$layers)) {
   }
 }
 
+# Create 2x2-specific plots with proper y-axis sharing
+pe1_2x2 <- pe1 + labs(title = NULL)  # Top-left: remove title, keep y-axis label
+
+pe2_2x2 <- pe2 + labs(title = NULL)  # Top-right: remove title, no y-axis
+
+pe3_2x2 <- draw(best_model$gam, select = "s(time_within_day_t)", 
+           rug = FALSE, residuals = FALSE) +
+  labs(
+    title = NULL,  # No title
+    x = "Time since sunrise (minutes)",
+    y = "Partial effect"  # Bottom-left: keep y-axis label
+  ) +
+  scale_y_continuous(limits = y_limits, breaks = y_breaks) +
+  pub_theme_grid +
+  theme(plot.caption = element_blank())
+
+pe3_2x2 <- add_zero_line(pe3_2x2)
+
+# Apply colors to pe3_2x2
+for (i in seq_along(pe3_2x2$layers)) {
+  if (!is.null(pe3_2x2$layers[[i]]$geom) && inherits(pe3_2x2$layers[[i]]$geom, "GeomHline")) {
+    next
+  }
+  if ("colour" %in% names(pe3_2x2$layers[[i]]$aes_params)) {
+    pe3_2x2$layers[[i]]$aes_params$colour <- plot_colors[3]
+  }
+  if ("fill" %in% names(pe3_2x2$layers[[i]]$aes_params)) {
+    pe3_2x2$layers[[i]]$aes_params$fill <- plot_colors_light[3]
+  }
+  if (!is.null(pe3_2x2$layers[[i]]$geom)) {
+    if (inherits(pe3_2x2$layers[[i]]$geom, "GeomLine")) {
+      pe3_2x2$layers[[i]]$aes_params$colour <- plot_colors[3]
+    }
+    if (inherits(pe3_2x2$layers[[i]]$geom, c("GeomRibbon", "GeomPolygon"))) {
+      pe3_2x2$layers[[i]]$aes_params$fill <- plot_colors_light[3]
+    }
+  }
+}
+
+pe4_2x2 <- draw(best_model$gam, select = "s(temperature_avg)", 
+           rug = FALSE, residuals = FALSE) +
+  labs(
+    title = NULL,  # No title
+    x = "Temperature (°C)",
+    y = ""  # Bottom-right: no y-axis label
+  ) +
+  scale_y_continuous(limits = y_limits, breaks = y_breaks) +
+  pub_theme_grid +
+  theme(
+    axis.text.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    plot.caption = element_blank()
+  )
+
+pe4_2x2 <- add_zero_line(pe4_2x2)
+
+# Apply colors to pe4_2x2
+for (i in seq_along(pe4_2x2$layers)) {
+  if (!is.null(pe4_2x2$layers[[i]]$geom) && inherits(pe4_2x2$layers[[i]]$geom, "GeomHline")) {
+    next
+  }
+  if ("colour" %in% names(pe4_2x2$layers[[i]]$aes_params)) {
+    pe4_2x2$layers[[i]]$aes_params$colour <- plot_colors[4]
+  }
+  if ("fill" %in% names(pe4_2x2$layers[[i]]$aes_params)) {
+    pe4_2x2$layers[[i]]$aes_params$fill <- plot_colors_light[4]
+  }
+  if (!is.null(pe4_2x2$layers[[i]]$geom)) {
+    if (inherits(pe4_2x2$layers[[i]]$geom, "GeomLine")) {
+      pe4_2x2$layers[[i]]$aes_params$colour <- plot_colors[4]
+    }
+    if (inherits(pe4_2x2$layers[[i]]$geom, c("GeomRibbon", "GeomPolygon"))) {
+      pe4_2x2$layers[[i]]$aes_params$fill <- plot_colors_light[4]
+    }
+  }
+}
+
 # Export individual plots
 ggsave(file.path(fig_dir, "effect_previous_butterfly_count_final.png"), pe1,
     width = 8, height = 6, dpi = 300, bg = "white"
@@ -1559,10 +1636,9 @@ ggsave(file.path(fig_dir, "diurnal_patterns_final.png"), pe4,
     width = 8, height = 6, dpi = 300, bg = "white"
 )
 
-# Create and export 2x2 combined figure
+# Create and export 2x2 combined figure with proper y-axis sharing
 tryCatch({
-  combined_pub_2x2 <- (pe1 + pe2) / (pe3 + pe4) + 
-    plot_layout(ncol = 2, nrow = 2)  # No title
+  combined_pub_2x2 <- wrap_plots(pe1_2x2, pe2_2x2, pe3_2x2, pe4_2x2, nrow = 2, ncol = 2)
   
   ggsave(file.path(fig_dir, "combined_partial_effects_2x2_final.png"), combined_pub_2x2,
       width = 12, height = 10, dpi = 300, bg = "white"
