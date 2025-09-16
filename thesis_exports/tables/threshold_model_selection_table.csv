@@ -1,0 +1,6 @@
+Model ID,Terms included,AIC value,ΔAIC,Weight,Wind threshold p-value
+T24,- Previous butterfly count\n- Minutes above 2 m/s\n- Temperature\n- Butterflies in direct sun\n- Time since sunrise,8089.408,7.56,0.0205,0.372
+T44,- Minutes above 2 m/s\n- Temperature\n- Butterflies in direct sun\n- Time since sunrise,8108.379,26.53,0,0.256
+T21,- Previous butterfly count\n- Minutes above 2 m/s\n- Temperature\n- Butterflies in direct sun,8110.567,28.719,0,0.0528
+T43,- Minutes above 2 m/s\n- Temperature (linear)\n- Butterflies in direct sun\n- Time since sunrise,8115.505,33.657,0,0.275
+T19,- Previous butterfly count\n- Minutes above 2 m/s\n- Temperature (linear)\n- Butterflies in direct sun,8119.798,37.949,0,0.0776
