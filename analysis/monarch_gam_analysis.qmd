@@ -701,6 +701,40 @@ for (i in seq_along(p4$layers)) {
   }
 }
 
+# Add flight threshold area (12.7-16°C) with fuzzy edges AFTER color modifications
+# Create a gradient effect by layering rectangles with decreasing alpha
+fade_width <- 0.5  # Width of fade zone on each side
+
+# Core threshold area (solid)
+p4 <- p4 +
+  annotate("rect",
+           xmin = 12.7 + fade_width, xmax = 16 - fade_width,
+           ymin = -Inf, ymax = Inf,
+           fill = "#ADD8E6", alpha = 0.4)
+
+# Fade zones - multiple layers for smooth gradient
+fade_steps <- 5
+for (i in 1:fade_steps) {
+  alpha_val <- 0.4 * (fade_steps - i + 1) / fade_steps
+  fade_offset <- fade_width * i / fade_steps
+
+  # Left fade
+  p4 <- p4 +
+    annotate("rect",
+             xmin = 12.7 + fade_width - fade_offset,
+             xmax = 12.7 + fade_width - fade_offset + fade_width/fade_steps,
+             ymin = -Inf, ymax = Inf,
+             fill = "#ADD8E6", alpha = alpha_val)
+
+  # Right fade
+  p4 <- p4 +
+    annotate("rect",
+             xmin = 16 - fade_width + fade_offset - fade_width/fade_steps,
+             xmax = 16 - fade_width + fade_offset,
+             ymin = -Inf, ymax = Inf,
+             fill = "#ADD8E6", alpha = alpha_val)
+}
+
 # Display individual plots
 print(p1)
 print(p2)
@@ -1620,6 +1654,40 @@ for (i in seq_along(pe4_2x2$layers)) {
       pe4_2x2$layers[[i]]$aes_params$fill <- plot_colors_light[4]
     }
   }
+}
+
+# Add flight threshold area (12.7-16°C) with fuzzy edges to pe4_2x2 AFTER color modifications
+# Create a gradient effect by layering rectangles with decreasing alpha
+fade_width <- 0.5  # Width of fade zone on each side
+
+# Core threshold area (solid)
+pe4_2x2 <- pe4_2x2 +
+  annotate("rect",
+           xmin = 12.7 + fade_width, xmax = 16 - fade_width,
+           ymin = -Inf, ymax = Inf,
+           fill = "#ADD8E6", alpha = 0.4)
+
+# Fade zones - multiple layers for smooth gradient
+fade_steps <- 5
+for (i in 1:fade_steps) {
+  alpha_val <- 0.4 * (fade_steps - i + 1) / fade_steps
+  fade_offset <- fade_width * i / fade_steps
+
+  # Left fade
+  pe4_2x2 <- pe4_2x2 +
+    annotate("rect",
+             xmin = 12.7 + fade_width - fade_offset,
+             xmax = 12.7 + fade_width - fade_offset + fade_width/fade_steps,
+             ymin = -Inf, ymax = Inf,
+             fill = "#ADD8E6", alpha = alpha_val)
+
+  # Right fade
+  pe4_2x2 <- pe4_2x2 +
+    annotate("rect",
+             xmin = 16 - fade_width + fade_offset - fade_width/fade_steps,
+             xmax = 16 - fade_width + fade_offset,
+             ymin = -Inf, ymax = Inf,
+             fill = "#ADD8E6", alpha = alpha_val)
 }
 
 # Export individual plots
