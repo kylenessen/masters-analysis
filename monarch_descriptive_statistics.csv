@@ -1,0 +1,32 @@
+Category,Metric,Value
+Dataset,Total observations,1894
+Dataset,Unique deployments,10
+Dataset,Deployment-day combinations,115
+Dataset,Study period start,2023-11-17
+Dataset,Study period end,2024-02-04
+Dataset,Total monitoring days,78
+Dataset,Total observation hours,947.0
+Wind Speed (m/s),Minimum,0.0
+Wind Speed (m/s),Maximum,12.4
+Wind Speed (m/s),Mean,2.2
+Wind Speed (m/s),Standard Deviation,1.4
+Wind Speed (m/s),Median,2.2
+Temperature (°C),Minimum,3.0
+Temperature (°C),Maximum,30.0
+Temperature (°C),Mean,14.6
+Temperature (°C),Standard Deviation,3.8
+Temperature (°C),Median,14.0
+Solar Exposure,Observations with direct sun,601
+Solar Exposure,Percentage with direct sun,31.7
+Solar Exposure,Mean butterflies in sun (when present),17.0
+Butterfly Abundance,Minimum,0
+Butterfly Abundance,Maximum,770
+Butterfly Abundance,Mean,81.4
+Butterfly Abundance,Standard Deviation,100.0
+Butterfly Abundance,Median,37
+Butterfly Abundance,Zero-count observations,43
+Butterfly Abundance,Percentage zero counts,2.3
+Time Distribution,Earliest observation hour,7
+Time Distribution,Latest observation hour,17
+Time Distribution,Peak observation hour,16
+Time Distribution,Peak hour observation count,196
