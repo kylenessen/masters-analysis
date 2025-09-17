@@ -933,11 +933,13 @@ The following section exports all figures and tables needed for the thesis resul
 export_dir <- here("thesis_exports")
 fig_dir <- file.path(export_dir, "figures")
 tab_dir <- file.path(export_dir, "tables")
+thesis_results_fig_dir <- here("..", "masters-thesis", "figures", "results")
 
 # Create directories if they don't exist
 if (!dir.exists(export_dir)) dir.create(export_dir, recursive = TRUE)
 if (!dir.exists(fig_dir)) dir.create(fig_dir, recursive = TRUE)
 if (!dir.exists(tab_dir)) dir.create(tab_dir, recursive = TRUE)
+if (!dir.exists(thesis_results_fig_dir)) dir.create(thesis_results_fig_dir, recursive = TRUE)
 
 # Load additional packages for publication-ready plots
 library(ggthemes)
@@ -1442,6 +1444,64 @@ tryCatch({
   cat("Error creating 1x4 combined plot:", e$message, "\n")
 })
 
+# Export standalone partial effect for maximum wind speed from model M24
+if ("M24" %in% names(successful_models)) {
+  model_m24 <- successful_models[["M24"]]
+  wind_color <- "#4C8BB9"
+  wind_color_light <- lighten_color(wind_color)
+
+  pe_wind_m24 <- draw(model_m24$gam, select = "s(max_gust)", rug = FALSE, residuals = FALSE) +
+    labs(
+      title = NULL,
+      x = "Maximum wind speed (m/s)",
+      y = "Partial effect"
+    ) +
+    scale_y_continuous(limits = y_limits, breaks = y_breaks) +
+    pub_theme_grid +
+    theme(plot.caption = element_blank())
+
+  pe_wind_m24 <- add_zero_line(pe_wind_m24)
+
+  for (i in seq_along(pe_wind_m24$layers)) {
+    if (!is.null(pe_wind_m24$layers[[i]]$geom) && inherits(pe_wind_m24$layers[[i]]$geom, "GeomHline")) {
+      next
+    }
+
+    if ("colour" %in% names(pe_wind_m24$layers[[i]]$aes_params)) {
+      pe_wind_m24$layers[[i]]$aes_params$colour <- wind_color
+    }
+    if ("fill" %in% names(pe_wind_m24$layers[[i]]$aes_params)) {
+      pe_wind_m24$layers[[i]]$aes_params$fill <- wind_color_light
+    }
+    if (!is.null(pe_wind_m24$layers[[i]]$geom)) {
+      if (inherits(pe_wind_m24$layers[[i]]$geom, "GeomLine")) {
+        pe_wind_m24$layers[[i]]$aes_params$colour <- wind_color
+      }
+      if (inherits(pe_wind_m24$layers[[i]]$geom, c("GeomRibbon", "GeomPolygon"))) {
+        pe_wind_m24$layers[[i]]$aes_params$fill <- wind_color_light
+      }
+    }
+  }
+
+  pe_wind_m24 <- pe_wind_m24 +
+    geom_vline(xintercept = 2, color = "red", linetype = "dashed", size = 0.8)
+
+  ggsave(file.path(fig_dir, "m24_wind_partial_effect.png"), pe_wind_m24,
+      width = 6, height = 5, dpi = 300, bg = "white"
+  )
+
+  thesis_wind_path <- file.path(thesis_results_fig_dir, "m24_wind_partial_effect.png")
+  ggsave(thesis_wind_path, pe_wind_m24,
+      width = 6, height = 5, dpi = 300, bg = "white"
+  )
+
+  cat("M24 wind partial effect exported successfully\n")
+  cat("- Saved to thesis_exports/figures/m24_wind_partial_effect.png\n")
+  cat("- Saved to ../masters-thesis/figures/results/m24_wind_partial_effect.png\n")
+} else {
+  cat("Model M24 unavailable; skipping wind partial effect export\n")
+}
+
 cat("Updated publication-ready plots exported to:", fig_dir, "\n")
 cat("Files created:\n")
 cat("Individual plots:\n")
@@ -1449,6 +1509,7 @@ cat("- effect_previous_butterfly_count_final.png\n")
 cat("- effect_temperature_final.png\n")
 cat("- effect_butterflies_direct_sun_final.png\n")
 cat("- diurnal_patterns_final.png\n")
+cat("- m24_wind_partial_effect.png (also saved to ../masters-thesis/figures/results/)\n")
 cat("Combined layouts:\n")
 cat("- combined_partial_effects_2x2_final.png\n")
 cat("- combined_partial_effects_1x4_final.png (16x5, wide aspect ratio)\n")
