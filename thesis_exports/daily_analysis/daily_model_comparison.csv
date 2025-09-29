@@ -1,11 +1,11 @@
 Model,Formula,AIC,LogLik,df,Delta_AIC,AIC_weight
-M34,butterfly_diff_95th_sqrt ~ s(temp_at_max_count_t_1) + s(wind_max_gust_t_1) + s(sum_butterflies_direct_sun_t_1),684.9337770869662,-333.4668885434831,9,0,0.1399121098824953
-M36,butterfly_diff_95th_sqrt ~ s(temp_at_max_count_t_1) + s(wind_max_gust_t_1) + s(sum_butterflies_direct_sun_t_1),684.9337770869662,-333.4668885434831,9,0,0.1399121098824953
-M31,butterfly_diff_95th_sqrt ~ s(temp_at_max_count_t_1) + s(wind_max_gust_t_1),685.5135580519881,-335.75677902599404,7,0.5797809650218824,0.1047026006261559
-M37,butterfly_diff_95th_sqrt ~ s(temp_max_t_1) + s(temp_min_t_1) + s(temp_at_max_count_t_1) + s(wind_max_gust_t_1) + s(sum_butterflies_direct_sun_t_1),685.5138847902965,-329.75694239514826,13,0.5801077033303272,0.10468549684799963
-M38,butterfly_diff_95th_sqrt ~ temp_at_max_count_t_1 + s(wind_max_gust_t_1) + s(sum_butterflies_direct_sun_t_1),685.6080359816215,-334.80401799081073,8,0.6742588946552814,0.09987156311081158
-M33,butterfly_diff_95th_sqrt ~ s(wind_max_gust_t_1) + s(sum_butterflies_direct_sun_t_1),685.7440593738162,-335.8720296869081,7,0.810282286849997,0.09330496253849556
-M24,butterfly_diff_95th_sqrt ~ s(wind_max_gust_t_1),686.8964004647457,-338.44820023237287,5,1.9626233777795505,0.05244173532756556
-M2,butterfly_diff_95th_sqrt ~ wind_max_gust_t_1,687.4690735465048,-339.7345367732524,4,2.5352964595385856,0.03938425862336875
-M40,butterfly_diff_95th_sqrt ~ s(temp_at_max_count_t_1) + wind_max_gust_t_1 + s(sum_butterflies_direct_sun_t_1),687.6610555844749,-335.83052779223743,8,2.727278497508678,0.035779503093683517
-M14,butterfly_diff_95th_sqrt ~ wind_max_gust_t_1 + temp_at_max_count_t_1,687.9984885946973,-338.99924429734864,5,3.06471150773109,0.030224676248121623
+M34,butterfly_diff_95th_sqrt ~ s(temp_at_max_count_t_1) + s(wind_max_gust_t_1) + s(sum_butterflies_direct_sun_t_1),684.9337770869662,-333.4668885434831,9,0,0.1626718751538062
+M31,butterfly_diff_95th_sqrt ~ s(temp_at_max_count_t_1) + s(wind_max_gust_t_1),685.5135580519881,-335.75677902599404,7,0.5797809650218824,0.12173476900349275
+M37,butterfly_diff_95th_sqrt ~ s(temp_max_t_1) + s(temp_min_t_1) + s(temp_at_max_count_t_1) + s(wind_max_gust_t_1) + s(sum_butterflies_direct_sun_t_1),685.5138847902965,-329.75694239514826,13,0.5801077033303272,0.1217148829216716
+M38,butterfly_diff_95th_sqrt ~ temp_at_max_count_t_1 + s(wind_max_gust_t_1) + s(sum_butterflies_direct_sun_t_1),685.6080359816215,-334.80401799081073,8,0.6742588946552814,0.11611785755658899
+M33,butterfly_diff_95th_sqrt ~ s(wind_max_gust_t_1) + s(sum_butterflies_direct_sun_t_1),685.7440593738162,-335.8720296869081,7,0.810282286849997,0.10848305575578827
+M24,butterfly_diff_95th_sqrt ~ s(wind_max_gust_t_1),686.8964004647457,-338.44820023237287,5,1.9626233777795505,0.06097253074962026
+M2,butterfly_diff_95th_sqrt ~ wind_max_gust_t_1,687.4690735465048,-339.7345367732524,4,2.5352964595385856,0.04579096982517461
+M40,butterfly_diff_95th_sqrt ~ s(temp_at_max_count_t_1) + wind_max_gust_t_1 + s(sum_butterflies_direct_sun_t_1),687.6610555844749,-335.83052779223743,8,2.727278497508678,0.041599821954004426
+M14,butterfly_diff_95th_sqrt ~ wind_max_gust_t_1 + temp_at_max_count_t_1,687.9984885946973,-338.99924429734864,5,3.06471150773109,0.03514138100932027
+M28,butterfly_diff_95th_sqrt ~ s(sum_butterflies_direct_sun_t_1),688.5203394315283,-339.26016971576416,5,3.5865623445621395,0.027070754184855664
