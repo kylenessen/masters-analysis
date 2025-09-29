@@ -315,6 +315,10 @@ def create_daily_aggregates(df: pd.DataFrame) -> pd.DataFrame:
     season_start = datetime(2023, 10, 15).date()
     daily_df['days_since_oct15'] = daily_df['date'].apply(lambda x: (x - season_start).days)
 
+    # Add day sequence within each deployment (for AR1 correlation structure)
+    daily_df = daily_df.sort_values(['deployment_id', 'date']).reset_index(drop=True)
+    daily_df['day_sequence'] = daily_df.groupby('deployment_id').cumcount() + 1
+
     print(f"Created {len(daily_df)} daily aggregates")
 
     # Summary statistics
@@ -540,6 +544,7 @@ def create_lag_pairs(daily_df: pd.DataFrame,
                 'date_t': current_day['date'],
                 'date_t_1': previous_day['date'],
                 'observation_order_t': i + 1,
+                'day_sequence': current_day['day_sequence'],
 
                 # Current day butterfly metrics
                 'max_butterflies_t': current_day['max_butterflies'],

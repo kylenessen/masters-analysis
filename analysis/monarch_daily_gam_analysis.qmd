@@ -472,8 +472,8 @@ model_data <- daily_data %>%
         temp_at_max_std = scale(temp_at_max_count_t_1)[, 1],
         sun_exposure_std = scale(sum_butterflies_direct_sun_t_1)[, 1],
         baseline_std = scale(butterflies_95th_percentile_t_1)[, 1],
-        # Create a day sequence for temporal autocorrelation
-        day_sequence = as.numeric(date_t - min(date_t)) + 1
+        # Note: day_sequence is now provided by the data preparation script
+        # Each deployment has its own day counter starting from 1
     )
 
 cat("Clean dataset has", nrow(model_data), "observations\n")
@@ -505,9 +505,9 @@ library(nlme)
 random_structure <- list(deployment_id = ~1)
 
 # Define correlation structures to test
-# Using only no correlation structure (removed AR1 and compound symmetry)
 correlation_structures <- list(
-    "no_corr" = NULL  # No temporal correlation
+    "no_corr" = NULL,  # No temporal correlation
+    "AR1" = corAR1(form = ~day_sequence | deployment_id)  # AR1 within deployments
 )
 
 # Model specifications for AIC comparison - WITHOUT previous day baseline
@@ -622,18 +622,24 @@ fit_model_safely <- function(formula_str, data, correlation = NULL, corr_name = 
     )
 }
 
-# Fit all models (no correlation structures)
+# Fit all models with different correlation structures
 cat("Fitting models...\n")
 fitted_models <- list()
 
-# Fit each model specification
+# Fit each model specification with each correlation structure
 for (model_name in names(model_specs)) {
     formula_str <- model_specs[[model_name]]
 
-    # Fit the model with no correlation structure
-    fitted_models[[model_name]] <- fit_model_safely(
-        formula_str, model_data, NULL, "no_corr"
-    )
+    for (corr_name in names(correlation_structures)) {
+        corr_struct <- correlation_structures[[corr_name]]
+
+        # Create unique model name with correlation structure
+        full_model_name <- paste(model_name, corr_name, sep = "_")
+
+        fitted_models[[full_model_name]] <- fit_model_safely(
+            formula_str, model_data, corr_struct, corr_name
+        )
+    }
 }
 
 # Remove failed models
@@ -646,17 +652,24 @@ cat("Successfully fitted", length(successful_models), "out of",
 
 ```{r model-comparison}
 # Extract AIC values
-aic_results <- map_dfr(names(successful_models), function(model_name) {
-    model <- successful_models[[model_name]]
+aic_results <- map_dfr(names(successful_models), function(full_model_name) {
+    model <- successful_models[[full_model_name]]
 
-    # Get the formula from the model name
-    formula_str <- model_specs[[model_name]]
+    # Parse model name and correlation structure
+    name_parts <- strsplit(full_model_name, "_")[[1]]
+    corr_suffix <- name_parts[length(name_parts)]
+    base_model_name <- paste(name_parts[-length(name_parts)], collapse = "_")
+
+    # Get the formula from the base model name
+    formula_str <- model_specs[[base_model_name]]
     if (is.null(formula_str)) {
         formula_str <- "Unknown formula"
     }
 
     data.frame(
-        Model = model_name,
+        Model = full_model_name,
+        Base_Model = base_model_name,
+        Correlation = corr_suffix,
         Formula = formula_str,
         AIC = AIC(model$lme),
         LogLik = logLik(model$lme)[1],
@@ -673,13 +686,13 @@ aic_results <- map_dfr(names(successful_models), function(model_name) {
 # Display top 10 models
 aic_results %>%
     head(10) %>%
-    select(Model, AIC, Delta_AIC, AIC_weight, df) %>%
+    select(Model, Correlation, AIC, Delta_AIC, AIC_weight, df) %>%
     kable(digits = 3, caption = "Top 10 models by AIC")
 
 # Show model formulas for top 5
 cat("\nTop 5 model specifications:\n")
 head(aic_results, 5) %>%
-    select(Model, Formula, Delta_AIC) %>%
+    select(Base_Model, Correlation, Formula, Delta_AIC) %>%
     kable(digits = 3)
 ```
 
@@ -1078,8 +1091,13 @@ if (grepl("butterflies_95th_percentile_t_1", best_formula)) {
     cat("- Previous day baseline is NOT in the model (testing absolute effects)\n")
 }
 
-# No temporal autocorrelation structure used
-cat("- Temporal autocorrelation: No correlation structure used (simplified models)\n")
+# Temporal autocorrelation structure
+best_corr <- gsub(".*_", "", best_model_name)
+if (best_corr == "AR1") {
+    cat("- Temporal autocorrelation: AR1 structure within deployments (day_sequence | deployment_id)\n")
+} else {
+    cat("- Temporal autocorrelation: No correlation structure\n")
+}
 
 cat("\n", rep("=", 60), collapse = "", "\n")
 ```
@@ -1133,7 +1151,7 @@ The analysis reveals:
 
 4. **Interpretation**: By excluding the previous day's baseline count, these models test whether environmental variables have consistent absolute effects on butterfly numbers regardless of the starting population size. This is complementary to models that include the baseline, which test for proportional or density-dependent effects.
 
-5. **Temporal Autocorrelation**: Models were fitted without temporal autocorrelation structures for simplicity, focusing on the direct environmental effects while accounting for deployment-level variation through random intercepts.
+5. **Temporal Autocorrelation**: Models were fitted both with and without AR1 temporal autocorrelation structures. The AR1 structure uses day_sequence within each deployment_id, properly accounting for the sequential nature of daily observations while resetting the correlation structure for each deployment site.
 
 6. **Temporal Scale**: Daily aggregation captures cumulative weather effects over 24-hour periods, providing insights into how sustained environmental conditions (rather than brief events) influence monarch roosting populations.
 
