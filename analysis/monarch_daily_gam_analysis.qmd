@@ -162,9 +162,10 @@ kable(round(cor_matrix, 3),
 library(nortest)
 
 # First, identify all potential response variables in the dataset
+# Exclude already-transformed variables to prevent double-transformation
 response_candidates <- daily_data %>%
     select(contains("diff"), contains("butterfly")) %>%
-    select(-contains("direct_sun")) %>%  # Remove non-response variables
+    select(-contains("direct_sun"), -contains("sqrt"), -contains("cbrt"), -contains("log")) %>%  # Remove non-response and already-transformed variables
     names()
 
 cat("Available response variable candidates:\n")
@@ -173,16 +174,7 @@ print(response_candidates)
 # Define transformations to test
 transformations <- list(
     "original" = function(x) x,
-    "sqrt" = function(x) ifelse(x >= 0, sqrt(x), -sqrt(-x)),  # Signed square root
-    "fourth_root" = function(x) ifelse(x >= 0, x^0.25, -((-x)^0.25)),  # Signed fourth root
-    "arcsinh" = function(x) asinh(x),  # Inverse hyperbolic sine (handles negative values)
-    "yeo_johnson" = function(x) {
-        # Simplified Yeo-Johnson transformation
-        lambda <- 0.5
-        ifelse(x >= 0,
-               ((x + 1)^lambda - 1) / lambda,
-               -(((-x) + 1)^(2-lambda) - 1) / (2-lambda))
-    }
+    "sqrt" = function(x) ifelse(x >= 0, sqrt(x), -sqrt(-x))  # Signed square root
 )
 
 # Function to calculate normality statistics
@@ -301,8 +293,8 @@ print(summary(daily_data$butterfly_diff_95th_sqrt))
 ```
 
 ```{r normality-visualization}
-# Visualize the top 6 most normal transformations
-top_transformations <- head(normality_ranking, 6)
+# Visualize all transformations (original and sqrt)
+top_transformations <- normality_ranking
 
 plots <- list()
 for(i in 1:nrow(top_transformations)) {
@@ -338,12 +330,7 @@ for(i in 1:nrow(top_transformations)) {
 }
 
 # Arrange plots in grid
-if(length(plots) >= 6) {
-    grid.arrange(plots[[1]], plots[[2]], plots[[3]],
-                plots[[4]], plots[[5]], plots[[6]], ncol = 3)
-} else {
-    do.call(grid.arrange, c(plots, ncol = 3))
-}
+do.call(grid.arrange, c(plots, ncol = 3))
 ```
 
 ### Temperature Patterns
