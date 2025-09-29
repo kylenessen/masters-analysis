@@ -148,6 +148,192 @@ kable(round(cor_matrix, 3),
 )
 ```
 
+### Response Variable Normality Assessment
+
+```{r response-normality-analysis}
+library(nortest)
+
+# First, identify all potential response variables in the dataset
+response_candidates <- daily_data %>%
+    select(contains("diff"), contains("butterfly")) %>%
+    select(-contains("direct_sun")) %>%  # Remove non-response variables
+    names()
+
+cat("Available response variable candidates:\n")
+print(response_candidates)
+
+# Define transformations to test
+transformations <- list(
+    "original" = function(x) x,
+    "sqrt" = function(x) ifelse(x >= 0, sqrt(x), -sqrt(-x)),  # Signed square root
+    "fourth_root" = function(x) ifelse(x >= 0, x^0.25, -((-x)^0.25)),  # Signed fourth root
+    "arcsinh" = function(x) asinh(x),  # Inverse hyperbolic sine (handles negative values)
+    "yeo_johnson" = function(x) {
+        # Simplified Yeo-Johnson transformation
+        lambda <- 0.5
+        ifelse(x >= 0,
+               ((x + 1)^lambda - 1) / lambda,
+               -(((-x) + 1)^(2-lambda) - 1) / (2-lambda))
+    }
+)
+
+# Function to calculate normality statistics
+assess_normality <- function(x, var_name, transform_name) {
+    # Remove NA values
+    x_clean <- x[!is.na(x)]
+
+    if(length(x_clean) < 10) {
+        return(data.frame(
+            Variable = var_name,
+            Transformation = transform_name,
+            N = length(x_clean),
+            Mean = NA,
+            SD = NA,
+            Skewness = NA,
+            Kurtosis = NA,
+            Shapiro_p = NA,
+            Anderson_p = NA,
+            Normality_Score = 0
+        ))
+    }
+
+    # Calculate statistics
+    mean_val <- mean(x_clean)
+    sd_val <- sd(x_clean)
+    skew_val <- moments::skewness(x_clean)
+    kurt_val <- moments::kurtosis(x_clean) - 3  # Excess kurtosis
+
+    # Normality tests
+    shapiro_p <- if(length(x_clean) <= 5000) shapiro.test(x_clean)$p.value else NA
+    anderson_p <- tryCatch(nortest::ad.test(x_clean)$p.value, error = function(e) NA)
+
+    # Create composite normality score (higher = more normal)
+    # Based on: low absolute skewness, low absolute kurtosis, high p-values
+    skew_score <- max(0, 1 - abs(skew_val) / 2)  # Penalize skewness > 2
+    kurt_score <- max(0, 1 - abs(kurt_val) / 4)  # Penalize excess kurtosis > 4
+    shapiro_score <- ifelse(is.na(shapiro_p), 0.5, shapiro_p)
+    anderson_score <- ifelse(is.na(anderson_p), 0.5, anderson_p)
+
+    # Weighted composite score
+    normality_score <- (skew_score * 0.3 + kurt_score * 0.3 +
+                       shapiro_score * 0.2 + anderson_score * 0.2)
+
+    return(data.frame(
+        Variable = var_name,
+        Transformation = transform_name,
+        N = length(x_clean),
+        Mean = round(mean_val, 3),
+        SD = round(sd_val, 3),
+        Skewness = round(skew_val, 3),
+        Kurtosis = round(kurt_val, 3),
+        Shapiro_p = ifelse(is.na(shapiro_p), NA, round(shapiro_p, 4)),
+        Anderson_p = ifelse(is.na(anderson_p), NA, round(anderson_p, 4)),
+        Normality_Score = round(normality_score, 4)
+    ))
+}
+
+# Load required library for moments
+library(moments)
+
+# Apply transformations and assess normality for each response variable
+normality_results <- list()
+
+for(var_name in response_candidates) {
+    if(var_name %in% names(daily_data)) {
+        var_data <- daily_data[[var_name]]
+
+        for(trans_name in names(transformations)) {
+            trans_func <- transformations[[trans_name]]
+
+            # Apply transformation
+            transformed_data <- tryCatch(
+                trans_func(var_data),
+                error = function(e) rep(NA, length(var_data))
+            )
+
+            # Assess normality
+            result <- assess_normality(transformed_data, var_name, trans_name)
+            normality_results[[paste(var_name, trans_name, sep = "_")]] <- result
+        }
+    }
+}
+
+# Combine results
+normality_df <- do.call(rbind, normality_results)
+
+# Rank by normality score
+normality_ranking <- normality_df %>%
+    arrange(desc(Normality_Score)) %>%
+    filter(!is.na(Normality_Score)) %>%
+    mutate(Rank = row_number()) %>%
+    select(Rank, Variable, Transformation, N, Mean, SD, Skewness, Kurtosis,
+           Shapiro_p, Anderson_p, Normality_Score)
+
+# Display top 15 most normal distributions
+cat("Top 15 most normal response variable transformations:\n\n")
+kable(head(normality_ranking, 15),
+      caption = "Response variables ranked by normality (higher score = more normal)")
+
+# Create summary by variable
+variable_summary <- normality_ranking %>%
+    group_by(Variable) %>%
+    slice_max(Normality_Score, n = 1) %>%
+    ungroup() %>%
+    arrange(desc(Normality_Score)) %>%
+    select(Variable, Best_Transformation = Transformation, Best_Score = Normality_Score,
+           Skewness, Kurtosis, Shapiro_p)
+
+cat("\n\nBest transformation for each response variable:\n")
+kable(variable_summary,
+      caption = "Best transformation for each response variable")
+```
+
+```{r normality-visualization}
+# Visualize the top 6 most normal transformations
+top_transformations <- head(normality_ranking, 6)
+
+plots <- list()
+for(i in 1:nrow(top_transformations)) {
+    row <- top_transformations[i, ]
+    var_name <- row$Variable
+    trans_name <- row$Transformation
+
+    if(var_name %in% names(daily_data)) {
+        var_data <- daily_data[[var_name]]
+        trans_func <- transformations[[trans_name]]
+        transformed_data <- trans_func(var_data)
+
+        # Create histogram with normal overlay
+        p <- ggplot(data.frame(x = transformed_data), aes(x = x)) +
+            geom_histogram(aes(y = after_stat(density)), bins = 30,
+                          fill = "steelblue", alpha = 0.7) +
+            stat_function(fun = dnorm,
+                         args = list(mean = mean(transformed_data, na.rm = TRUE),
+                                   sd = sd(transformed_data, na.rm = TRUE)),
+                         color = "red", size = 1) +
+            labs(
+                title = paste0("Rank ", i, ": ", var_name),
+                subtitle = paste0(trans_name, " (Score: ", row$Normality_Score, ")"),
+                x = paste0(var_name, " (", trans_name, ")"),
+                y = "Density"
+            ) +
+            theme_minimal() +
+            theme(plot.title = element_text(size = 10),
+                  plot.subtitle = element_text(size = 8))
+
+        plots[[i]] <- p
+    }
+}
+
+# Arrange plots in grid
+if(length(plots) >= 6) {
+    grid.arrange(plots[[1]], plots[[2]], plots[[3]],
+                plots[[4]], plots[[5]], plots[[6]], ncol = 3)
+} else {
+    do.call(grid.arrange, c(plots, ncol = 3))
+}
+```
+
 ### Temperature Patterns
 
 ```{r temperature-exploration}
