@@ -1,0 +1,2 @@
+Model,Formula,AIC,Delta_AIC
+M24,butterfly_diff_95th_cbrt ~ s(wind_max_gust_t_1),540.8556056112271,0

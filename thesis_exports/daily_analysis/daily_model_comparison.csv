@@ -1,0 +1,11 @@
+Model,Formula,AIC,LogLik,df,Delta_AIC,AIC_weight
+M24,butterfly_diff_95th_cbrt ~ s(wind_max_gust_t_1),540.8556056112271,-265.42780280561357,5,0,0.11412953571662635
+M31,butterfly_diff_95th_cbrt ~ s(temp_at_max_count_t_1) + s(wind_max_gust_t_1),541.0736756582244,-263.5368378291122,7,0.21807004699724075,0.10233984184997219
+M33,butterfly_diff_95th_cbrt ~ s(wind_max_gust_t_1) + s(sum_butterflies_direct_sun_t_1),541.2163266147963,-263.6081633073982,7,0.36072100356921055,0.09529464134496544
+M2,butterfly_diff_95th_cbrt ~ wind_max_gust_t_1,541.2340523611659,-266.61702618058297,4,0.3784467499388029,0.09445378871276801
+M34,butterfly_diff_95th_cbrt ~ s(temp_at_max_count_t_1) + s(wind_max_gust_t_1) + s(sum_butterflies_direct_sun_t_1),541.7594016686246,-261.8797008343123,9,0.9037960573974715,0.07263421216957691
+M1,butterfly_diff_95th_cbrt ~ 1,541.813275001195,-267.9066375005975,3,0.9576693899679185,0.07070380472732457
+M28,butterfly_diff_95th_cbrt ~ s(sum_butterflies_direct_sun_t_1),542.0350303458059,-266.01751517290296,5,1.179424734578788,0.06328331537580022
+M38,butterfly_diff_95th_cbrt ~ temp_at_max_count_t_1 + s(wind_max_gust_t_1) + s(sum_butterflies_direct_sun_t_1),542.4336605992705,-263.21683029963526,8,1.578054988043391,0.05184749326023744
+M36,butterfly_diff_95th_cbrt ~ s(temp_at_max_count_t_1) + s(wind_max_gust_t_1) + s(sum_butterflies_direct_sun_t_1) + s(days_since_oct15_t),542.6631715592081,-260.33158577960404,11,1.8075659479809474,0.046226402038056176
+M14,butterfly_diff_95th_cbrt ~ wind_max_gust_t_1 + temp_at_max_count_t_1,543.3679556417939,-266.6839778208969,5,2.512350030566722,0.032497366856443555
