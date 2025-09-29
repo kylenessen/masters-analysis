@@ -1,0 +1,15 @@
+\begin{table}
+
+\caption{Summary of smooth terms in the best-fit GAM model}
+\centering
+\begin{tabular}[t]{llrrrl}
+\toprule
+  & Smooth Term & EDF & Ref. df & F & p-value\\
+\midrule
+s(total\_butterflies\_t\_lag) & Previous butterfly count & 2.621 & 2.621 & 12.020 & 8.26e-07\\
+s(temperature\_avg) & Temperature & 3.930 & 3.930 & 3.230 & 0.0283\\
+s(butterflies\_direct\_sun\_t\_lag) & Butterflies in direct sun & 1.534 & 1.534 & 19.356 & 1.22e-05\\
+s(time\_within\_day\_t) & Time since sunrise & 4.898 & 4.898 & 8.901 & < 2e-16\\
+\bottomrule
+\end{tabular}
+\end{table}

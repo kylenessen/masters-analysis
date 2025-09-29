@@ -1,0 +1,1704 @@
+---
+title: "Analysis of distruptive winds to overwintering monarch butterflies"
+author: "Kyle Nessen"
+date: "`r Sys.Date()`"
+format:
+    #html:
+        #embed-resources: true
+        #toc: true
+        #toc-depth: 3
+        #code-fold: true
+        #theme: cosmo
+    pdf:
+        toc: true
+        toc-depth: 3
+        documentclass: article
+execute:
+    warning: false
+    message: false
+---
+
+## Introduction
+
+This analysis investigates the first hypothesis of my master's thesis: that wind acts as a disruptive force to overwintering monarch butterflies. If true, we predict that monarch abundance at roosts will decrease when exposed to disruptive winds. I use labeled photos from my 2023-2024 dataset to test this hypothesis. I employed GAM (Generalized Additive Models) because they allow for non-linear relationships in fixed effects while maintaining the necessary random effect structure to account for temporal autocorrelation and nested sampling design. All smooth terms used thin plate regression splines (TPRS) as the basis function, which is the default in mgcv and provides optimal smoothing for most ecological relationships.
+
+## Setup
+
+Load libraries and data:
+
+```{r setup}
+library(tidyverse)
+library(mgcv)
+library(lubridate)
+library(plotly)
+library(knitr)
+library(DT)
+library(here)
+library(gratia)  # For ggplot2-based GAM plotting
+library(patchwork)  # For combining ggplot2 plots
+# Load the monarch analysis data
+monarch_data <- read_csv(here("data", "monarch_analysis_lag30min.csv"))
+```
+
+## Exploratory Data Analysis
+
+The response variable is the difference in monarch counts between time t and t-1 at 30-minute intervals. I applied a cube root transformation to achieve a more normal distribution. Because the lagged comparisons create overlapping pairs of observations, I include an AR1 autocorrelation structure to account for temporal dependence.
+
+```{r temporal-dependency-diagram}
+#| fig-cap: "Illustration of temporal dependency in observation pairs. Points represent photos with labeled count data at 30-minute intervals. Blue boxes show non-overlapping pairs of observations. The red box shows an overlapping comparison where one observation is shared between adjacent pairs, creating temporal autocorrelation that is controlled by the AR1 structure."
+#| out-width: "80%"
+#| fig-align: "center"
+knitr::include_graphics("images/clipboard-1435734413.png")
+```
+
+```{r data-comparison}
+library(gridExtra)
+
+# Compare total butterfly counts with and without SC8
+p_all <- ggplot(monarch_data, aes(x = total_butterflies_t_lag)) +
+    geom_histogram(bins = 30, fill = "steelblue", alpha = 0.7) +
+    labs(
+        title = "Total Butterflies - All Data",
+        x = "Previous Butterfly Count", y = "Frequency"
+    ) +
+    theme_minimal()
+
+p_no_sc8 <- ggplot(monarch_data %>% filter(deployment_id != "SC8"), aes(x = total_butterflies_t_lag)) +
+    geom_histogram(bins = 30, fill = "orange", alpha = 0.7) +
+    labs(
+        title = "Total Butterflies - SC8 Excluded",
+        x = "Previous Butterfly Count", y = "Frequency"
+    ) +
+    theme_minimal()
+
+grid.arrange(p_all, p_no_sc8, ncol = 2)
+```
+
+```{r exploratory-plots}
+library(corrplot)
+library(gridExtra)
+
+# Select variables used in the models
+model_vars <- monarch_data %>%
+    select(
+        butterfly_difference_cbrt, total_butterflies_t_lag, max_gust,
+        temperature_avg, butterflies_direct_sun_t_lag, time_within_day_t
+    )
+
+# Histograms of key variables
+p1 <- ggplot(monarch_data, aes(x = butterfly_difference_cbrt)) +
+    geom_histogram(bins = 30, fill = "steelblue", alpha = 0.7) +
+    labs(
+        title = "Response: Butterfly Difference (Cube Root)",
+        x = "Butterfly Difference (cbrt)", y = "Frequency"
+    )
+
+p2 <- ggplot(monarch_data, aes(x = total_butterflies_t_lag)) +
+    geom_histogram(bins = 30, fill = "orange", alpha = 0.7) +
+    labs(
+        title = "Previous Butterfly Count",
+        x = "Previous Butterfly Count", y = "Frequency"
+    )
+
+p3 <- ggplot(monarch_data, aes(x = temperature_avg)) +
+    geom_histogram(bins = 30, fill = "red", alpha = 0.7) +
+    labs(
+        title = "Temperature Distribution",
+        x = "Temperature (°C)", y = "Frequency"
+    )
+
+p4 <- ggplot(monarch_data, aes(x = max_gust)) +
+    geom_histogram(bins = 30, fill = "lightblue", alpha = 0.7) +
+    labs(
+        title = "Maximum Wind Speed Distribution",
+        x = "Maximum Wind Speed (m/s)", y = "Frequency"
+    )
+
+grid.arrange(p1, p2, p3, p4, ncol = 2)
+```
+
+```{r correlation-analysis}
+# Correlation matrix for model variables
+cor_matrix <- cor(model_vars, use = "complete.obs")
+
+# Create correlation plot
+corrplot(cor_matrix,
+    method = "color",
+    type = "upper",
+    order = "hclust",
+    tl.cex = 0.8,
+    tl.col = "black",
+    tl.srt = 45,
+    addCoef.col = "black",
+    number.cex = 0.7,
+    title = "Correlation Matrix: Model Variables"
+)
+
+# Print correlation table
+kable(round(cor_matrix, 3),
+    caption = "Correlation Matrix for Model Variables"
+)
+```
+
+```{r diurnal-patterns}
+# Butterfly activity by time of day
+p1 <- ggplot(monarch_data, aes(x = time_within_day_t, y = total_butterflies_t_lag)) +
+    geom_point(alpha = 0.3) +
+    geom_smooth(method = "loess", se = TRUE, color = "blue") +
+    labs(
+        title = "Butterfly Abundance Throughout the Day",
+        x = "Time Since Sunrise (minutes)", y = "Previous Butterfly Count"
+    ) +
+    theme_minimal()
+
+# Sun exposure patterns by time
+p2 <- ggplot(monarch_data, aes(x = time_within_day_t, y = butterflies_direct_sun_t_lag)) +
+    geom_point(alpha = 0.3, color = "orange") +
+    geom_smooth(method = "loess", se = TRUE, color = "darkorange") +
+    labs(
+        title = "Sun Exposure Throughout the Day",
+        x = "Time Since Sunrise (minutes)", y = "Butterflies in Direct Sun"
+    ) +
+    theme_minimal()
+
+# Temperature patterns by time
+p3 <- ggplot(monarch_data, aes(x = time_within_day_t, y = temperature_avg)) +
+    geom_point(alpha = 0.3, color = "red") +
+    geom_smooth(method = "loess", se = TRUE, color = "darkred") +
+    labs(
+        title = "Temperature Throughout the Day",
+        x = "Time Since Sunrise (minutes)", y = "Temperature (°C)"
+    ) +
+    theme_minimal()
+
+# Response variable by time
+p4 <- ggplot(monarch_data, aes(x = time_within_day_t, y = butterfly_difference_cbrt)) +
+    geom_point(alpha = 0.3, color = "purple") +
+    geom_smooth(method = "loess", se = TRUE, color = "darkviolet") +
+    labs(
+        title = "Butterfly Change Throughout the Day",
+        x = "Time Since Sunrise (minutes)", y = "Butterfly Difference (cbrt)"
+    ) +
+    theme_minimal()
+
+grid.arrange(p1, p2, p3, p4, ncol = 2)
+```
+
+## Individual Predictor GAM Plots
+
+Exploring the relationship between each model predictor and butterfly_difference_cbrt with GAM smoothed lines to understand the shape of relationships before modeling.
+
+```{r individual-predictor-gams}
+#| fig-width: 10
+#| fig-height: 6
+library(mgcv)
+
+# Maximum Wind Speed vs Butterfly Difference
+p1 <- ggplot(monarch_data, aes(x = max_gust, y = butterfly_difference_cbrt)) +
+    geom_point(alpha = 0.3, color = "steelblue") +
+    geom_smooth(method = "gam", se = TRUE, color = "darkblue") +
+    labs(
+        title = "Maximum Wind Speed vs Butterfly Change",
+        x = "Maximum Wind Speed (m/s)",
+        y = "Butterfly Difference (cbrt)"
+    ) +
+    theme_minimal()
+
+# Temperature vs Butterfly Difference
+p2 <- ggplot(monarch_data, aes(x = temperature_avg, y = butterfly_difference_cbrt)) +
+    geom_point(alpha = 0.3, color = "red") +
+    geom_smooth(method = "gam", se = TRUE, color = "darkred") +
+    labs(
+        title = "Temperature vs Butterfly Change",
+        x = "Temperature (°C)",
+        y = "Butterfly Difference (cbrt)"
+    ) +
+    theme_minimal()
+
+# Butterflies in Direct Sun vs Butterfly Difference
+p3 <- ggplot(monarch_data, aes(x = butterflies_direct_sun_t_lag, y = butterfly_difference_cbrt)) +
+    geom_point(alpha = 0.3, color = "orange") +
+    geom_smooth(method = "gam", se = TRUE, color = "darkorange") +
+    labs(
+        title = "Direct Sun Exposure vs Butterfly Change",
+        x = "Butterflies in Direct Sun",
+        y = "Butterfly Difference (cbrt)"
+    ) +
+    theme_minimal()
+
+# Time of Day vs Butterfly Difference
+p4 <- ggplot(monarch_data, aes(x = time_within_day_t, y = butterfly_difference_cbrt)) +
+    geom_point(alpha = 0.3, color = "purple") +
+    geom_smooth(method = "gam", se = TRUE, color = "darkviolet") +
+    labs(
+        title = "Time Since Sunrise vs Butterfly Change",
+        x = "Time Since Sunrise (minutes)",
+        y = "Butterfly Difference (cbrt)"
+    ) +
+    theme_minimal()
+
+# Total Butterflies (previous) vs Butterfly Difference
+p5 <- ggplot(monarch_data, aes(x = total_butterflies_t_lag, y = butterfly_difference_cbrt)) +
+    geom_point(alpha = 0.3, color = "darkgreen") +
+    geom_smooth(method = "gam", se = TRUE, color = "forestgreen") +
+    labs(
+        title = "Previous Butterfly Count vs Change",
+        x = "Previous Butterfly Count",
+        y = "Butterfly Difference (cbrt)"
+    ) +
+    theme_minimal()
+
+# Display plots in grid
+p1
+p2
+p3
+p4
+p5
+```
+
+```{r data-prep}
+#| include: false
+# Check grove distribution
+table(monarch_data$grove)
+
+# Remove any rows with missing values in key variables and exclude SC_8
+model_data <- monarch_data %>%
+    filter(
+        !is.na(butterfly_difference_cbrt),
+        !is.na(total_butterflies_t_lag),
+        !is.na(max_gust),
+        !is.na(temperature_avg),
+        !is.na(butterflies_direct_sun_t_lag),
+        !is.na(deployment_id),
+        !is.na(deployment_day),
+        !is.na(Observer),
+        !is.na(observation_order_within_day_t)
+    )
+
+cat("Clean dataset has", nrow(model_data), "observations\n")
+```
+
+## Modeling Strategy
+
+Our modeling approach used a comprehensive AIC-based comparison to evaluate all possible combinations of three key environmental predictors: wind speed (max_gust), temperature (temperature_avg), and solar exposure (butterflies_direct_sun_t_lag). We tested two fundamental modeling frameworks: models that include total_butterflies_t_lag as a control variable (testing effects on relative/proportional change) and models that exclude it (testing effects on absolute change). Within each framework, we systematically evaluated linear main effects, two-way and three-way interactions, and non-linear relationships using smooth terms. We also incorporated time-of-day effects to capture diurnal patterns. This resulted in 47 candidate models that comprehensively explore the parameter space while maintaining proper mixed-effects structure with random effects for deployment, observer, and day, plus AR1 correlation for within-day autocorrelation.
+
+## Model Building and Selection
+
+Please expand the code block to see the full list of models tested.
+
+```{r model-setup}
+library(nlme)
+
+# Define the random effects structure and correlation
+random_structure <- list(deployment_id = ~1, Observer = ~1, deployment_day = ~1)
+correlation_structure <- corAR1(form = ~ observation_order_within_day_t | deployment_day)
+
+# Model specifications for AIC comparison
+model_specs <- list(
+    # Null model
+    "M1" = "butterfly_difference_cbrt ~ total_butterflies_t_lag",
+
+    # Single variable models
+    "M2" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust",
+    "M3" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + temperature_avg",
+    "M4" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + butterflies_direct_sun_t_lag",
+
+    # Two-variable combinations
+    "M5" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust + temperature_avg",
+    "M6" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust + butterflies_direct_sun_t_lag",
+    "M7" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + temperature_avg + butterflies_direct_sun_t_lag",
+
+    # Three-variable model (main effects only)
+    "M8" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust + temperature_avg + butterflies_direct_sun_t_lag",
+
+    # Two-way interactions
+    "M9" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust * temperature_avg",
+    "M10" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust * butterflies_direct_sun_t_lag",
+    "M11" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + temperature_avg * butterflies_direct_sun_t_lag",
+
+    # Two-way interactions with third variable as main effect
+    "M12" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust * temperature_avg + butterflies_direct_sun_t_lag",
+    "M13" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust * butterflies_direct_sun_t_lag + temperature_avg",
+    "M14" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + temperature_avg * butterflies_direct_sun_t_lag + max_gust",
+
+    # All two-way interactions
+    "M15" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust * temperature_avg + max_gust * butterflies_direct_sun_t_lag + temperature_avg * butterflies_direct_sun_t_lag",
+
+    # Three-way interaction
+    "M16" = "butterfly_difference_cbrt ~ total_butterflies_t_lag + max_gust * temperature_avg * butterflies_direct_sun_t_lag",
+
+    # Smooth terms models (with lag term)
+    "M17" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + s(temperature_avg) + s(butterflies_direct_sun_t_lag)",
+    "M18" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + temperature_avg + s(butterflies_direct_sun_t_lag)",
+    "M19" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + s(max_gust) + temperature_avg + s(butterflies_direct_sun_t_lag)",
+    "M20" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + s(temperature_avg) + s(butterflies_direct_sun_t_lag)",
+    "M21" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + s(max_gust) + s(temperature_avg) + s(butterflies_direct_sun_t_lag)",
+    "M22" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + temperature_avg + s(butterflies_direct_sun_t_lag) + s(time_within_day_t)",
+    "M23" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + s(temperature_avg) + s(butterflies_direct_sun_t_lag) + s(time_within_day_t)",
+    "M24" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + s(max_gust) + s(temperature_avg) + s(butterflies_direct_sun_t_lag) + s(time_within_day_t)",
+
+    # Models WITHOUT lag term - testing environmental effects on absolute change
+    "M25" = "butterfly_difference_cbrt ~ 1",
+    "M26" = "butterfly_difference_cbrt ~ max_gust",
+    "M27" = "butterfly_difference_cbrt ~ temperature_avg",
+    "M28" = "butterfly_difference_cbrt ~ butterflies_direct_sun_t_lag",
+    "M29" = "butterfly_difference_cbrt ~ max_gust + temperature_avg",
+    "M30" = "butterfly_difference_cbrt ~ max_gust + butterflies_direct_sun_t_lag",
+    "M31" = "butterfly_difference_cbrt ~ temperature_avg + butterflies_direct_sun_t_lag",
+    "M32" = "butterfly_difference_cbrt ~ max_gust + temperature_avg + butterflies_direct_sun_t_lag",
+    "M33" = "butterfly_difference_cbrt ~ max_gust * temperature_avg",
+    "M34" = "butterfly_difference_cbrt ~ max_gust * butterflies_direct_sun_t_lag",
+    "M35" = "butterfly_difference_cbrt ~ temperature_avg * butterflies_direct_sun_t_lag",
+    "M36" = "butterfly_difference_cbrt ~ max_gust * temperature_avg + butterflies_direct_sun_t_lag",
+    "M37" = "butterfly_difference_cbrt ~ max_gust * butterflies_direct_sun_t_lag + temperature_avg",
+    "M38" = "butterfly_difference_cbrt ~ temperature_avg * butterflies_direct_sun_t_lag + max_gust",
+    "M39" = "butterfly_difference_cbrt ~ max_gust * temperature_avg + max_gust * butterflies_direct_sun_t_lag + temperature_avg * butterflies_direct_sun_t_lag",
+    "M40" = "butterfly_difference_cbrt ~ max_gust * temperature_avg * butterflies_direct_sun_t_lag",
+
+    # Smooth terms models WITHOUT lag term
+    "M41" = "butterfly_difference_cbrt ~ s(temperature_avg) + s(butterflies_direct_sun_t_lag)",
+    "M42" = "butterfly_difference_cbrt ~ temperature_avg + s(butterflies_direct_sun_t_lag)",
+    "M43" = "butterfly_difference_cbrt ~ s(max_gust) + temperature_avg + s(butterflies_direct_sun_t_lag)",
+    "M44" = "butterfly_difference_cbrt ~ s(temperature_avg) + s(butterflies_direct_sun_t_lag)",
+    "M45" = "butterfly_difference_cbrt ~ s(max_gust) + s(temperature_avg) + s(butterflies_direct_sun_t_lag)",
+    "M46" = "butterfly_difference_cbrt ~ temperature_avg + s(butterflies_direct_sun_t_lag) + s(time_within_day_t)",
+    "M47" = "butterfly_difference_cbrt ~ s(temperature_avg) + s(butterflies_direct_sun_t_lag) + s(time_within_day_t)",
+    "M48" = "butterfly_difference_cbrt ~ s(max_gust) + s(temperature_avg) + s(butterflies_direct_sun_t_lag) + s(time_within_day_t)"
+)
+
+cat("Total models to fit:", length(model_specs), "\n")
+```
+
+## Model Fitting
+
+```{r model-fitting}
+#| cache: true
+# Function to safely fit models
+fit_model_safely <- function(formula_str, data) {
+    tryCatch({
+            formula_obj <- as.formula(formula_str)
+            gamm(formula_obj,
+                data = data,
+                random = random_structure,
+                correlation = correlation_structure,
+                method = "REML"
+            )
+        },
+        error = function(e) {
+            message("Failed to fit model: ", formula_str)
+            message("Error: ", e$message)
+            return(NULL)
+        }
+    )
+}
+
+# Fit all models
+cat("Fitting models...\n")
+fitted_models <- map(model_specs, ~ fit_model_safely(.x, model_data))
+
+# Remove failed models
+successful_models <- fitted_models[!map_lgl(fitted_models, is.null)]
+cat("Successfully fitted", length(successful_models), "out of", length(model_specs), "models\n")
+```
+
+## Model Comparison
+
+```{r model-comparison}
+# Extract AIC values
+aic_results <- map_dfr(names(successful_models), function(model_name) {
+    model <- successful_models[[model_name]]
+    data.frame(
+        Model = model_name,
+        Formula = model_specs[[model_name]],
+        AIC = AIC(model$lme),
+        LogLik = logLik(model$lme)[1],
+        df = attr(logLik(model$lme), "df")
+    )
+}) %>%
+    arrange(AIC) %>%
+    mutate(
+        Delta_AIC = AIC - min(AIC),
+        AIC_weight = exp(-0.5 * Delta_AIC) / sum(exp(-0.5 * Delta_AIC))
+    )
+
+# Display results
+aic_results %>%
+    select(Model, AIC, Delta_AIC, AIC_weight, df) %>%
+    kable(digits = 3, caption = "Model comparison by AIC")
+
+# Show top 5 models
+cat("\nTop 5 models by AIC:\n")
+head(aic_results, 5) %>%
+    select(Model, Formula, AIC, Delta_AIC) %>%
+    kable(digits = 3)
+```
+
+## Best Model Analysis
+
+```{r best-model-analysis}
+# Get the best model
+best_model_name <- aic_results$Model[1]
+best_model <- successful_models[[best_model_name]]
+
+cat("Best model:", best_model_name, "\n")
+cat("Formula:", aic_results$Formula[1], "\n\n")
+
+# Model summary
+summary(best_model$gam)
+```
+
+## Effect Plots (ggplot2 with Consistent Scaling and Colors)
+
+```{r setup-ggplot-theme-updated}
+# Define custom theme with grid lines and darker zero line
+custom_theme <- theme_minimal(base_size = 12) +
+  theme(
+    panel.grid.major = element_line(color = "gray90", size = 0.5),
+    panel.grid.minor = element_line(color = "gray95", size = 0.3),
+    axis.text = element_text(color = "black", size = 11),
+    axis.title = element_text(color = "black", size = 12, face = "bold"),
+    plot.title = element_text(color = "black", size = 14, face = "bold", hjust = 0.5),
+    panel.border = element_rect(color = "black", fill = NA, size = 0.5),
+    plot.margin = margin(10, 10, 10, 10)
+  )
+
+# Function to add darker zero line BEHIND the plot elements
+add_zero_line <- function(plot) {
+  # Create zero line layer - darker than grid lines but neutral and subtle
+  zero_line_layer <- geom_hline(yintercept = 0, color = "gray70", size = 0.8, alpha = 1)
+  
+  # Insert zero line as the first layer (background)
+  plot$layers <- c(list(zero_line_layer), plot$layers)
+  
+  return(plot)
+}
+
+# Load required libraries
+library(gratia)
+library(patchwork)
+
+# First, create all individual plots to extract their y-axis ranges
+temp_plots <- list(
+  draw(best_model$gam, select = "s(total_butterflies_t_lag)", rug = FALSE),
+  draw(best_model$gam, select = "s(temperature_avg)", rug = FALSE),
+  draw(best_model$gam, select = "s(butterflies_direct_sun_t_lag)", rug = FALSE),
+  draw(best_model$gam, select = "s(time_within_day_t)", rug = FALSE)
+)
+
+# Extract y-axis ranges from the temporary plots
+y_ranges <- sapply(temp_plots, function(p) {
+  built_plot <- ggplot_build(p)
+  built_plot$layout$panel_scales_y[[1]]$range$range
+})
+
+# Use calculated min and clipped max with increments of 1
+y_min <- floor(min(y_ranges))
+y_max <- 1.5  # Clip top to remove empty space
+y_limits <- c(y_min, y_max)
+y_breaks <- seq(y_min, y_max, by = 1)
+
+cat("Calculated y-axis limits:", y_limits, "\n")
+cat("Y-axis breaks:", y_breaks, "\n")
+```
+
+```{r create-individual-plots}
+# Define custom colors for each variable (from your color palette)
+# Order: Butterflies in Direct Sun, Previous Butterfly Count, Time Since Sunrise, Temperature
+plot_colors <- c(
+  "#c8743b",    # Butterflies in Direct Sun (orange/brown)
+  "#9673c5",    # Previous Butterfly Count (purple) 
+  "#79a44c",    # Time Since Sunrise (green)
+  "#b86e7e"     # Temperature (mauve/pink)
+)
+
+# Function to create 10% lighter colors for shaded areas
+lighten_color <- function(hex_color, amount = 0.1) {
+  # Convert hex to RGB
+  rgb_vals <- col2rgb(hex_color)
+  # Lighten by moving toward white (255)
+  lightened <- rgb_vals + (255 - rgb_vals) * amount
+  # Convert back to hex
+  rgb(lightened[1], lightened[2], lightened[3], maxColorValue = 255)
+}
+
+# Create lighter versions for shaded areas
+plot_colors_light <- sapply(plot_colors, lighten_color)
+
+# Create individual plots with consistent y-axis and unique colors
+# Based on your rearrangement: Butterflies in Direct Sun, Previous Butterfly Count, Time Since Sunrise, Temperature
+# Only the first plot (Butterflies in Direct Sun) will have y-axis label to reduce redundancy
+
+p1 <- draw(best_model$gam, select = "s(butterflies_direct_sun_t_lag)", 
+           rug = FALSE, residuals = FALSE) +
+  labs(
+    x = "Butterflies in direct sun",
+    y = "Partial effect",
+    title = NULL  # Remove title
+  ) +
+  scale_y_continuous(limits = y_limits, breaks = y_breaks) +
+  custom_theme +
+  theme(
+    legend.position = "none",
+    plot.background = element_rect(fill = "white", color = NA),
+    panel.background = element_rect(fill = "white", color = NA),
+    plot.caption = element_blank()  # Remove basis caption
+  )
+
+# Add darker zero line BEFORE applying color changes
+p1 <- add_zero_line(p1)
+
+# Override the default colors using a more direct approach (skip zero line)
+# Modify all layers to use custom colors
+for (i in seq_along(p1$layers)) {
+  # Skip the zero line (GeomHline) to preserve its neutral gray color
+  if (!is.null(p1$layers[[i]]$geom) && inherits(p1$layers[[i]]$geom, "GeomHline")) {
+    next
+  }
+  
+  if ("colour" %in% names(p1$layers[[i]]$aes_params)) {
+    p1$layers[[i]]$aes_params$colour <- plot_colors[1]
+  }
+  if ("fill" %in% names(p1$layers[[i]]$aes_params)) {
+    p1$layers[[i]]$aes_params$fill <- plot_colors_light[1]
+  }
+  # Also try to override any default aesthetics
+  if (!is.null(p1$layers[[i]]$geom)) {
+    if (inherits(p1$layers[[i]]$geom, "GeomLine")) {
+      p1$layers[[i]]$aes_params$colour <- plot_colors[1]
+    }
+    if (inherits(p1$layers[[i]]$geom, c("GeomRibbon", "GeomPolygon"))) {
+      p1$layers[[i]]$aes_params$fill <- plot_colors_light[1]
+    }
+  }
+}
+
+p2 <- draw(best_model$gam, select = "s(total_butterflies_t_lag)", 
+           rug = FALSE, residuals = FALSE) +
+  labs(
+    x = "Previous butterfly count",
+    y = "",  # Remove y-axis label
+    title = NULL  # Remove title
+  ) +
+  scale_y_continuous(limits = y_limits, breaks = y_breaks) +
+  custom_theme +
+  theme(
+    legend.position = "none",
+    plot.background = element_rect(fill = "white", color = NA),
+    panel.background = element_rect(fill = "white", color = NA),
+    axis.text.y = element_blank(),  # Remove y-axis text
+    axis.ticks.y = element_blank(),  # Remove y-axis ticks
+    plot.caption = element_blank()  # Remove basis caption
+  )
+
+# Add darker zero line BEFORE applying color changes
+p2 <- add_zero_line(p2)
+
+for (i in seq_along(p2$layers)) {
+  # Skip the zero line (GeomHline) to preserve its neutral gray color
+  if (!is.null(p2$layers[[i]]$geom) && inherits(p2$layers[[i]]$geom, "GeomHline")) {
+    next
+  }
+  
+  if ("colour" %in% names(p2$layers[[i]]$aes_params)) {
+    p2$layers[[i]]$aes_params$colour <- plot_colors[2]
+  }
+  if ("fill" %in% names(p2$layers[[i]]$aes_params)) {
+    p2$layers[[i]]$aes_params$fill <- plot_colors_light[2]
+  }
+  if (!is.null(p2$layers[[i]]$geom)) {
+    if (inherits(p2$layers[[i]]$geom, "GeomLine")) {
+      p2$layers[[i]]$aes_params$colour <- plot_colors[2]
+    }
+    if (inherits(p2$layers[[i]]$geom, c("GeomRibbon", "GeomPolygon"))) {
+      p2$layers[[i]]$aes_params$fill <- plot_colors_light[2]
+    }
+  }
+}
+
+p3 <- draw(best_model$gam, select = "s(time_within_day_t)", 
+           rug = FALSE, residuals = FALSE) +
+  labs(
+    x = "Time since sunrise (min)",
+    y = "",  # Remove y-axis label
+    title = NULL  # Remove title
+  ) +
+  scale_y_continuous(limits = y_limits, breaks = y_breaks) +
+  custom_theme +
+  theme(
+    legend.position = "none",
+    plot.background = element_rect(fill = "white", color = NA),
+    panel.background = element_rect(fill = "white", color = NA),
+    axis.text.y = element_blank(),  # Remove y-axis text
+    axis.ticks.y = element_blank(),  # Remove y-axis ticks
+    plot.caption = element_blank()  # Remove basis caption
+  )
+
+# Add darker zero line BEFORE applying color changes
+p3 <- add_zero_line(p3)
+
+for (i in seq_along(p3$layers)) {
+  # Skip the zero line (GeomHline) to preserve its neutral gray color
+  if (!is.null(p3$layers[[i]]$geom) && inherits(p3$layers[[i]]$geom, "GeomHline")) {
+    next
+  }
+  
+  if ("colour" %in% names(p3$layers[[i]]$aes_params)) {
+    p3$layers[[i]]$aes_params$colour <- plot_colors[3]
+  }
+  if ("fill" %in% names(p3$layers[[i]]$aes_params)) {
+    p3$layers[[i]]$aes_params$fill <- plot_colors_light[3]
+  }
+  if (!is.null(p3$layers[[i]]$geom)) {
+    if (inherits(p3$layers[[i]]$geom, "GeomLine")) {
+      p3$layers[[i]]$aes_params$colour <- plot_colors[3]
+    }
+    if (inherits(p3$layers[[i]]$geom, c("GeomRibbon", "GeomPolygon"))) {
+      p3$layers[[i]]$aes_params$fill <- plot_colors_light[3]
+    }
+  }
+}
+
+p4 <- draw(best_model$gam, select = "s(temperature_avg)", 
+           rug = FALSE, residuals = FALSE) +
+  labs(
+    x = "Temperature (°C)",
+    y = "",  # Remove y-axis label
+    title = NULL  # Remove title
+  ) +
+  scale_y_continuous(limits = y_limits, breaks = y_breaks) +
+  custom_theme +
+  theme(
+    legend.position = "none",
+    plot.background = element_rect(fill = "white", color = NA),
+    panel.background = element_rect(fill = "white", color = NA),
+    axis.text.y = element_blank(),  # Remove y-axis text
+    axis.ticks.y = element_blank(),  # Remove y-axis ticks
+    plot.caption = element_blank()  # Remove basis caption
+  )
+
+# Add darker zero line BEFORE applying color changes
+p4 <- add_zero_line(p4)
+
+for (i in seq_along(p4$layers)) {
+  # Skip the zero line (GeomHline) to preserve its neutral gray color
+  if (!is.null(p4$layers[[i]]$geom) && inherits(p4$layers[[i]]$geom, "GeomHline")) {
+    next
+  }
+  
+  if ("colour" %in% names(p4$layers[[i]]$aes_params)) {
+    p4$layers[[i]]$aes_params$colour <- plot_colors[4]
+  }
+  if ("fill" %in% names(p4$layers[[i]]$aes_params)) {
+    p4$layers[[i]]$aes_params$fill <- plot_colors_light[4]
+  }
+  if (!is.null(p4$layers[[i]]$geom)) {
+    if (inherits(p4$layers[[i]]$geom, "GeomLine")) {
+      p4$layers[[i]]$aes_params$colour <- plot_colors[4]
+    }
+    if (inherits(p4$layers[[i]]$geom, c("GeomRibbon", "GeomPolygon"))) {
+      p4$layers[[i]]$aes_params$fill <- plot_colors_light[4]
+    }
+  }
+}
+
+# Add flight threshold area (12.7-16°C) with fuzzy edges AFTER color modifications
+# Create a gradient effect by layering rectangles with decreasing alpha
+fade_width <- 0.5  # Width of fade zone on each side
+
+# Core threshold area (solid)
+p4 <- p4 +
+  annotate("rect",
+           xmin = 12.7 + fade_width, xmax = 16 - fade_width,
+           ymin = -Inf, ymax = Inf,
+           fill = "#ADD8E6", alpha = 0.4)
+
+# Fade zones - multiple layers for smooth gradient
+fade_steps <- 5
+for (i in 1:fade_steps) {
+  alpha_val <- 0.4 * (fade_steps - i + 1) / fade_steps
+  fade_offset <- fade_width * i / fade_steps
+
+  # Left fade
+  p4 <- p4 +
+    annotate("rect",
+             xmin = 12.7 + fade_width - fade_offset,
+             xmax = 12.7 + fade_width - fade_offset + fade_width/fade_steps,
+             ymin = -Inf, ymax = Inf,
+             fill = "#ADD8E6", alpha = alpha_val)
+
+  # Right fade
+  p4 <- p4 +
+    annotate("rect",
+             xmin = 16 - fade_width + fade_offset - fade_width/fade_steps,
+             xmax = 16 - fade_width + fade_offset,
+             ymin = -Inf, ymax = Inf,
+             fill = "#ADD8E6", alpha = alpha_val)
+}
+
+# Display individual plots
+print(p1)
+print(p2)
+print(p3)
+print(p4)
+```
+
+### 1x4 Grid Layout (Wide Aspect Ratio)
+
+```{r combined-effects-1x4}
+#| fig-width: 16
+#| fig-height: 5
+# Check that all plots exist before combining
+if (exists("p1") && exists("p2") && exists("p3") && exists("p4")) {
+  # Create 1x4 combined plot with explicit layout
+  combined_1x4 <- wrap_plots(p1, p2, p3, p4, nrow = 1, ncol = 4) +
+    plot_annotation(
+      theme = theme(plot.title = element_text(size = 16, hjust = 0.5, face = "bold"))
+    )
+  
+  print(combined_1x4)
+  
+  # Save the 1x4 layout to exports folder immediately
+  ggsave(file.path(export_dir, "figures", "partial_effects_1x4_display.png"), combined_1x4,
+    width = 16, height = 5, dpi = 300, bg = "white"
+  )
+  cat("1x4 display plot saved to:", file.path(export_dir, "figures", "partial_effects_1x4_display.png"), "\n")
+} else {
+  cat("Error: Not all individual plots were created successfully\n")
+}
+```
+
+
+## Model Diagnostics
+
+### Residuals vs Fitted Values
+
+```{r diagnostics-residuals-fitted}
+#| fig-width: 10
+#| fig-height: 6
+plot(best_model$lme, main = "Residuals vs Fitted Values")
+```
+
+### Q-Q Plot of Residuals
+
+```{r diagnostics-qq-plot}
+#| fig-width: 10
+#| fig-height: 6
+residuals_df <- data.frame(
+    fitted = fitted(best_model$lme),
+    residuals = residuals(best_model$lme, type = "normalized")
+)
+
+qqnorm(residuals_df$residuals, main = "Normal Q-Q Plot of Residuals")
+qqline(residuals_df$residuals)
+```
+
+### Distribution of Residuals
+
+```{r diagnostics-histogram}
+#| fig-width: 10
+#| fig-height: 6
+hist(residuals_df$residuals, main = "Distribution of Residuals", xlab = "Residuals", breaks = 30)
+```
+
+
+## Power Analysis for Wind Effect
+A common concern with non-significant results is whether the study had enough statistical power to detect an effect if one truly existed. A low R-squared value (like the 5.6% in our best model) is common in ecological studies with high natural variability and doesn't invalidate the model, but it does make power a relevant question.
+
+To address this, we can perform a simulation-based power analysis. This is a modern approach, especially for complex models like GAMs. The process is as follows:
+
+1.  **Simulate Data from the Null Hypothesis:** We take our best-fitting model (which does *not* include wind) and use it to generate hundreds of new, simulated datasets. These datasets have the same characteristics as our real data, but we know for a fact that there is no wind effect in them.
+2.  **Add a Known Wind Effect:** To each simulated dataset, we artificially add a wind effect of a specific size. We'll test several sizes, from small to medium, to see what our model is sensitive to.
+3.  **Re-run the Analysis:** We fit a GAM that *does* include a wind term to each of these new datasets.
+4.  **Calculate Power:** We calculate the percentage of these simulations in which we correctly detect the artificial wind effect as statistically significant (p < 0.05). This percentage is our statistical power.
+
+If we have high power to detect a small or medium-sized effect, it strengthens our conclusion that the true effect of wind is likely negligible or non-existent. If we only have power to detect a very large effect, our conclusions are weaker.
+
+```{r}
+#| label: power-analysis
+#| cache: true
+#| warning: false
+#| message: false
+
+cat("Starting power analysis for wind effect...\n")
+
+# Define effect sizes. These are defined in terms of the standard deviation of the response variable.
+# An effect size of 0.1 means we are testing if we can detect a scenario where a 1 standard deviation
+# increase in wind speed causes a 0.1 standard deviation change in the response.
+sd_response <- sd(model_data$butterfly_difference_cbrt, na.rm = TRUE)
+effect_sizes_to_test <- c(0.05, 0.1, 0.15, 0.2)
+
+# Simulation parameters
+n_sims <- 200 # For final results.
+alpha <- 0.05
+
+# Get predictions and residual SD from the best model (which does not include wind)
+# This will serve as the basis for our simulations.
+base_predictions <- predict(best_model$gam, newdata = model_data)
+residual_sd <- summary(best_model$gam)$scale
+
+# Store results
+power_results <- list()
+
+# Main simulation loop
+for (effect_size_coef in effect_sizes_to_test) {
+    
+    # This is the actual effect size we're adding to the model
+    current_effect_size <- effect_size_coef * sd_response
+    
+    cat("Testing effect size:", round(effect_size_coef, 2), " (SD units): ")
+    
+    p_values <- numeric(n_sims) # initialize vector
+
+    # Replicate the simulation `n_sims` times
+    for (i in 1:n_sims) {
+        if (i %% 10 == 0) cat(i, "/", n_sims, "... ")
+
+        # Simulate a new response variable based on the best model's predictions and residuals
+        simulated_response <- rnorm(nrow(model_data), mean = base_predictions, sd = residual_sd)
+
+        # Add the artificial wind effect. We scale max_gust so the effect size is standardized.
+        wind_effect <- current_effect_size * scale(model_data$max_gust)
+        response_with_effect <- simulated_response + as.vector(wind_effect)
+
+        # Create a temporary dataset for fitting
+        sim_data <- model_data
+        sim_data$sim_response <- response_with_effect
+
+        # Fit the GAM model that includes the wind term
+        # This uses the same GAM structure with smooth terms
+        power_model_formula <- as.formula(
+            "sim_response ~ s(total_butterflies_t_lag) + s(max_gust) + s(temperature_avg) + s(butterflies_direct_sun_t_lag) + s(time_within_day_t)"
+        )
+        
+        # Use tryCatch to handle potential model fitting errors in simulations
+        fit <- tryCatch({
+            gamm(
+                power_model_formula,
+                data = sim_data,
+                random = random_structure,
+                correlation = correlation_structure,
+                method = "REML"
+            )
+        }, error = function(e) NULL)
+
+        # Extract the p-value for the wind term if the model converged
+        if (!is.null(fit)) {
+            p_values[i] <- summary(fit$gam)$s.table["s(max_gust)", "p-value"]
+        } else {
+            p_values[i] <- NA # Return NA if model failed
+        }
+    }
+    cat("Done.\n")
+
+    # Calculate power: the proportion of simulations where the effect was detected (p < alpha)
+    # We remove any NA p-values from failed model fits
+    power <- mean(p_values < alpha, na.rm = TRUE)
+    power_results[[as.character(effect_size_coef)]] <- power
+}
+
+cat("Power analysis complete.\n")
+
+# Format and display the results
+power_df <- data.frame(
+    EffectSize_SD_units = as.numeric(names(power_results)),
+    Power = unlist(power_results)
+) %>%
+    mutate(
+        Power_Percent = paste0(round(Power * 100, 1), "%" )
+    )
+
+kable(power_df, 
+      caption = "Estimated power to detect a given effect size for the `max_gust` term. Effect size is measured in standard deviations of the response variable.",
+      col.names = c("Effect Size (in SD units)", "Power (Proportion)", "Power (%)"))
+
+```
+
+## Results Summary
+
+This analysis provides robust evidence regarding wind effects on overwintering monarch butterfly movement through comprehensive model comparison across 47 candidate models. The results reveal several key findings:
+
+**Wind Effects:** Wind was not selected in the best-performing model and only appeared once in the top 5 models (plotted above) with a non-significant effect (p = 0.218). This suggests that wind is not a primary driver of short-term monarch movement patterns at the temporal and spatial scales examined.
+
+**Primary Drivers:** Temperature and diurnal patterns emerged as the strongest predictors of monarch movement. The best model revealed non-linear temperature responses with apparent thermal optima, and strong diurnal cycles consistent with monarch thermoregulatory behavior.
+
+**Model Performance:** Including smooth terms substantially improved model fit (R² increased from 2.74% to 5.61%), highlighting the importance of capturing non-linear relationships in ecological modeling.
+
+Sensitivity analyses focused on threshold-based wind metrics are documented separately in `analysis/monarch_threshold_analysis.qmd`.
+## Publication-Ready Exports
+
+The following section exports all figures and tables needed for the thesis results section.
+
+```{r thesis-exports}
+# Set up export directory
+export_dir <- here("thesis_exports")
+fig_dir <- file.path(export_dir, "figures")
+tab_dir <- file.path(export_dir, "tables")
+thesis_results_fig_dir <- here("..", "masters-thesis", "figures", "results")
+
+# Create directories if they don't exist
+if (!dir.exists(export_dir)) dir.create(export_dir, recursive = TRUE)
+if (!dir.exists(fig_dir)) dir.create(fig_dir, recursive = TRUE)
+if (!dir.exists(tab_dir)) dir.create(tab_dir, recursive = TRUE)
+if (!dir.exists(thesis_results_fig_dir)) dir.create(thesis_results_fig_dir, recursive = TRUE)
+
+# Load additional packages for publication-ready plots
+library(ggthemes)
+library(scales)
+
+# Define publication theme
+pub_theme <- theme_classic(base_size = 12) +
+    theme(
+        axis.text = element_text(color = "black"),
+        axis.title = element_text(color = "black"),
+        legend.text = element_text(color = "black"),
+        legend.title = element_text(color = "black"),
+        strip.text = element_text(color = "black"),
+        plot.title = element_text(color = "black", hjust = 0.5),
+        panel.grid.major = element_line(color = "gray90", size = 0.5),
+        panel.grid.minor = element_blank(),
+        legend.position = "bottom"
+    )
+
+cat("Export directories created successfully\n")
+```
+
+### Model Selection Table Export
+
+```{r export-model-selection-table}
+# Function to extract max_gust p-value from a model
+get_max_gust_pvalue <- function(model_name) {
+    if (model_name %in% names(successful_models)) {
+        model <- successful_models[[model_name]]
+
+        # Check parametric terms first (linear effects)
+        param_summary <- summary(model$gam)$p.table
+        if ("max_gust" %in% rownames(param_summary)) {
+            return(format.pval(param_summary["max_gust", "Pr(>|t|)"], digits = 3))
+        }
+
+        # Check smooth terms
+        smooth_summary <- summary(model$gam)$s.table
+        gust_smooth_rows <- grep("max_gust", rownames(smooth_summary))
+        if (length(gust_smooth_rows) > 0) {
+            return(format.pval(smooth_summary[gust_smooth_rows[1], "p-value"], digits = 3))
+        }
+    }
+    return("NA")
+}
+
+# Function to create readable model terms
+create_readable_terms <- function(formula_str) {
+    # Store original formula for checking linear vs smooth terms
+    original_formula <- formula_str
+
+    # Remove response variable
+    formula_clean <- gsub("butterfly_difference_cbrt ~ ", "", formula_str)
+
+    # Split into terms first before any substitutions
+    original_terms <- trimws(strsplit(formula_clean, "\+")[[1]])
+    original_terms <- original_terms[original_terms != ""]
+
+    # Process each term individually
+    formatted_terms <- sapply(original_terms, function(term) {
+        term <- trimws(term)
+
+        # Check if it's a smooth term
+        is_smooth <- grepl("^s\(", term)
+
+        if (is_smooth) {
+            # Extract variable name from s(variable_name)
+            var_name <- gsub("s\(([^)]+)\)", "\1", term)
+        } else {
+            # It's a linear term
+            var_name <- term
+        }
+
+        # Replace with readable names
+        readable_name <- case_when(
+            var_name == "total_butterflies_t_lag" ~ "Previous butterfly count",
+            var_name == "max_gust" ~ "Maximum wind speed",
+            var_name == "temperature_avg" ~ "Temperature",
+            var_name == "butterflies_direct_sun_t_lag" ~ "Butterflies in direct sun",
+            var_name == "time_within_day_t" ~ "Time since sunrise",
+            TRUE ~ var_name
+        )
+
+        # Format with bullet and linear notation if needed
+        if (is_smooth) {
+            return(paste0("• ", readable_name))
+        } else {
+            return(paste0("• ", readable_name, " (linear)"))
+        }
+    })
+
+    if (length(formatted_terms) == 0) {
+        return("• intercept only")
+    }
+
+    return(paste(formatted_terms, collapse = "\n"))
+}
+
+# Create comprehensive model selection table (top 5 models)
+model_selection_table <- aic_results %>%
+    head(5) %>%
+    mutate(
+        AIC_weight = round(AIC_weight, 4),
+        Delta_AIC = round(Delta_AIC, 3),
+        AIC = round(AIC, 3),
+        max_gust_p = map_chr(Model, get_max_gust_pvalue),
+        Terms = map_chr(Formula, create_readable_terms)
+    ) %>%
+    select(Model, Terms, AIC, Delta_AIC, AIC_weight, df, max_gust_p) %>%
+    rename(
+        "Model ID" = Model,
+        "Model Terms" = Terms,
+        "AIC" = AIC,
+        "ΔAIC" = Delta_AIC,
+        "AIC Weight" = AIC_weight,
+        "df" = df,
+        "Wind p-value" = max_gust_p
+    )
+
+# Export as CSV
+write_csv(model_selection_table, file.path(tab_dir, "model_selection_table.csv"))
+
+# Export as formatted kable for LaTeX
+kable_output <- kable(model_selection_table,
+    format = "latex",
+    booktabs = TRUE,
+    caption = "Top 5 candidate models ranked by AIC for monarch butterfly abundance change analysis. All terms are smooth unless marked as (linear). Wind p-value shows significance of max_gust term when present in model."
+)
+
+writeLines(kable_output, file.path(tab_dir, "model_selection_table.tex"))
+
+cat("Model selection table exported to:", file.path(tab_dir, "model_selection_table.csv"), "\n")
+```
+
+### Smooth Terms Summary Table Export
+
+```{r export-smooth-terms-table}
+# Extract smooth terms summary from best model
+smooth_summary <- summary(best_model$gam)$s.table
+parametric_summary <- summary(best_model$gam)$p.table
+
+# Create formatted smooth terms table
+smooth_terms_df <- data.frame(
+    Term = rownames(smooth_summary),
+    EDF = round(smooth_summary[, "edf"], 3),
+    Ref_df = round(smooth_summary[, "Ref.df"], 3),
+    F_value = round(smooth_summary[, "F"], 3),
+    p_value = format.pval(smooth_summary[, "p-value"], digits = 3)
+) %>%
+    mutate(
+        Term = case_when(
+            grepl("total_butterflies_t_lag", Term) ~ "Previous butterfly count",
+            grepl("temperature_avg", Term) ~ "Temperature",
+            grepl("butterflies_direct_sun_t_lag", Term) ~ "Butterflies in direct sun",
+            grepl("time_within_day_t", Term) ~ "Time since sunrise",
+            TRUE ~ Term
+        )
+    )
+
+# Export smooth terms table
+write_csv(smooth_terms_df, file.path(tab_dir, "smooth_terms_summary.csv"))
+
+# Export as LaTeX
+smooth_kable <- kable(smooth_terms_df,
+    format = "latex",
+    booktabs = TRUE,
+    col.names = c("Smooth Term", "EDF", "Ref. df", "F", "p-value"),
+    caption = "Summary of smooth terms in the best-fit GAM model"
+)
+
+writeLines(smooth_kable, file.path(tab_dir, "smooth_terms_summary.tex"))
+
+cat("Smooth terms summary exported to:", file.path(tab_dir, "smooth_terms_summary.csv"), "\n")
+```
+
+### Publication-Ready Partial Effect Plots (Updated)
+
+```{r export-partial-effects-updated}
+# Define publication theme with grid lines and darker zero line
+pub_theme_grid <- theme_classic(base_size = 12) +
+    theme(
+        axis.text = element_text(color = "black", size = 11),
+        axis.title = element_text(color = "black", size = 12, face = "bold"),
+        legend.text = element_text(color = "black"),
+        legend.title = element_text(color = "black"),
+        strip.text = element_text(color = "black"),
+        plot.title = element_text(color = "black", hjust = 0.5, size = 14, face = "bold"),
+        panel.grid.major = element_line(color = "gray90", size = 0.5),
+        panel.grid.minor = element_line(color = "gray95", size = 0.3),
+        panel.border = element_rect(color = "black", fill = NA, size = 0.5),
+        legend.position = "none",
+        plot.margin = margin(10, 10, 10, 10)
+    )
+
+# Use the same y-axis limits and colors from the main plots
+# Export individual plots with cleaned up labeling (matching your rearranged order)
+# Order: Butterflies in Direct Sun, Previous Butterfly Count, Time Since Sunrise, Temperature
+
+pe1 <- draw(best_model$gam, select = "s(butterflies_direct_sun_t_lag)", 
+           rug = FALSE, residuals = FALSE) +
+  labs(
+    title = "Butterflies in Direct Sun",
+    x = "Butterflies in direct sun",
+    y = "Partial effect"
+  ) +
+  scale_y_continuous(limits = y_limits, breaks = y_breaks) +
+  pub_theme_grid +
+  theme(plot.caption = element_blank())  # Remove Basis: TPRS
+
+# Add darker zero line
+pe1 <- add_zero_line(pe1)
+
+# Override colors using comprehensive layer modification (skip zero line)
+for (i in seq_along(pe1$layers)) {
+  # Skip the zero line (GeomHline) to preserve its neutral gray color
+  if (!is.null(pe1$layers[[i]]$geom) && inherits(pe1$layers[[i]]$geom, "GeomHline")) {
+    next
+  }
+  
+  if ("colour" %in% names(pe1$layers[[i]]$aes_params)) {
+    pe1$layers[[i]]$aes_params$colour <- plot_colors[1]
+  }
+  if ("fill" %in% names(pe1$layers[[i]]$aes_params)) {
+    pe1$layers[[i]]$aes_params$fill <- plot_colors_light[1]
+  }
+  if (!is.null(pe1$layers[[i]]$geom)) {
+    if (inherits(pe1$layers[[i]]$geom, "GeomLine")) {
+      pe1$layers[[i]]$aes_params$colour <- plot_colors[1]
+    }
+    if (inherits(pe1$layers[[i]]$geom, c("GeomRibbon", "GeomPolygon"))) {
+      pe1$layers[[i]]$aes_params$fill <- plot_colors_light[1]
+    }
+  }
+}
+
+pe2 <- draw(best_model$gam, select = "s(total_butterflies_t_lag)", 
+           rug = FALSE, residuals = FALSE) +
+  labs(
+    title = "Previous Butterfly Count",
+    x = "Previous butterfly count",
+    y = ""  # Remove y-axis label for cleaner 1x4 layout
+  ) +
+  scale_y_continuous(limits = y_limits, breaks = y_breaks) +
+  pub_theme_grid +
+  theme(
+    axis.text.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    plot.caption = element_blank()  # Remove Basis: TPRS
+  )
+
+# Add darker zero line
+pe2 <- add_zero_line(pe2)
+
+for (i in seq_along(pe2$layers)) {
+  # Skip the zero line (GeomHline) to preserve its neutral gray color
+  if (!is.null(pe2$layers[[i]]$geom) && inherits(pe2$layers[[i]]$geom, "GeomHline")) {
+    next
+  }
+  
+  if ("colour" %in% names(pe2$layers[[i]]$aes_params)) {
+    pe2$layers[[i]]$aes_params$colour <- plot_colors[2]
+  }
+  if ("fill" %in% names(pe2$layers[[i]]$aes_params)) {
+    pe2$layers[[i]]$aes_params$fill <- plot_colors_light[2]
+  }
+  if (!is.null(pe2$layers[[i]]$geom)) {
+    if (inherits(pe2$layers[[i]]$geom, "GeomLine")) {
+      pe2$layers[[i]]$aes_params$colour <- plot_colors[2]
+    }
+    if (inherits(pe2$layers[[i]]$geom, c("GeomRibbon", "GeomPolygon"))) {
+      pe2$layers[[i]]$aes_params$fill <- plot_colors_light[2]
+    }
+  }
+}
+
+pe3 <- draw(best_model$gam, select = "s(time_within_day_t)", 
+           rug = FALSE, residuals = FALSE) +
+  labs(
+    title = "Time Since Sunrise",
+    x = "Time since sunrise (minutes)",
+    y = ""  # Remove y-axis label for cleaner 1x4 layout
+  ) +
+  scale_y_continuous(limits = y_limits, breaks = y_breaks) +
+  pub_theme_grid +
+  theme(
+    axis.text.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    plot.caption = element_blank()  # Remove Basis: TPRS
+  )
+
+# Add darker zero line
+pe3 <- add_zero_line(pe3)
+
+for (i in seq_along(pe3$layers)) {
+  # Skip the zero line (GeomHline) to preserve its neutral gray color
+  if (!is.null(pe3$layers[[i]]$geom) && inherits(pe3$layers[[i]]$geom, "GeomHline")) {
+    next
+  }
+  
+  if ("colour" %in% names(pe3$layers[[i]]$aes_params)) {
+    pe3$layers[[i]]$aes_params$colour <- plot_colors[3]
+  }
+  if ("fill" %in% names(pe3$layers[[i]]$aes_params)) {
+    pe3$layers[[i]]$aes_params$fill <- plot_colors_light[3]
+  }
+  if (!is.null(pe3$layers[[i]]$geom)) {
+    if (inherits(pe3$layers[[i]]$geom, "GeomLine")) {
+      pe3$layers[[i]]$aes_params$colour <- plot_colors[3]
+    }
+    if (inherits(pe3$layers[[i]]$geom, c("GeomRibbon", "GeomPolygon"))) {
+      pe3$layers[[i]]$aes_params$fill <- plot_colors_light[3]
+    }
+  }
+}
+
+pe4 <- draw(best_model$gam, select = "s(temperature_avg)", 
+           rug = FALSE, residuals = FALSE) +
+  labs(
+    x = "Temperature (°C)",
+    y = "",  # Remove y-axis label for cleaner 1x4 layout
+    title = NULL  # Remove title
+  ) +
+  scale_y_continuous(limits = y_limits, breaks = y_breaks) +
+  pub_theme_grid +
+  theme(
+    axis.text.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    plot.caption = element_blank()  # Remove Basis: TPRS
+  )
+
+# Add darker zero line BEFORE applying color changes
+pe4 <- add_zero_line(pe4)
+
+for (i in seq_along(pe4$layers)) {
+  # Skip the zero line (GeomHline) to preserve its neutral gray color
+  if (!is.null(pe4$layers[[i]]$geom) && inherits(pe4$layers[[i]]$geom, "GeomHline")) {
+    next
+  }
+  
+  if ("colour" %in% names(pe4$layers[[i]]$aes_params)) {
+    pe4$layers[[i]]$aes_params$colour <- plot_colors[4]
+  }
+  if ("fill" %in% names(pe4$layers[[i]]$aes_params)) {
+    pe4$layers[[i]]$aes_params$fill <- plot_colors_light[4]
+  }
+  if (!is.null(pe4$layers[[i]]$geom)) {
+    if (inherits(pe4$layers[[i]]$geom, "GeomLine")) {
+      pe4$layers[[i]]$aes_params$colour <- plot_colors[4]
+    }
+    if (inherits(pe4$layers[[i]]$geom, c("GeomRibbon", "GeomPolygon"))) {
+      pe4$layers[[i]]$aes_params$fill <- plot_colors_light[4]
+    }
+  }
+}
+
+# Create 2x2-specific plots with proper y-axis sharing
+pe1_2x2 <- pe1 + labs(title = NULL)  # Top-left: remove title, keep y-axis label
+
+pe2_2x2 <- pe2 + labs(title = NULL)  # Top-right: remove title, no y-axis
+
+pe3_2x2 <- draw(best_model$gam, select = "s(time_within_day_t)", 
+           rug = FALSE, residuals = FALSE) +
+  labs(
+    title = NULL,  # No title
+    x = "Time since sunrise (minutes)",
+    y = "Partial effect"  # Bottom-left: keep y-axis label
+  ) +
+  scale_y_continuous(limits = y_limits, breaks = y_breaks) +
+  pub_theme_grid +
+  theme(plot.caption = element_blank())
+
+pe3_2x2 <- add_zero_line(pe3_2x2)
+
+# Apply colors to pe3_2x2
+for (i in seq_along(pe3_2x2$layers)) {
+  if (!is.null(pe3_2x2$layers[[i]]$geom) && inherits(pe3_2x2$layers[[i]]$geom, "GeomHline")) {
+    next
+  }
+  if ("colour" %in% names(pe3_2x2$layers[[i]]$aes_params)) {
+    pe3_2x2$layers[[i]]$aes_params$colour <- plot_colors[3]
+  }
+  if ("fill" %in% names(pe3_2x2$layers[[i]]$aes_params)) {
+    pe3_2x2$layers[[i]]$aes_params$fill <- plot_colors_light[3]
+  }
+  if (!is.null(pe3_2x2$layers[[i]]$geom)) {
+    if (inherits(pe3_2x2$layers[[i]]$geom, "GeomLine")) {
+      pe3_2x2$layers[[i]]$aes_params$colour <- plot_colors[3]
+    }
+    if (inherits(pe3_2x2$layers[[i]]$geom, c("GeomRibbon", "GeomPolygon"))) {
+      pe3_2x2$layers[[i]]$aes_params$fill <- plot_colors_light[3]
+    }
+  }
+}
+
+pe4_2x2 <- draw(best_model$gam, select = "s(temperature_avg)", 
+           rug = FALSE, residuals = FALSE) +
+  labs(
+    title = NULL,  # No title
+    x = "Temperature (°C)",
+    y = ""  # Bottom-right: no y-axis label
+  ) +
+  scale_y_continuous(limits = y_limits, breaks = y_breaks) +
+  pub_theme_grid +
+  theme(
+    axis.text.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    plot.caption = element_blank()
+  )
+
+pe4_2x2 <- add_zero_line(pe4_2x2)
+
+# Apply colors to pe4_2x2
+for (i in seq_along(pe4_2x2$layers)) {
+  if (!is.null(pe4_2x2$layers[[i]]$geom) && inherits(pe4_2x2$layers[[i]]$geom, "GeomHline")) {
+    next
+  }
+  if ("colour" %in% names(pe4_2x2$layers[[i]]$aes_params)) {
+    pe4_2x2$layers[[i]]$aes_params$colour <- plot_colors[4]
+  }
+  if ("fill" %in% names(pe4_2x2$layers[[i]]$aes_params)) {
+    pe4_2x2$layers[[i]]$aes_params$fill <- plot_colors_light[4]
+  }
+  if (!is.null(pe4_2x2$layers[[i]]$geom)) {
+    if (inherits(pe4_2x2$layers[[i]]$geom, "GeomLine")) {
+      pe4_2x2$layers[[i]]$aes_params$colour <- plot_colors[4]
+    }
+    if (inherits(pe4_2x2$layers[[i]]$geom, c("GeomRibbon", "GeomPolygon"))) {
+      pe4_2x2$layers[[i]]$aes_params$fill <- plot_colors_light[4]
+    }
+  }
+}
+
+# Add flight threshold area (12.7-16°C) with fuzzy edges to pe4_2x2 AFTER color modifications
+# Create a gradient effect by layering rectangles with decreasing alpha
+fade_width <- 0.5  # Width of fade zone on each side
+
+# Core threshold area (solid)
+pe4_2x2 <- pe4_2x2 +
+  annotate("rect",
+           xmin = 12.7 + fade_width, xmax = 16 - fade_width,
+           ymin = -Inf, ymax = Inf,
+           fill = "#ADD8E6", alpha = 0.4)
+
+# Fade zones - multiple layers for smooth gradient
+fade_steps <- 5
+for (i in 1:fade_steps) {
+  alpha_val <- 0.4 * (fade_steps - i + 1) / fade_steps
+  fade_offset <- fade_width * i / fade_steps
+
+  # Left fade
+  pe4_2x2 <- pe4_2x2 +
+    annotate("rect",
+             xmin = 12.7 + fade_width - fade_offset,
+             xmax = 12.7 + fade_width - fade_offset + fade_width/fade_steps,
+             ymin = -Inf, ymax = Inf,
+             fill = "#ADD8E6", alpha = alpha_val)
+
+  # Right fade
+  pe4_2x2 <- pe4_2x2 +
+    annotate("rect",
+             xmin = 16 - fade_width + fade_offset - fade_width/fade_steps,
+             xmax = 16 - fade_width + fade_offset,
+             ymin = -Inf, ymax = Inf,
+             fill = "#ADD8E6", alpha = alpha_val)
+}
+
+# Export individual plots
+ggsave(file.path(fig_dir, "effect_previous_butterfly_count_final.png"), pe1,
+    width = 8, height = 6, dpi = 300, bg = "white"
+)
+ggsave(file.path(fig_dir, "effect_temperature_final.png"), pe2,
+    width = 8, height = 6, dpi = 300, bg = "white"
+)
+ggsave(file.path(fig_dir, "effect_butterflies_direct_sun_final.png"), pe3,
+    width = 8, height = 6, dpi = 300, bg = "white"
+)
+ggsave(file.path(fig_dir, "diurnal_patterns_final.png"), pe4,
+    width = 8, height = 6, dpi = 300, bg = "white"
+)
+
+# Create and export 2x2 combined figure with proper y-axis sharing
+tryCatch({
+  combined_pub_2x2 <- wrap_plots(pe1_2x2, pe2_2x2, pe3_2x2, pe4_2x2, nrow = 2, ncol = 2)
+  
+  ggsave(file.path(fig_dir, "combined_partial_effects_2x2_final.png"), combined_pub_2x2,
+      width = 12, height = 10, dpi = 300, bg = "white"
+  )
+  cat("2x2 combined plot exported successfully\n")
+}, error = function(e) {
+  cat("Error creating 2x2 combined plot:", e$message, "\n")
+})
+
+# Create and export 1x4 combined figure (wide aspect ratio)
+tryCatch({
+  combined_pub_1x4 <- wrap_plots(pe1, pe2, pe3, pe4, nrow = 1, ncol = 4)  # No title
+  
+  ggsave(file.path(fig_dir, "combined_partial_effects_1x4_final.png"), combined_pub_1x4,
+      width = 16, height = 5, dpi = 300, bg = "white"
+  )
+  cat("1x4 combined plot exported successfully\n")
+}, error = function(e) {
+  cat("Error creating 1x4 combined plot:", e$message, "\n")
+})
+
+# Export standalone partial effect for maximum wind speed from model M24
+if ("M24" %in% names(successful_models)) {
+  model_m24 <- successful_models[["M24"]]
+  wind_color <- "#4C8BB9"
+  wind_color_light <- lighten_color(wind_color)
+
+  pe_wind_m24 <- draw(model_m24$gam, select = "s(max_gust)", rug = FALSE, residuals = FALSE) +
+    labs(
+      title = NULL,
+      x = "Maximum wind speed (m/s)",
+      y = "Partial effect"
+    ) +
+    scale_y_continuous(limits = y_limits, breaks = y_breaks) +
+    pub_theme_grid +
+    theme(plot.caption = element_blank())
+
+  pe_wind_m24 <- add_zero_line(pe_wind_m24)
+
+  for (i in seq_along(pe_wind_m24$layers)) {
+    if (!is.null(pe_wind_m24$layers[[i]]$geom) && inherits(pe_wind_m24$layers[[i]]$geom, "GeomHline")) {
+      next
+    }
+
+    if ("colour" %in% names(pe_wind_m24$layers[[i]]$aes_params)) {
+      pe_wind_m24$layers[[i]]$aes_params$colour <- wind_color
+    }
+    if ("fill" %in% names(pe_wind_m24$layers[[i]]$aes_params)) {
+      pe_wind_m24$layers[[i]]$aes_params$fill <- wind_color_light
+    }
+    if (!is.null(pe_wind_m24$layers[[i]]$geom)) {
+      if (inherits(pe_wind_m24$layers[[i]]$geom, "GeomLine")) {
+        pe_wind_m24$layers[[i]]$aes_params$colour <- wind_color
+      }
+      if (inherits(pe_wind_m24$layers[[i]]$geom, c("GeomRibbon", "GeomPolygon"))) {
+        pe_wind_m24$layers[[i]]$aes_params$fill <- wind_color_light
+      }
+    }
+  }
+
+  pe_wind_m24 <- pe_wind_m24 +
+    geom_vline(xintercept = 2, color = "red", linetype = "dashed", size = 0.8)
+
+  ggsave(file.path(fig_dir, "m24_wind_partial_effect.png"), pe_wind_m24,
+      width = 6, height = 5, dpi = 300, bg = "white"
+  )
+
+  thesis_wind_path <- file.path(thesis_results_fig_dir, "m24_wind_partial_effect.png")
+  ggsave(thesis_wind_path, pe_wind_m24,
+      width = 6, height = 5, dpi = 300, bg = "white"
+  )
+
+  cat("M24 wind partial effect exported successfully\n")
+  cat("- Saved to thesis_exports/figures/m24_wind_partial_effect.png\n")
+  cat("- Saved to ../masters-thesis/figures/results/m24_wind_partial_effect.png\n")
+} else {
+  cat("Model M24 unavailable; skipping wind partial effect export\n")
+}
+
+cat("Updated publication-ready plots exported to:", fig_dir, "\n")
+cat("Files created:\n")
+cat("Individual plots:\n")
+cat("- effect_previous_butterfly_count_final.png\n")
+cat("- effect_temperature_final.png\n")
+cat("- effect_butterflies_direct_sun_final.png\n")
+cat("- diurnal_patterns_final.png\n")
+cat("- m24_wind_partial_effect.png (also saved to ../masters-thesis/figures/results/)\n")
+cat("Combined layouts:\n")
+cat("- combined_partial_effects_2x2_final.png\n")
+cat("- combined_partial_effects_1x4_final.png (16x5, wide aspect ratio)\n")
+cat("\nAll plots feature:\n")
+cat("- Custom hex color palette\n")
+cat("- 10% lighter confidence intervals\n")
+cat("- Darker zero reference line (gray50)\n")
+cat("- Clean 1x4 layout with single y-axis label\n")
+```
+
+### Model Diagnostics Plots Export
+
+```{r export-diagnostics}
+# Create publication-ready residuals vs fitted plot
+residuals_df <- data.frame(
+    fitted = fitted(best_model$lme),
+    residuals = residuals(best_model$lme, type = "normalized")
+)
+
+p_resid <- ggplot(residuals_df, aes(x = fitted, y = residuals)) +
+    geom_point(alpha = 0.4, color = "darkgray") +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+    geom_smooth(method = "loess", se = TRUE, color = "blue", alpha = 0.3) +
+    labs(
+        title = "Residuals vs Fitted Values",
+        x = "Fitted values",
+        y = "Standardized residuals"
+    ) +
+    pub_theme
+
+# Create publication-ready Q-Q plot
+p_qq <- ggplot(residuals_df, aes(sample = residuals)) +
+    stat_qq(alpha = 0.4, color = "darkgray") +
+    stat_qq_line(color = "red", linetype = "dashed") +
+    labs(
+        title = "Normal Q-Q Plot",
+        x = "Theoretical quantiles",
+        y = "Sample quantiles"
+    ) +
+    pub_theme
+
+# Export diagnostic plots
+ggsave(file.path(fig_dir, "residuals_vs_fitted.png"), p_resid,
+    width = 8, height = 6, dpi = 300, bg = "white"
+)
+ggsave(file.path(fig_dir, "qq_plot.png"), p_qq,
+    width = 8, height = 6, dpi = 300, bg = "white"
+)
+
+# Combined diagnostics plot
+combined_diagnostics <- gridExtra::grid.arrange(p_resid, p_qq, ncol = 2)
+ggsave(file.path(fig_dir, "combined_diagnostics.png"), combined_diagnostics,
+    width = 12, height = 6, dpi = 300, bg = "white"
+)
+
+cat("Diagnostic plots exported to:", fig_dir, "\n")
+```
+
+### Wind Hypothesis Evaluation Plot
+
+```{r export-wind-scatter}
+# Create publication-ready wind scatter plot
+wind_cor <- cor(model_data$max_gust, model_data$butterfly_difference_cbrt, use = "complete.obs")
+
+p_wind <- ggplot(model_data, aes(x = max_gust, y = butterfly_difference_cbrt)) +
+    geom_point(alpha = 0.4, color = "darkgray") +
+    geom_smooth(method = "lm", se = TRUE, color = "steelblue", alpha = 0.3) +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "red", alpha = 0.7) +
+    geom_vline(xintercept = 2, linetype = "dashed", color = "red", alpha = 0.7) +
+    labs(
+        title = "Maximum Wind Speed vs Butterfly Abundance Change",
+        subtitle = paste0("Correlation: r = ", round(wind_cor, 3)),
+        x = "Maximum wind speed (m/s)",
+        y = "Butterfly abundance change (cube root transformed)"
+    ) +
+    pub_theme
+
+ggsave(file.path(fig_dir, "wind_hypothesis_scatter.png"), p_wind,
+    width = 8, height = 6, dpi = 300, bg = "white"
+)
+
+cat("Wind hypothesis scatter plot exported to:", fig_dir, "\n")
+p_wind
+```
+
+### Data Summary Export
+
+```{r export-data-summary}
+# Create data summary statistics
+data_summary <- model_data %>%
+    summarise(
+        N_observations = n(),
+        N_deployments = n_distinct(deployment_id),
+        N_deployment_days = n_distinct(deployment_day),
+        Mean_butterflies = round(mean(total_butterflies_t_lag, na.rm = TRUE), 1),
+        SD_butterflies = round(sd(total_butterflies_t_lag, na.rm = TRUE), 1),
+        Mean_temp = round(mean(temperature_avg, na.rm = TRUE), 1),
+        SD_temp = round(sd(temperature_avg, na.rm = TRUE), 1),
+        Mean_wind = round(mean(max_gust, na.rm = TRUE), 1),
+        SD_wind = round(sd(max_gust, na.rm = TRUE), 1)
+    ) %>%
+    pivot_longer(everything(), names_to = "Statistic", values_to = "Value") %>%
+    mutate(
+        Statistic = case_when(
+            Statistic == "N_observations" ~ "Total observations",
+            Statistic == "N_deployments" ~ "Unique deployments",
+            Statistic == "N_deployment_days" ~ "Deployment-day combinations",
+            Statistic == "Mean_butterflies" ~ "Mean butterfly count",
+            Statistic == "SD_butterflies" ~ "SD butterfly count",
+            Statistic == "Mean_temp" ~ "Mean temperature (°C)",
+            Statistic == "SD_temp" ~ "SD temperature (°C)",
+            Statistic == "Mean_wind" ~ "Mean wind gust (m/s)",
+            Statistic == "SD_wind" ~ "SD wind gust (m/s)",
+            TRUE ~ Statistic
+        )
+    )
+
+write_csv(data_summary, file.path(tab_dir, "data_summary.csv"))
+
+# Export as LaTeX table
+summary_kable <- kable(data_summary,
+    format = "latex",
+    booktabs = TRUE,
+    col.names = c("Statistic", "Value"),
+    caption = "Summary statistics for the monarch butterfly analysis dataset"
+)
+
+writeLines(summary_kable, file.path(tab_dir, "data_summary.tex"))
+
+cat("Data summary exported to:", file.path(tab_dir, "data_summary.csv"), "\n")
+```
+
+### Power Analysis Table Export
+
+```{r export-power-analysis-table}
+# Export the power analysis table
+power_table_for_export <- power_df %>%
+    rename(
+        "Effect Size (SD units)" = EffectSize_SD_units,
+        "Power (Proportion)" = Power,
+        "Power (%)" = Power_Percent
+    )
+
+write_csv(power_table_for_export, file.path(tab_dir, "power_analysis_table.csv"))
+
+power_kable_output <- kable(power_table_for_export,
+    format = "latex",
+    booktabs = TRUE,
+    caption = "Estimated power to detect a given effect size for the `max_gust` term. Effect size is measured in standard deviations of the response variable."
+)
+
+writeLines(power_kable_output, file.path(tab_dir, "power_analysis_table.tex"))
+
+cat("Power analysis table exported to:", file.path(tab_dir, "power_analysis_table.csv"), "\n")
+```
+
+### Export Summary Report
+
+```{r export-summary}
+# Create a summary file with all export information
+export_summary <- paste0(
+    "# Monarch GAM Analysis - Thesis Exports\n\n",
+    "Export completed on: ", Sys.time(), "\n\n",
+    "## Files Created:\n\n",
+    "### Tables:\n",
+    "- model_selection_table.csv/tex: Top 10 models by AIC\n",
+    "- smooth_terms_summary.csv/tex: Summary of smooth terms in best model\n",
+    "- data_summary.csv/tex: Dataset summary statistics\n\n",
+    "### Figures:\n",
+    "- effect_previous_butterfly_count.png: Partial effect of previous butterfly count\n",
+    "- effect_temperature.png: Partial effect of temperature\n",
+    "- effect_butterflies_direct_sun.png: Partial effect of butterflies in direct sun\n",
+    "- diurnal_patterns.png: Diurnal patterns\n",
+    "- combined_partial_effects.png: All partial effects in one figure\n",
+    "- residuals_vs_fitted.png: Model diagnostic plot\n",
+    "- qq_plot.png: Normal Q-Q plot of residuals\n",
+    "- combined_diagnostics.png: Both diagnostic plots combined\n",
+    "- wind_hypothesis_scatter.png: Wind speed vs butterfly change scatter plot\n\n",
+    "## Key Results for Thesis:\n",
+    "- Best model: ", best_model_name, "\n",
+    "- Best model AIC: ", round(min(aic_results$AIC), 3), "\n",
+    "- Model R²: ", round(summary(best_model$gam)$r.sq, 4), "\n",
+    "- Wind hypothesis: NOT SUPPORTED (wind not in best model)\n\n",
+    "All files are publication-ready with 300 DPI resolution and clean formatting."
+)
+
+writeLines(export_summary, file.path(export_dir, "export_summary.txt"))
+
+cat("\n=== EXPORT COMPLETE ===\n")
+cat("All publication-ready files exported to:", export_dir, "\n")
+cat("Check export_summary.txt for complete file listing\n")
+```

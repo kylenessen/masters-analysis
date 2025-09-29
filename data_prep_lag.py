@@ -480,7 +480,8 @@ def add_wind_data(lag_df: pd.DataFrame,
                 'max_gust': np.nan, 
                 'mode_gust': np.nan,
                 'gust_sd': np.nan,
-                'wind_obs_count': 0
+                'wind_obs_count': 0,
+                'minutes_above_threshold': 0
             }
         else:
             # Query wind data for the lag period
@@ -581,7 +582,8 @@ def _query_wind_metrics(db_path: Path, start_time: datetime, end_time: datetime)
                     'max_gust': np.nan,
                     'mode_gust': np.nan, 
                     'gust_sd': np.nan,
-                    'wind_obs_count': 0
+                    'wind_obs_count': 0,
+                    'minutes_above_threshold': 0
                 }
             
             # Convert string columns to numeric, handling whitespace
@@ -607,12 +609,16 @@ def _query_wind_metrics(db_path: Path, start_time: datetime, end_time: datetime)
             # Standard deviation of gust speeds
             gust_sd = gust_speeds.std() if len(gust_speeds) > 1 else np.nan
             
+            # Count minutes where gust >= 2
+            minutes_above_threshold = (gust_speeds >= 2).sum() if len(gust_speeds) > 0 else 0
+            
             return {
                 'avg_sustained': avg_sustained,
                 'max_gust': max_gust,
                 'mode_gust': mode_gust,
                 'gust_sd': gust_sd,
-                'wind_obs_count': len(wind_data)
+                'wind_obs_count': len(wind_data),
+                'minutes_above_threshold': minutes_above_threshold
             }
             
     except Exception as e:

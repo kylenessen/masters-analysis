@@ -1,0 +1,29 @@
+# Monarch GAM Analysis - Thesis Exports
+
+Export completed on: 2025-09-06 20:46:05.501215
+
+## Files Created:
+
+### Tables:
+- model_selection_table.csv/tex: Top 10 models by AIC
+- smooth_terms_summary.csv/tex: Summary of smooth terms in best model
+- data_summary.csv/tex: Dataset summary statistics
+
+### Figures:
+- effect_previous_butterfly_count.png: Partial effect of previous butterfly count
+- effect_temperature.png: Partial effect of temperature
+- effect_butterflies_direct_sun.png: Partial effect of butterflies in direct sun
+- diurnal_patterns.png: Diurnal patterns
+- combined_partial_effects.png: All partial effects in one figure
+- residuals_vs_fitted.png: Model diagnostic plot
+- qq_plot.png: Normal Q-Q plot of residuals
+- combined_diagnostics.png: Both diagnostic plots combined
+- wind_hypothesis_scatter.png: Wind speed vs butterfly change scatter plot
+
+## Key Results for Thesis:
+- Best model: M23
+- Best model AIC: 8081.848
+- Model R²: 0.0568
+- Wind hypothesis: NOT SUPPORTED (wind not in best model)
+
+All files are publication-ready with 300 DPI resolution and clean formatting.

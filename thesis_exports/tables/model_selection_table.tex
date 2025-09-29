@@ -1,0 +1,30 @@
+\begin{table}
+
+\caption{Top 5 candidate models ranked by AIC for monarch butterfly abundance change analysis. All terms are smooth unless marked as (linear). Wind p-value shows significance of max_gust term when present in model.}
+\centering
+\begin{tabular}[t]{llrrrrl}
+\toprule
+Model ID & Model Terms & AIC & ΔAIC & AIC Weight & df & Wind p-value\\
+\midrule
+M23 & • Previous butterfly count
+• Temperature
+• Butterflies in direct sun
+• Time since sunrise & 8081.848 & 0.000 & 0.8803 & 14 & NA\\
+M22 & • Previous butterfly count
+• Temperature (linear)
+• Butterflies in direct sun
+• Time since sunrise & 8086.644 & 4.796 & 0.0800 & 13 & NA\\
+M24 & • Previous butterfly count
+• Maximum wind speed
+• Temperature
+• Butterflies in direct sun
+• Time since sunrise & 8088.049 & 6.200 & 0.0397 & 16 & 0.218\\
+M47 & • Temperature
+• Butterflies in direct sun
+• Time since sunrise & 8101.296 & 19.448 & 0.0001 & 12 & NA\\
+M17 & • Previous butterfly count
+• Temperature
+• Butterflies in direct sun & 8105.876 & 24.028 & 0.0000 & 12 & NA\\
+\bottomrule
+\end{tabular}
+\end{table}

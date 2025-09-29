@@ -1,0 +1,16 @@
+\begin{table}
+
+\caption{\label{tab:exports}Model selection results from sensitivity analysis using wind threshold predictor (minutes with wind speed > 2 m/s). Poor model performance (high <U+0394>AIC values) demonstrates lack of support for the 2 m/s disruption threshold.}
+\centering
+\begin{tabular}[t]{llrrrl}
+\toprule
+Model ID & Terms included & AIC value & <U+0394>AIC & Weight & Wind threshold p-value\\
+\midrule
+T24 & - Previous butterfly count\textbackslash{}n- Minutes above 2 m/s\textbackslash{}n- Temperature\textbackslash{}n- Butterflies in direct sun\textbackslash{}n- Time since sunrise & 8089.408 & 7.560 & 0.0205 & 0.372\\
+T44 & - Minutes above 2 m/s\textbackslash{}n- Temperature\textbackslash{}n- Butterflies in direct sun\textbackslash{}n- Time since sunrise & 8108.379 & 26.530 & 0.0000 & 0.256\\
+T21 & - Previous butterfly count\textbackslash{}n- Minutes above 2 m/s\textbackslash{}n- Temperature\textbackslash{}n- Butterflies in direct sun & 8110.567 & 28.719 & 0.0000 & 0.0528\\
+T43 & - Minutes above 2 m/s\textbackslash{}n- Temperature (linear)\textbackslash{}n- Butterflies in direct sun\textbackslash{}n- Time since sunrise & 8115.505 & 33.657 & 0.0000 & 0.275\\
+T19 & - Previous butterfly count\textbackslash{}n- Minutes above 2 m/s\textbackslash{}n- Temperature (linear)\textbackslash{}n- Butterflies in direct sun & 8119.798 & 37.949 & 0.0000 & 0.0776\\
+\bottomrule
+\end{tabular}
+\end{table}
