@@ -1,2 +1,2 @@
 Model,Formula,AIC,Delta_AIC
-M34_AR1,butterfly_diff_95th_sqrt ~ s(temp_at_max_count_t_1) + s(wind_max_gust_t_1) + s(sum_butterflies_direct_sun_t_1),682.4680192834936,0
+B33_AR1,butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 + s(wind_max_gust_t_1) + s(sum_butterflies_direct_sun_t_1),668.4010775095599,0

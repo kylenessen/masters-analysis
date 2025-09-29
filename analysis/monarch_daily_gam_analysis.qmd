@@ -482,18 +482,38 @@ cat("Number of unique deployment days:", n_distinct(paste(model_data$deployment_
 
 ## Modeling Strategy
 
-Our modeling approach for daily-level data tests the **absolute effects** of environmental variables on butterfly abundance changes:
+Our modeling approach for daily-level data tests both **absolute effects** and **proportional effects** of environmental variables on butterfly abundance changes:
 
 1. **Response Variable**: `butterfly_diff_95th_sqrt` - square root transformed difference in 95th percentile butterfly counts between consecutive days (selected as the most normal transformation)
-2. **Fixed Effects** (WITHOUT controlling for previous day's abundance):
-   - Temperature variables: max, min, and temperature at max count (testing various combinations)
+
+2. **Two Model Sets**:
+
+   **M Models (Absolute Effects)**: Test whether environmental variables have direct effects on absolute changes in abundance:
+   - Do NOT include previous day's butterfly count
+   - Test if weather has consistent magnitude effects regardless of population size
+
+   **B Models (Proportional/Density-Dependent Effects)**: Test whether environmental effects depend on baseline population:
+   - Include `butterflies_95th_percentile_t_1` as a covariate
+   - Test if weather effects scale with population size
+   - Include interactions between baseline count and environmental variables
+
+3. **Fixed Effects** (tested in various combinations):
+   - Temperature variables: max, min, and temperature at max count
    - Wind: maximum gust from previous day
    - Sun exposure: sum of butterflies in direct sun from previous day
-3. **Random Effects**:
-   - Deployment ID (random intercept only)
-   - No temporal autocorrelation structure (simplified model)
+   - Previous day baseline: 95th percentile count (B models only)
 
-**Note**: This analysis deliberately excludes the previous day's butterfly count (`butterflies_95th_percentile_t_1`) to test whether environmental variables have direct effects on absolute changes in abundance, rather than proportional effects after controlling for baseline levels.
+4. **Random Effects**:
+   - Deployment ID (random intercept)
+   - AR1 temporal autocorrelation within deployments using `day_sequence | deployment_id`
+
+5. **Correlation Structures**:
+   - No correlation (baseline)
+   - AR1 within deployments to account for temporal autocorrelation
+
+This dual approach allows us to distinguish between:
+- **Absolute effects**: Environmental variables cause fixed-magnitude changes regardless of population size
+- **Proportional effects**: Environmental impacts scale with the existing population (density-dependence)
 
 ## Model Building and Selection
 
@@ -578,10 +598,96 @@ model_specs <- list(
     "M47" = "butterfly_diff_95th_sqrt ~ I(temp_max_t_1 - temp_min_t_1)",
     "M48" = "butterfly_diff_95th_sqrt ~ I(temp_max_t_1 - temp_min_t_1) + wind_max_gust_t_1",
     "M49" = "butterfly_diff_95th_sqrt ~ s(I(temp_max_t_1 - temp_min_t_1))",
-    "M50" = "butterfly_diff_95th_sqrt ~ s(I(temp_max_t_1 - temp_min_t_1)) + s(wind_max_gust_t_1)"
+    "M50" = "butterfly_diff_95th_sqrt ~ s(I(temp_max_t_1 - temp_min_t_1)) + s(wind_max_gust_t_1)",
+
+    # ===== MODELS WITH PREVIOUS DAY BASELINE =====
+    # All models below include butterflies_95th_percentile_t_1 to test proportional effects
+
+    # Baseline-only model
+    "B1" = "butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1",
+
+    # Single predictor models + baseline (linear)
+    "B2" = "butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 + wind_max_gust_t_1",
+    "B3" = "butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 + temp_max_t_1",
+    "B4" = "butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 + temp_min_t_1",
+    "B5" = "butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 + temp_at_max_count_t_1",
+    "B6" = "butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 + sum_butterflies_direct_sun_t_1",
+
+    # Temperature combinations + baseline (linear)
+    "B8" = "butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 + temp_max_t_1 + temp_min_t_1",
+    "B9" = "butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 + temp_max_t_1 + temp_at_max_count_t_1",
+    "B10" = "butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 + temp_min_t_1 + temp_at_max_count_t_1",
+    "B11" = "butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 + temp_max_t_1 + temp_min_t_1 + temp_at_max_count_t_1",
+
+    # Two-variable combinations + baseline
+    "B12" = "butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 + wind_max_gust_t_1 + temp_max_t_1",
+    "B13" = "butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 + wind_max_gust_t_1 + temp_min_t_1",
+    "B14" = "butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 + wind_max_gust_t_1 + temp_at_max_count_t_1",
+    "B15" = "butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 + wind_max_gust_t_1 + sum_butterflies_direct_sun_t_1",
+    "B16" = "butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 + temp_at_max_count_t_1 + sum_butterflies_direct_sun_t_1",
+
+    # Full models with various temperature specs + baseline (linear)
+    "B17" = "butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 + temp_max_t_1 + wind_max_gust_t_1 + sum_butterflies_direct_sun_t_1",
+    "B18" = "butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 + temp_min_t_1 + wind_max_gust_t_1 + sum_butterflies_direct_sun_t_1",
+    "B19" = "butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 + temp_at_max_count_t_1 + wind_max_gust_t_1 + sum_butterflies_direct_sun_t_1",
+    "B20" = "butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 + temp_max_t_1 + temp_min_t_1 + wind_max_gust_t_1 + sum_butterflies_direct_sun_t_1",
+    "B21" = "butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 + temp_max_t_1 + temp_min_t_1 + temp_at_max_count_t_1 + wind_max_gust_t_1 + sum_butterflies_direct_sun_t_1",
+
+    # Smooth terms models - single predictors + baseline
+    "B24" = "butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 + s(wind_max_gust_t_1)",
+    "B25" = "butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 + s(temp_max_t_1)",
+    "B26" = "butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 + s(temp_min_t_1)",
+    "B27" = "butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 + s(temp_at_max_count_t_1)",
+    "B28" = "butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 + s(sum_butterflies_direct_sun_t_1)",
+
+    # Smooth baseline + other predictors
+    "B29" = "butterfly_diff_95th_sqrt ~ s(butterflies_95th_percentile_t_1)",
+    "B29a" = "butterfly_diff_95th_sqrt ~ s(butterflies_95th_percentile_t_1) + wind_max_gust_t_1",
+    "B29b" = "butterfly_diff_95th_sqrt ~ s(butterflies_95th_percentile_t_1) + temp_at_max_count_t_1",
+    "B29c" = "butterfly_diff_95th_sqrt ~ s(butterflies_95th_percentile_t_1) + s(wind_max_gust_t_1)",
+    "B29d" = "butterfly_diff_95th_sqrt ~ s(butterflies_95th_percentile_t_1) + s(temp_at_max_count_t_1)",
+
+    # Smooth terms - combinations + baseline
+    "B30" = "butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 + s(temp_max_t_1) + s(temp_min_t_1)",
+    "B31" = "butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 + s(temp_at_max_count_t_1) + s(wind_max_gust_t_1)",
+    "B32" = "butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 + s(temp_at_max_count_t_1) + s(sum_butterflies_direct_sun_t_1)",
+    "B33" = "butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 + s(wind_max_gust_t_1) + s(sum_butterflies_direct_sun_t_1)",
+
+    # Complex smooth models + baseline
+    "B34" = "butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 + s(temp_at_max_count_t_1) + s(wind_max_gust_t_1) + s(sum_butterflies_direct_sun_t_1)",
+    "B35" = "butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 + s(temp_max_t_1) + s(temp_min_t_1) + s(wind_max_gust_t_1) + s(sum_butterflies_direct_sun_t_1)",
+    "B37" = "butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 + s(temp_max_t_1) + s(temp_min_t_1) + s(temp_at_max_count_t_1) + s(wind_max_gust_t_1) + s(sum_butterflies_direct_sun_t_1)",
+
+    # Mixed linear and smooth + baseline
+    "B38" = "butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 + temp_at_max_count_t_1 + s(wind_max_gust_t_1) + s(sum_butterflies_direct_sun_t_1)",
+    "B39" = "butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 + s(temp_at_max_count_t_1) + wind_max_gust_t_1 + sum_butterflies_direct_sun_t_1",
+    "B40" = "butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 + s(temp_at_max_count_t_1) + wind_max_gust_t_1 + s(sum_butterflies_direct_sun_t_1)",
+
+    # Interaction models with baseline
+    "B41" = "butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 + temp_at_max_count_t_1 * wind_max_gust_t_1",
+    "B42" = "butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 + temp_at_max_count_t_1 * sum_butterflies_direct_sun_t_1",
+    "B43" = "butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 + wind_max_gust_t_1 * sum_butterflies_direct_sun_t_1",
+    "B44" = "butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 + temp_at_max_count_t_1 * wind_max_gust_t_1 + sum_butterflies_direct_sun_t_1",
+    "B45" = "butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 + temp_at_max_count_t_1 + wind_max_gust_t_1 * sum_butterflies_direct_sun_t_1",
+    "B46" = "butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 + temp_at_max_count_t_1 * wind_max_gust_t_1 * sum_butterflies_direct_sun_t_1",
+
+    # Temperature range models + baseline
+    "B47" = "butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 + I(temp_max_t_1 - temp_min_t_1)",
+    "B48" = "butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 + I(temp_max_t_1 - temp_min_t_1) + wind_max_gust_t_1",
+    "B49" = "butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 + s(I(temp_max_t_1 - temp_min_t_1))",
+    "B50" = "butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 + s(I(temp_max_t_1 - temp_min_t_1)) + s(wind_max_gust_t_1)",
+
+    # Interaction with baseline (testing if environmental effects depend on population size)
+    "B51" = "butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 * wind_max_gust_t_1",
+    "B52" = "butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 * temp_at_max_count_t_1",
+    "B53" = "butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 * sum_butterflies_direct_sun_t_1",
+    "B54" = "butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 * wind_max_gust_t_1 + temp_at_max_count_t_1",
+    "B55" = "butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 * temp_at_max_count_t_1 + wind_max_gust_t_1"
 )
 
-cat("Total models to fit (WITHOUT previous day baseline):", length(model_specs), "\n")
+cat("Total models to fit:", length(model_specs), "\n")
+cat("- M models (M1-M50):", sum(grepl("^M", names(model_specs))), "models WITHOUT previous day baseline\n")
+cat("- B models (B1-B55):", sum(grepl("^B", names(model_specs))), "models WITH previous day baseline\n")
 ```
 
 ## Model Fitting
@@ -1085,10 +1191,21 @@ if (grepl("sum_butterflies_direct_sun", best_formula)) {
     cat("\n- Sun exposure IS included in the best model\n")
 }
 
+# Model type analysis
+best_model_type <- ifelse(grepl("^B", best_model_name), "B (with baseline)", "M (absolute effects)")
+cat("- Best model type:", best_model_type, "\n")
+
 if (grepl("butterflies_95th_percentile_t_1", best_formula)) {
-    cat("- Previous day baseline IS included in the best model\n")
+    cat("- Previous day baseline IS included (testing proportional/density-dependent effects)\n")
+
+    # Check for interactions with baseline
+    if (grepl("butterflies_95th_percentile_t_1 \\*", best_formula)) {
+        cat("  - Includes interactions with baseline (environmental effects depend on population size)\n")
+    } else {
+        cat("  - Baseline as additive effect only (no interactions)\n")
+    }
 } else {
-    cat("- Previous day baseline is NOT in the model (testing absolute effects)\n")
+    cat("- Previous day baseline is NOT included (testing absolute effects)\n")
 }
 
 # Temporal autocorrelation structure
@@ -1139,7 +1256,12 @@ if (exists("aic_results") && nrow(aic_results) > 0) {
 
 ## Conclusions
 
-This daily-level analysis examined the **absolute effects** of previous day's weather conditions on monarch butterfly abundance changes, measured as the 95th percentile of counts. Importantly, this analysis deliberately excludes the previous day's butterfly count to test direct environmental effects rather than proportional changes. Temporal patterns are modeled through autocorrelation structures in the random effects rather than as fixed effects.
+This daily-level analysis examined both **absolute effects** and **proportional effects** of previous day's weather conditions on monarch butterfly abundance changes, measured as the 95th percentile of counts. The analysis includes two model sets:
+
+- **M Models**: Test absolute environmental effects without controlling for previous day's butterfly count
+- **B Models**: Test proportional/density-dependent effects by including the previous day's butterfly count as a covariate
+
+Temporal patterns are modeled through AR1 autocorrelation structures within deployments using the proper day_sequence grouping.
 
 The analysis reveals:
 
@@ -1149,10 +1271,18 @@ The analysis reveals:
 
 3. **Temperature Effects**: `r if(any(temp_in_model)) {paste("Temperature variables (", paste(temp_vars[temp_in_model], collapse = ", "), ") are important predictors of absolute abundance changes in the best model.")} else {"Temperature variables were not selected in the best model for absolute abundance changes."}`
 
-4. **Interpretation**: By excluding the previous day's baseline count, these models test whether environmental variables have consistent absolute effects on butterfly numbers regardless of the starting population size. This is complementary to models that include the baseline, which test for proportional or density-dependent effects.
+4. **Model Interpretation**:
+   - **If an M model wins**: Environmental variables have consistent absolute effects regardless of population size
+   - **If a B model wins**: Environmental effects are proportional to or depend on the existing population
+   - **If interactions with baseline are significant**: Environmental impacts scale with population density (density-dependent effects)
 
 5. **Temporal Autocorrelation**: Models were fitted both with and without AR1 temporal autocorrelation structures. The AR1 structure uses day_sequence within each deployment_id, properly accounting for the sequential nature of daily observations while resetting the correlation structure for each deployment site.
 
 6. **Temporal Scale**: Daily aggregation captures cumulative weather effects over 24-hour periods, providing insights into how sustained environmental conditions (rather than brief events) influence monarch roosting populations.
 
-The analysis of absolute effects provides important insights into whether environmental variables have fixed magnitude effects on butterfly abundance or whether their effects scale with population size.
+The dual modeling approach provides comprehensive insights into whether environmental variables have:
+- **Fixed magnitude effects** (absolute effects, M models)
+- **Population-scaled effects** (proportional effects, B models)
+- **Density-dependent effects** (interactions with baseline population)
+
+This distinction is crucial for understanding monarch behavioral ecology and predicting population responses to environmental variability.
