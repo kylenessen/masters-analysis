@@ -3,17 +3,15 @@ title: "Daily-Level GAM Analysis of Monarch Butterfly Abundance"
 author: "Kyle Nessen"
 date: "`r Sys.Date()`"
 format:
-    pdf:
-        toc: true
-        toc-depth: 3
-        documentclass: article
-        embed-resources: true
-        keep-tex: false
+  html:
+    toc: true
+    toc-depth: 3
+    embed-resources: true
 execute:
-    warning: false
-    message: false
-    echo: true
-    cache: false
+  warning: false
+  message: false
+  echo: true
+  cache: false
 ---
 
 ## Introduction
@@ -52,17 +50,16 @@ cat("Date range:", min(daily_data$date_t), "to", max(daily_data$date_t), "\n\n")
 
 # Summary of key variables
 summary_vars <- daily_data %>%
-  select(
-    butterflies_95th_percentile_t,
-    butterflies_95th_percentile_t_1,
-    butterfly_diff_95th,
-    temp_max_t_1,
-    temp_min_t_1,
-    temp_at_max_count_t_1,
-    wind_max_gust_t_1,
-    sum_butterflies_direct_sun_t_1,
-    days_since_oct15_t
-  )
+    select(
+        butterflies_95th_percentile_t,
+        butterflies_95th_percentile_t_1,
+        butterfly_diff_95th,
+        temp_max_t_1,
+        temp_min_t_1,
+        temp_at_max_count_t_1,
+        wind_max_gust_t_1,
+        sum_butterflies_direct_sun_t_1
+    )
 
 summary(summary_vars)
 ```
@@ -74,41 +71,41 @@ library(gridExtra)
 
 # Current day's 95th percentile
 p1 <- ggplot(daily_data, aes(x = butterflies_95th_percentile_t)) +
-  geom_histogram(bins = 30, fill = "steelblue", alpha = 0.7) +
-  labs(
-    title = "Current Day: 95th Percentile Butterfly Count",
-    x = "95th Percentile Count", y = "Frequency"
-  ) +
-  theme_minimal()
+    geom_histogram(bins = 30, fill = "steelblue", alpha = 0.7) +
+    labs(
+        title = "Current Day: 95th Percentile Butterfly Count",
+        x = "95th Percentile Count", y = "Frequency"
+    ) +
+    theme_minimal()
 
 # Previous day's 95th percentile
 p2 <- ggplot(daily_data, aes(x = butterflies_95th_percentile_t_1)) +
-  geom_histogram(bins = 30, fill = "orange", alpha = 0.7) +
-  labs(
-    title = "Previous Day: 95th Percentile Butterfly Count",
-    x = "95th Percentile Count", y = "Frequency"
-  ) +
-  theme_minimal()
+    geom_histogram(bins = 30, fill = "orange", alpha = 0.7) +
+    labs(
+        title = "Previous Day: 95th Percentile Butterfly Count",
+        x = "95th Percentile Count", y = "Frequency"
+    ) +
+    theme_minimal()
 
 # Difference in 95th percentile
 p3 <- ggplot(daily_data, aes(x = butterfly_diff_95th)) +
-  geom_histogram(bins = 30, fill = "purple", alpha = 0.7) +
-  geom_vline(xintercept = 0, linetype = "dashed", color = "red") +
-  labs(
-    title = "Change in 95th Percentile (Current - Previous)",
-    x = "Difference in 95th Percentile", y = "Frequency"
-  ) +
-  theme_minimal()
+    geom_histogram(bins = 30, fill = "purple", alpha = 0.7) +
+    geom_vline(xintercept = 0, linetype = "dashed", color = "red") +
+    labs(
+        title = "Change in 95th Percentile (Current - Previous)",
+        x = "Difference in 95th Percentile", y = "Frequency"
+    ) +
+    theme_minimal()
 
 # Cube root transformed difference
 p4 <- ggplot(daily_data, aes(x = butterfly_diff_95th_cbrt)) +
-  geom_histogram(bins = 30, fill = "darkgreen", alpha = 0.7) +
-  geom_vline(xintercept = 0, linetype = "dashed", color = "red") +
-  labs(
-    title = "Change in 95th Percentile (Cube Root Transformed)",
-    x = "Difference (Cube Root)", y = "Frequency"
-  ) +
-  theme_minimal()
+    geom_histogram(bins = 30, fill = "darkgreen", alpha = 0.7) +
+    geom_vline(xintercept = 0, linetype = "dashed", color = "red") +
+    labs(
+        title = "Change in 95th Percentile (Cube Root Transformed)",
+        x = "Difference (Cube Root)", y = "Frequency"
+    ) +
+    theme_minimal()
 
 grid.arrange(p1, p2, p3, p4, ncol = 2)
 ```
@@ -118,37 +115,36 @@ grid.arrange(p1, p2, p3, p4, ncol = 2)
 ```{r correlation-matrix}
 # Select model variables
 model_vars <- daily_data %>%
-  select(
-    butterfly_diff_95th_cbrt,
-    butterflies_95th_percentile_t_1,
-    temp_max_t_1,
-    temp_min_t_1,
-    temp_at_max_count_t_1,
-    wind_max_gust_t_1,
-    sum_butterflies_direct_sun_t_1,
-    days_since_oct15_t
-  ) %>%
-  na.omit()
+    select(
+        butterfly_diff_95th_cbrt,
+        butterflies_95th_percentile_t_1,
+        temp_max_t_1,
+        temp_min_t_1,
+        temp_at_max_count_t_1,
+        wind_max_gust_t_1,
+        sum_butterflies_direct_sun_t_1
+    ) %>%
+    na.omit()
 
 # Correlation matrix
 cor_matrix <- cor(model_vars)
 
 # Create correlation plot
 corrplot(cor_matrix,
-  method = "color",
-  type = "upper",
-  order = "hclust",
-  tl.cex = 0.8,
-  tl.col = "black",
-  tl.srt = 45,
-  addCoef.col = "black",
-  number.cex = 0.6,
-  title = "Correlation Matrix: Daily Model Variables"
+    method = "color",
+    type = "upper",
+    order = "hclust",
+    tl.cex = 0.8,
+    tl.col = "black",
+    tl.srt = 45,
+    addCoef.col = "black",
+    number.cex = 0.6,
+    title = "Correlation Matrix: Daily Model Variables"
 )
 
 # Print correlation table
 kable(round(cor_matrix, 3),
-  caption = "Correlation Matrix for Daily Model Variables"
+    caption = "Correlation Matrix for Daily Model Variables"
 )
 ```
 
@@ -157,48 +153,48 @@ kable(round(cor_matrix, 3),
 ```{r temperature-exploration}
 # Temperature relationships
 p1 <- ggplot(daily_data, aes(x = temp_max_t_1, y = butterfly_diff_95th_cbrt)) +
-  geom_point(alpha = 0.3, color = "red") +
-  geom_smooth(method = "loess", se = TRUE, color = "darkred") +
-  labs(
-    title = "Maximum Temperature vs Butterfly Change",
-    x = "Previous Day Max Temperature (°C)",
-    y = "Change in 95th Percentile (cbrt)"
-  ) +
-  theme_minimal()
+    geom_point(alpha = 0.3, color = "red") +
+    geom_smooth(method = "loess", se = TRUE, color = "darkred") +
+    labs(
+        title = "Maximum Temperature vs Butterfly Change",
+        x = "Previous Day Max Temperature (°C)",
+        y = "Change in 95th Percentile (cbrt)"
+    ) +
+    theme_minimal()
 
 p2 <- ggplot(daily_data, aes(x = temp_min_t_1, y = butterfly_diff_95th_cbrt)) +
-  geom_point(alpha = 0.3, color = "blue") +
-  geom_smooth(method = "loess", se = TRUE, color = "darkblue") +
-  labs(
-    title = "Minimum Temperature vs Butterfly Change",
-    x = "Previous Day Min Temperature (°C)",
-    y = "Change in 95th Percentile (cbrt)"
-  ) +
-  theme_minimal()
+    geom_point(alpha = 0.3, color = "blue") +
+    geom_smooth(method = "loess", se = TRUE, color = "darkblue") +
+    labs(
+        title = "Minimum Temperature vs Butterfly Change",
+        x = "Previous Day Min Temperature (°C)",
+        y = "Change in 95th Percentile (cbrt)"
+    ) +
+    theme_minimal()
 
 p3 <- ggplot(daily_data, aes(x = temp_at_max_count_t_1, y = butterfly_diff_95th_cbrt)) +
-  geom_point(alpha = 0.3, color = "orange") +
-  geom_smooth(method = "loess", se = TRUE, color = "darkorange") +
-  labs(
-    title = "Temperature at Max Count vs Butterfly Change",
-    x = "Previous Day Temp at Max Count (°C)",
-    y = "Change in 95th Percentile (cbrt)"
-  ) +
-  theme_minimal()
+    geom_point(alpha = 0.3, color = "orange") +
+    geom_smooth(method = "loess", se = TRUE, color = "darkorange") +
+    labs(
+        title = "Temperature at Max Count vs Butterfly Change",
+        x = "Previous Day Temp at Max Count (°C)",
+        y = "Change in 95th Percentile (cbrt)"
+    ) +
+    theme_minimal()
 
 # Temperature range
 daily_data <- daily_data %>%
-  mutate(temp_range_t_1 = temp_max_t_1 - temp_min_t_1)
+    mutate(temp_range_t_1 = temp_max_t_1 - temp_min_t_1)
 
 p4 <- ggplot(daily_data, aes(x = temp_range_t_1, y = butterfly_diff_95th_cbrt)) +
-  geom_point(alpha = 0.3, color = "purple") +
-  geom_smooth(method = "loess", se = TRUE, color = "darkviolet") +
-  labs(
-    title = "Temperature Range vs Butterfly Change",
-    x = "Previous Day Temp Range (°C)",
-    y = "Change in 95th Percentile (cbrt)"
-  ) +
-  theme_minimal()
+    geom_point(alpha = 0.3, color = "purple") +
+    geom_smooth(method = "loess", se = TRUE, color = "darkviolet") +
+    labs(
+        title = "Temperature Range vs Butterfly Change",
+        x = "Previous Day Temp Range (°C)",
+        y = "Change in 95th Percentile (cbrt)"
+    ) +
+    theme_minimal()
 
 grid.arrange(p1, p2, p3, p4, ncol = 2)
 ```
@@ -208,48 +204,49 @@ grid.arrange(p1, p2, p3, p4, ncol = 2)
 ```{r wind-sun-exploration}
 # Wind effect
 p1 <- ggplot(daily_data, aes(x = wind_max_gust_t_1, y = butterfly_diff_95th_cbrt)) +
-  geom_point(alpha = 0.3, color = "steelblue") +
-  geom_smooth(method = "loess", se = TRUE, color = "darkblue") +
-  geom_vline(xintercept = 2, linetype = "dashed", color = "red", alpha = 0.5) +
-  labs(
-    title = "Maximum Wind Gust vs Butterfly Change",
-    x = "Previous Day Max Wind Gust (m/s)",
-    y = "Change in 95th Percentile (cbrt)"
-  ) +
-  theme_minimal()
+    geom_point(alpha = 0.3, color = "steelblue") +
+    geom_smooth(method = "loess", se = TRUE, color = "darkblue") +
+    geom_vline(xintercept = 2, linetype = "dashed", color = "red", alpha = 0.5) +
+    labs(
+        title = "Maximum Wind Gust vs Butterfly Change",
+        x = "Previous Day Max Wind Gust (m/s)",
+        y = "Change in 95th Percentile (cbrt)"
+    ) +
+    theme_minimal()
 
 # Sun exposure
 p2 <- ggplot(daily_data, aes(x = sum_butterflies_direct_sun_t_1, y = butterfly_diff_95th_cbrt)) +
-  geom_point(alpha = 0.3, color = "orange") +
-  geom_smooth(method = "loess", se = TRUE, color = "darkorange") +
-  labs(
-    title = "Direct Sun Exposure vs Butterfly Change",
-    x = "Previous Day Sum of Butterflies in Direct Sun",
-    y = "Change in 95th Percentile (cbrt)"
-  ) +
-  theme_minimal()
+    geom_point(alpha = 0.3, color = "orange") +
+    geom_smooth(method = "loess", se = TRUE, color = "darkorange") +
+    labs(
+        title = "Direct Sun Exposure vs Butterfly Change",
+        x = "Previous Day Sum of Butterflies in Direct Sun",
+        y = "Change in 95th Percentile (cbrt)"
+    ) +
+    theme_minimal()
 
-# Seasonal progression
-p3 <- ggplot(daily_data, aes(x = days_since_oct15_t, y = butterfly_diff_95th_cbrt)) +
-  geom_point(alpha = 0.3, color = "darkgreen") +
-  geom_smooth(method = "loess", se = TRUE, color = "forestgreen") +
-  labs(
-    title = "Seasonal Progression vs Butterfly Change",
-    x = "Days Since October 15",
-    y = "Change in 95th Percentile (cbrt)"
-  ) +
-  theme_minimal()
+# Note: Seasonal progression will be handled via temporal autocorrelation
+# rather than as a fixed effect
+p3 <- ggplot(daily_data, aes(x = date_t, y = butterfly_diff_95th_cbrt)) +
+    geom_point(alpha = 0.3, color = "darkgreen") +
+    geom_smooth(method = "loess", se = TRUE, color = "forestgreen") +
+    labs(
+        title = "Temporal Pattern vs Butterfly Change",
+        x = "Date",
+        y = "Change in 95th Percentile (cbrt)"
+    ) +
+    theme_minimal()
 
 # Previous day baseline
 p4 <- ggplot(daily_data, aes(x = butterflies_95th_percentile_t_1, y = butterfly_diff_95th_cbrt)) +
-  geom_point(alpha = 0.3, color = "purple") +
-  geom_smooth(method = "loess", se = TRUE, color = "darkviolet") +
-  labs(
-    title = "Previous Day Baseline vs Change",
-    x = "Previous Day 95th Percentile Count",
-    y = "Change in 95th Percentile (cbrt)"
-  ) +
-  theme_minimal()
+    geom_point(alpha = 0.3, color = "purple") +
+    geom_smooth(method = "loess", se = TRUE, color = "darkviolet") +
+    labs(
+        title = "Previous Day Baseline vs Change",
+        x = "Previous Day 95th Percentile Count",
+        y = "Change in 95th Percentile (cbrt)"
+    ) +
+    theme_minimal()
 
 grid.arrange(p1, p2, p3, p4, ncol = 2)
 ```
@@ -259,29 +256,30 @@ grid.arrange(p1, p2, p3, p4, ncol = 2)
 ```{r data-prep}
 # Remove missing values and prepare modeling dataset
 model_data <- daily_data %>%
-  filter(
-    !is.na(butterfly_diff_95th_cbrt),
-    !is.na(butterflies_95th_percentile_t_1),
-    !is.na(temp_max_t_1),
-    !is.na(temp_min_t_1),
-    !is.na(temp_at_max_count_t_1),
-    !is.na(wind_max_gust_t_1),
-    !is.na(sum_butterflies_direct_sun_t_1),
-    !is.na(deployment_id),
-    !is.na(days_since_oct15_t)
-  ) %>%
-  # Create standardized versions for interpretation
-  mutate(
-    wind_max_gust_std = scale(wind_max_gust_t_1)[,1],
-    temp_max_std = scale(temp_max_t_1)[,1],
-    temp_min_std = scale(temp_min_t_1)[,1],
-    temp_at_max_std = scale(temp_at_max_count_t_1)[,1],
-    sun_exposure_std = scale(sum_butterflies_direct_sun_t_1)[,1],
-    baseline_std = scale(butterflies_95th_percentile_t_1)[,1]
-  )
+    filter(
+        !is.na(butterfly_diff_95th_cbrt),
+        !is.na(butterflies_95th_percentile_t_1),
+        !is.na(temp_max_t_1),
+        !is.na(temp_min_t_1),
+        !is.na(temp_at_max_count_t_1),
+        !is.na(wind_max_gust_t_1),
+        !is.na(sum_butterflies_direct_sun_t_1),
+        !is.na(deployment_id)
+    ) %>%
+    # Create standardized versions for interpretation
+    mutate(
+        wind_max_gust_std = scale(wind_max_gust_t_1)[, 1],
+        temp_max_std = scale(temp_max_t_1)[, 1],
+        temp_min_std = scale(temp_min_t_1)[, 1],
+        temp_at_max_std = scale(temp_at_max_count_t_1)[, 1],
+        sun_exposure_std = scale(sum_butterflies_direct_sun_t_1)[, 1],
+        baseline_std = scale(butterflies_95th_percentile_t_1)[, 1],
+        # Create a day sequence for temporal autocorrelation
+        day_sequence = as.numeric(date_t - min(date_t)) + 1
+    )
 
 cat("Clean dataset has", nrow(model_data), "observations\n")
-cat("Number of unique deployment days:", n_distinct(paste(model_data$deployment_id, model_data$days_since_oct15_t)), "\n")
+cat("Number of unique deployment days:", n_distinct(paste(model_data$deployment_id, model_data$date_t)), "\n")
 ```
 
 ## Modeling Strategy
@@ -293,9 +291,9 @@ Our modeling approach for daily-level data tests the **absolute effects** of env
    - Temperature variables: max, min, and temperature at max count (testing various combinations)
    - Wind: maximum gust from previous day
    - Sun exposure: sum of butterflies in direct sun from previous day
-   - Seasonal progression: days since October 15
 3. **Random Effects**:
    - Deployment ID (random intercept)
+   - Temporal autocorrelation structure to account for time-dependent patterns
 
 **Note**: This analysis deliberately excludes the previous day's butterfly count (`butterflies_95th_percentile_t_1`) to test whether environmental variables have direct effects on absolute changes in abundance, rather than proportional effects after controlling for baseline levels.
 
@@ -304,84 +302,89 @@ Our modeling approach for daily-level data tests the **absolute effects** of env
 ```{r model-setup}
 library(nlme)
 
-# Define random effects structure
+# Define random effects structure with temporal autocorrelation
+# We'll test different correlation structures
 random_structure <- list(deployment_id = ~1)
+
+# Define correlation structures to test
+# AR1: First-order autoregressive (adjacent days are correlated)
+# ARMA: Autoregressive moving average
+correlation_structures <- list(
+    "no_corr" = NULL,  # No temporal correlation (baseline)
+    "ar1" = corAR1(form = ~day_sequence | deployment_id),  # AR(1) within deployment
+    "ar1_compound" = corCompSymm(form = ~day_sequence | deployment_id)  # Compound symmetry
+)
 
 # Model specifications for AIC comparison - WITHOUT previous day baseline
 model_specs <- list(
-  # Null model
-  "M1" = "butterfly_diff_95th_cbrt ~ 1",
+    # Null model
+    "M1" = "butterfly_diff_95th_cbrt ~ 1",
 
-  # Single predictor models (linear)
-  "M2" = "butterfly_diff_95th_cbrt ~ wind_max_gust_t_1",
-  "M3" = "butterfly_diff_95th_cbrt ~ temp_max_t_1",
-  "M4" = "butterfly_diff_95th_cbrt ~ temp_min_t_1",
-  "M5" = "butterfly_diff_95th_cbrt ~ temp_at_max_count_t_1",
-  "M6" = "butterfly_diff_95th_cbrt ~ sum_butterflies_direct_sun_t_1",
-  "M7" = "butterfly_diff_95th_cbrt ~ days_since_oct15_t",
+    # Single predictor models (linear)
+    "M2" = "butterfly_diff_95th_cbrt ~ wind_max_gust_t_1",
+    "M3" = "butterfly_diff_95th_cbrt ~ temp_max_t_1",
+    "M4" = "butterfly_diff_95th_cbrt ~ temp_min_t_1",
+    "M5" = "butterfly_diff_95th_cbrt ~ temp_at_max_count_t_1",
+    "M6" = "butterfly_diff_95th_cbrt ~ sum_butterflies_direct_sun_t_1",
 
-  # Temperature combinations (linear)
-  "M8" = "butterfly_diff_95th_cbrt ~ temp_max_t_1 + temp_min_t_1",
-  "M9" = "butterfly_diff_95th_cbrt ~ temp_max_t_1 + temp_at_max_count_t_1",
-  "M10" = "butterfly_diff_95th_cbrt ~ temp_min_t_1 + temp_at_max_count_t_1",
-  "M11" = "butterfly_diff_95th_cbrt ~ temp_max_t_1 + temp_min_t_1 + temp_at_max_count_t_1",
+    # Temperature combinations (linear)
+    "M8" = "butterfly_diff_95th_cbrt ~ temp_max_t_1 + temp_min_t_1",
+    "M9" = "butterfly_diff_95th_cbrt ~ temp_max_t_1 + temp_at_max_count_t_1",
+    "M10" = "butterfly_diff_95th_cbrt ~ temp_min_t_1 + temp_at_max_count_t_1",
+    "M11" = "butterfly_diff_95th_cbrt ~ temp_max_t_1 + temp_min_t_1 + temp_at_max_count_t_1",
 
-  # Two-variable combinations
-  "M12" = "butterfly_diff_95th_cbrt ~ wind_max_gust_t_1 + temp_max_t_1",
-  "M13" = "butterfly_diff_95th_cbrt ~ wind_max_gust_t_1 + temp_min_t_1",
-  "M14" = "butterfly_diff_95th_cbrt ~ wind_max_gust_t_1 + temp_at_max_count_t_1",
-  "M15" = "butterfly_diff_95th_cbrt ~ wind_max_gust_t_1 + sum_butterflies_direct_sun_t_1",
-  "M16" = "butterfly_diff_95th_cbrt ~ temp_at_max_count_t_1 + sum_butterflies_direct_sun_t_1",
+    # Two-variable combinations
+    "M12" = "butterfly_diff_95th_cbrt ~ wind_max_gust_t_1 + temp_max_t_1",
+    "M13" = "butterfly_diff_95th_cbrt ~ wind_max_gust_t_1 + temp_min_t_1",
+    "M14" = "butterfly_diff_95th_cbrt ~ wind_max_gust_t_1 + temp_at_max_count_t_1",
+    "M15" = "butterfly_diff_95th_cbrt ~ wind_max_gust_t_1 + sum_butterflies_direct_sun_t_1",
+    "M16" = "butterfly_diff_95th_cbrt ~ temp_at_max_count_t_1 + sum_butterflies_direct_sun_t_1",
 
-  # Full models with various temperature specs (linear)
-  "M17" = "butterfly_diff_95th_cbrt ~ temp_max_t_1 + wind_max_gust_t_1 + sum_butterflies_direct_sun_t_1",
-  "M18" = "butterfly_diff_95th_cbrt ~ temp_min_t_1 + wind_max_gust_t_1 + sum_butterflies_direct_sun_t_1",
-  "M19" = "butterfly_diff_95th_cbrt ~ temp_at_max_count_t_1 + wind_max_gust_t_1 + sum_butterflies_direct_sun_t_1",
-  "M20" = "butterfly_diff_95th_cbrt ~ temp_max_t_1 + temp_min_t_1 + wind_max_gust_t_1 + sum_butterflies_direct_sun_t_1",
-  "M21" = "butterfly_diff_95th_cbrt ~ temp_max_t_1 + temp_min_t_1 + temp_at_max_count_t_1 + wind_max_gust_t_1 + sum_butterflies_direct_sun_t_1",
+    # Full models with various temperature specs (linear)
+    "M17" = "butterfly_diff_95th_cbrt ~ temp_max_t_1 + wind_max_gust_t_1 + sum_butterflies_direct_sun_t_1",
+    "M18" = "butterfly_diff_95th_cbrt ~ temp_min_t_1 + wind_max_gust_t_1 + sum_butterflies_direct_sun_t_1",
+    "M19" = "butterfly_diff_95th_cbrt ~ temp_at_max_count_t_1 + wind_max_gust_t_1 + sum_butterflies_direct_sun_t_1",
+    "M20" = "butterfly_diff_95th_cbrt ~ temp_max_t_1 + temp_min_t_1 + wind_max_gust_t_1 + sum_butterflies_direct_sun_t_1",
+    "M21" = "butterfly_diff_95th_cbrt ~ temp_max_t_1 + temp_min_t_1 + temp_at_max_count_t_1 + wind_max_gust_t_1 + sum_butterflies_direct_sun_t_1",
 
-  # Models with seasonal progression
-  "M22" = "butterfly_diff_95th_cbrt ~ temp_at_max_count_t_1 + wind_max_gust_t_1 + sum_butterflies_direct_sun_t_1 + days_since_oct15_t",
-  "M23" = "butterfly_diff_95th_cbrt ~ temp_max_t_1 + temp_min_t_1 + wind_max_gust_t_1 + sum_butterflies_direct_sun_t_1 + days_since_oct15_t",
 
-  # Smooth terms models - single predictors
-  "M24" = "butterfly_diff_95th_cbrt ~ s(wind_max_gust_t_1)",
-  "M25" = "butterfly_diff_95th_cbrt ~ s(temp_max_t_1)",
-  "M26" = "butterfly_diff_95th_cbrt ~ s(temp_min_t_1)",
-  "M27" = "butterfly_diff_95th_cbrt ~ s(temp_at_max_count_t_1)",
-  "M28" = "butterfly_diff_95th_cbrt ~ s(sum_butterflies_direct_sun_t_1)",
-  "M29" = "butterfly_diff_95th_cbrt ~ s(days_since_oct15_t)",
+    # Smooth terms models - single predictors
+    "M24" = "butterfly_diff_95th_cbrt ~ s(wind_max_gust_t_1)",
+    "M25" = "butterfly_diff_95th_cbrt ~ s(temp_max_t_1)",
+    "M26" = "butterfly_diff_95th_cbrt ~ s(temp_min_t_1)",
+    "M27" = "butterfly_diff_95th_cbrt ~ s(temp_at_max_count_t_1)",
+    "M28" = "butterfly_diff_95th_cbrt ~ s(sum_butterflies_direct_sun_t_1)",
 
-  # Smooth terms - combinations
-  "M30" = "butterfly_diff_95th_cbrt ~ s(temp_max_t_1) + s(temp_min_t_1)",
-  "M31" = "butterfly_diff_95th_cbrt ~ s(temp_at_max_count_t_1) + s(wind_max_gust_t_1)",
-  "M32" = "butterfly_diff_95th_cbrt ~ s(temp_at_max_count_t_1) + s(sum_butterflies_direct_sun_t_1)",
-  "M33" = "butterfly_diff_95th_cbrt ~ s(wind_max_gust_t_1) + s(sum_butterflies_direct_sun_t_1)",
+    # Smooth terms - combinations
+    "M30" = "butterfly_diff_95th_cbrt ~ s(temp_max_t_1) + s(temp_min_t_1)",
+    "M31" = "butterfly_diff_95th_cbrt ~ s(temp_at_max_count_t_1) + s(wind_max_gust_t_1)",
+    "M32" = "butterfly_diff_95th_cbrt ~ s(temp_at_max_count_t_1) + s(sum_butterflies_direct_sun_t_1)",
+    "M33" = "butterfly_diff_95th_cbrt ~ s(wind_max_gust_t_1) + s(sum_butterflies_direct_sun_t_1)",
 
-  # Complex smooth models
-  "M34" = "butterfly_diff_95th_cbrt ~ s(temp_at_max_count_t_1) + s(wind_max_gust_t_1) + s(sum_butterflies_direct_sun_t_1)",
-  "M35" = "butterfly_diff_95th_cbrt ~ s(temp_max_t_1) + s(temp_min_t_1) + s(wind_max_gust_t_1) + s(sum_butterflies_direct_sun_t_1)",
-  "M36" = "butterfly_diff_95th_cbrt ~ s(temp_at_max_count_t_1) + s(wind_max_gust_t_1) + s(sum_butterflies_direct_sun_t_1) + s(days_since_oct15_t)",
-  "M37" = "butterfly_diff_95th_cbrt ~ s(temp_max_t_1) + s(temp_min_t_1) + s(temp_at_max_count_t_1) + s(wind_max_gust_t_1) + s(sum_butterflies_direct_sun_t_1)",
+    # Complex smooth models
+    "M34" = "butterfly_diff_95th_cbrt ~ s(temp_at_max_count_t_1) + s(wind_max_gust_t_1) + s(sum_butterflies_direct_sun_t_1)",
+    "M35" = "butterfly_diff_95th_cbrt ~ s(temp_max_t_1) + s(temp_min_t_1) + s(wind_max_gust_t_1) + s(sum_butterflies_direct_sun_t_1)",
+    "M36" = "butterfly_diff_95th_cbrt ~ s(temp_at_max_count_t_1) + s(wind_max_gust_t_1) + s(sum_butterflies_direct_sun_t_1)",
+    "M37" = "butterfly_diff_95th_cbrt ~ s(temp_max_t_1) + s(temp_min_t_1) + s(temp_at_max_count_t_1) + s(wind_max_gust_t_1) + s(sum_butterflies_direct_sun_t_1)",
 
-  # Mixed linear and smooth
-  "M38" = "butterfly_diff_95th_cbrt ~ temp_at_max_count_t_1 + s(wind_max_gust_t_1) + s(sum_butterflies_direct_sun_t_1)",
-  "M39" = "butterfly_diff_95th_cbrt ~ s(temp_at_max_count_t_1) + wind_max_gust_t_1 + sum_butterflies_direct_sun_t_1",
-  "M40" = "butterfly_diff_95th_cbrt ~ s(temp_at_max_count_t_1) + wind_max_gust_t_1 + s(sum_butterflies_direct_sun_t_1)",
+    # Mixed linear and smooth
+    "M38" = "butterfly_diff_95th_cbrt ~ temp_at_max_count_t_1 + s(wind_max_gust_t_1) + s(sum_butterflies_direct_sun_t_1)",
+    "M39" = "butterfly_diff_95th_cbrt ~ s(temp_at_max_count_t_1) + wind_max_gust_t_1 + sum_butterflies_direct_sun_t_1",
+    "M40" = "butterfly_diff_95th_cbrt ~ s(temp_at_max_count_t_1) + wind_max_gust_t_1 + s(sum_butterflies_direct_sun_t_1)",
 
-  # Interaction models (without baseline)
-  "M41" = "butterfly_diff_95th_cbrt ~ temp_at_max_count_t_1 * wind_max_gust_t_1",
-  "M42" = "butterfly_diff_95th_cbrt ~ temp_at_max_count_t_1 * sum_butterflies_direct_sun_t_1",
-  "M43" = "butterfly_diff_95th_cbrt ~ wind_max_gust_t_1 * sum_butterflies_direct_sun_t_1",
-  "M44" = "butterfly_diff_95th_cbrt ~ temp_at_max_count_t_1 * wind_max_gust_t_1 + sum_butterflies_direct_sun_t_1",
-  "M45" = "butterfly_diff_95th_cbrt ~ temp_at_max_count_t_1 + wind_max_gust_t_1 * sum_butterflies_direct_sun_t_1",
-  "M46" = "butterfly_diff_95th_cbrt ~ temp_at_max_count_t_1 * wind_max_gust_t_1 * sum_butterflies_direct_sun_t_1",
+    # Interaction models (without baseline)
+    "M41" = "butterfly_diff_95th_cbrt ~ temp_at_max_count_t_1 * wind_max_gust_t_1",
+    "M42" = "butterfly_diff_95th_cbrt ~ temp_at_max_count_t_1 * sum_butterflies_direct_sun_t_1",
+    "M43" = "butterfly_diff_95th_cbrt ~ wind_max_gust_t_1 * sum_butterflies_direct_sun_t_1",
+    "M44" = "butterfly_diff_95th_cbrt ~ temp_at_max_count_t_1 * wind_max_gust_t_1 + sum_butterflies_direct_sun_t_1",
+    "M45" = "butterfly_diff_95th_cbrt ~ temp_at_max_count_t_1 + wind_max_gust_t_1 * sum_butterflies_direct_sun_t_1",
+    "M46" = "butterfly_diff_95th_cbrt ~ temp_at_max_count_t_1 * wind_max_gust_t_1 * sum_butterflies_direct_sun_t_1",
 
-  # Temperature range models
-  "M47" = "butterfly_diff_95th_cbrt ~ I(temp_max_t_1 - temp_min_t_1)",
-  "M48" = "butterfly_diff_95th_cbrt ~ I(temp_max_t_1 - temp_min_t_1) + wind_max_gust_t_1",
-  "M49" = "butterfly_diff_95th_cbrt ~ s(I(temp_max_t_1 - temp_min_t_1))",
-  "M50" = "butterfly_diff_95th_cbrt ~ s(I(temp_max_t_1 - temp_min_t_1)) + s(wind_max_gust_t_1)"
+    # Temperature range models
+    "M47" = "butterfly_diff_95th_cbrt ~ I(temp_max_t_1 - temp_min_t_1)",
+    "M48" = "butterfly_diff_95th_cbrt ~ I(temp_max_t_1 - temp_min_t_1) + wind_max_gust_t_1",
+    "M49" = "butterfly_diff_95th_cbrt ~ s(I(temp_max_t_1 - temp_min_t_1))",
+    "M50" = "butterfly_diff_95th_cbrt ~ s(I(temp_max_t_1 - temp_min_t_1)) + s(wind_max_gust_t_1)"
 )
 
 cat("Total models to fit (WITHOUT previous day baseline):", length(model_specs), "\n")
@@ -391,64 +394,124 @@ cat("Total models to fit (WITHOUT previous day baseline):", length(model_specs),
 
 ```{r model-fitting}
 #| cache: true
-# Function to safely fit models
-fit_model_safely <- function(formula_str, data) {
-  tryCatch({
-      formula_obj <- as.formula(formula_str)
-      gamm(formula_obj,
-          data = data,
-          random = random_structure,
-          method = "REML"
-      )
-    },
-    error = function(e) {
-      message("Failed to fit model: ", formula_str)
-      message("Error: ", e$message)
-      return(NULL)
-    }
-  )
+# Function to safely fit models with correlation structures
+fit_model_safely <- function(formula_str, data, correlation = NULL, corr_name = "no_corr") {
+    tryCatch(
+        {
+            formula_obj <- as.formula(formula_str)
+
+            # Fit the model with or without correlation structure
+            if (is.null(correlation)) {
+                model <- gamm(formula_obj,
+                    data = data,
+                    random = random_structure,
+                    method = "REML"
+                )
+            } else {
+                model <- gamm(formula_obj,
+                    data = data,
+                    random = random_structure,
+                    correlation = correlation,
+                    method = "REML"
+                )
+            }
+
+            # Add correlation structure name to the model for tracking
+            model$correlation_structure <- corr_name
+            return(model)
+        },
+        error = function(e) {
+            message("Failed to fit model: ", formula_str, " with correlation: ", corr_name)
+            message("Error: ", e$message)
+            return(NULL)
+        }
+    )
 }
 
-# Fit all models
-cat("Fitting models...\n")
-fitted_models <- map(model_specs, ~ fit_model_safely(.x, model_data))
+# Fit all models with different correlation structures
+cat("Fitting models with different correlation structures...\n")
+fitted_models <- list()
+
+# For each model specification, fit with each correlation structure
+model_counter <- 1
+for (model_name in names(model_specs)) {
+    formula_str <- model_specs[[model_name]]
+
+    for (corr_name in names(correlation_structures)) {
+        corr_struct <- correlation_structures[[corr_name]]
+
+        # Create unique model name combining formula and correlation structure
+        full_model_name <- paste0(model_name, "_", corr_name)
+
+        # Fit the model
+        fitted_models[[full_model_name]] <- fit_model_safely(
+            formula_str, model_data, corr_struct, corr_name
+        )
+
+        model_counter <- model_counter + 1
+    }
+}
 
 # Remove failed models
 successful_models <- fitted_models[!map_lgl(fitted_models, is.null)]
-cat("Successfully fitted", length(successful_models), "out of", length(model_specs), "models\n")
+cat("Successfully fitted", length(successful_models), "out of",
+    length(model_specs) * length(correlation_structures), "model-correlation combinations\n")
 ```
 
 ## Model Comparison
 
 ```{r model-comparison}
 # Extract AIC values
-aic_results <- map_dfr(names(successful_models), function(model_name) {
-  model <- successful_models[[model_name]]
-  data.frame(
-    Model = model_name,
-    Formula = model_specs[[model_name]],
-    AIC = AIC(model$lme),
-    LogLik = logLik(model$lme)[1],
-    df = attr(logLik(model$lme), "df")
-  )
+aic_results <- map_dfr(names(successful_models), function(full_model_name) {
+    model <- successful_models[[full_model_name]]
+
+    # Extract base model name and correlation structure
+    parts <- strsplit(full_model_name, "_")[[1]]
+    # The correlation name is the last part after the final underscore
+    n_parts <- length(parts)
+    if (n_parts >= 2) {
+        corr_name <- parts[n_parts]
+        base_model_name <- paste(parts[-n_parts], collapse = "_")
+    } else {
+        corr_name <- "no_corr"
+        base_model_name <- full_model_name
+    }
+
+    # Get the formula from the base model name
+    formula_str <- model_specs[[base_model_name]]
+    if (is.null(formula_str)) {
+        # Handle edge case where base model name doesn't match exactly
+        formula_str <- "Unknown formula"
+    }
+
+    data.frame(
+        Model = full_model_name,
+        Base_Model = base_model_name,
+        Formula = formula_str,
+        Correlation = corr_name,
+        AIC = AIC(model$lme),
+        LogLik = logLik(model$lme)[1],
+        df = attr(logLik(model$lme), "df"),
+        stringsAsFactors = FALSE
+    )
 }) %>%
-  arrange(AIC) %>%
-  mutate(
-    Delta_AIC = AIC - min(AIC),
-    AIC_weight = exp(-0.5 * Delta_AIC) / sum(exp(-0.5 * Delta_AIC))
-  )
+    arrange(AIC) %>%
+    mutate(
+        Delta_AIC = AIC - min(AIC),
+        AIC_weight = exp(-0.5 * Delta_AIC) / sum(exp(-0.5 * Delta_AIC))
+    )
 
 # Display top 10 models
 aic_results %>%
-  head(10) %>%
-  select(Model, AIC, Delta_AIC, AIC_weight, df) %>%
-  kable(digits = 3, caption = "Top 10 models by AIC")
+    head(10) %>%
+    select(Model, Correlation, AIC, Delta_AIC, AIC_weight, df) %>%
+    kable(digits = 3, caption = "Top 10 models by AIC (including correlation structure)")
 
 # Show model formulas for top 5
 cat("\nTop 5 model specifications:\n")
 head(aic_results, 5) %>%
-  select(Model, Formula, Delta_AIC) %>%
-  kable(digits = 3)
+    select(Base_Model, Formula, Correlation, Delta_AIC) %>%
+    kable(digits = 3)
 ```
 
 ## Best Model Analysis
@@ -478,21 +541,21 @@ cat("Deviance explained:", round(dev_explained * 100, 2), "%\n")
 ```{r effect-plots-setup}
 # Define custom theme
 custom_theme <- theme_minimal(base_size = 12) +
-  theme(
-    panel.grid.major = element_line(color = "gray90", size = 0.5),
-    panel.grid.minor = element_line(color = "gray95", size = 0.3),
-    axis.text = element_text(color = "black", size = 11),
-    axis.title = element_text(color = "black", size = 12, face = "bold"),
-    plot.title = element_text(color = "black", size = 14, face = "bold", hjust = 0.5),
-    panel.border = element_rect(color = "black", fill = NA, size = 0.5),
-    plot.margin = margin(10, 10, 10, 10)
-  )
+    theme(
+        panel.grid.major = element_line(color = "gray90", size = 0.5),
+        panel.grid.minor = element_line(color = "gray95", size = 0.3),
+        axis.text = element_text(color = "black", size = 11),
+        axis.title = element_text(color = "black", size = 12, face = "bold"),
+        plot.title = element_text(color = "black", size = 14, face = "bold", hjust = 0.5),
+        panel.border = element_rect(color = "black", fill = NA, size = 0.5),
+        plot.margin = margin(10, 10, 10, 10)
+    )
 
 # Function to add zero line
 add_zero_line <- function(plot) {
-  zero_line_layer <- geom_hline(yintercept = 0, color = "gray70", size = 0.8, alpha = 1)
-  plot$layers <- c(list(zero_line_layer), plot$layers)
-  return(plot)
+    zero_line_layer <- geom_hline(yintercept = 0, color = "gray70", size = 0.8, alpha = 1)
+    plot$layers <- c(list(zero_line_layer), plot$layers)
+    return(plot)
 }
 ```
 
@@ -505,41 +568,40 @@ best_formula <- aic_results$Formula[1]
 has_smooth <- grepl("s\\(", best_formula)
 
 if (has_smooth) {
-  # For GAM with smooth terms
-  plots <- list()
+    # For GAM with smooth terms
+    plots <- list()
 
-  # Check which smooth terms are in the model
-  smooth_terms <- summary(best_model$gam)$s.table
+    # Check which smooth terms are in the model
+    smooth_terms <- summary(best_model$gam)$s.table
 
-  # Plot each smooth term
-  for (i in 1:nrow(smooth_terms)) {
-    term_name <- rownames(smooth_terms)[i]
-    p <- draw(best_model$gam, select = term_name, rug = FALSE, residuals = FALSE) +
-      custom_theme +
-      theme(plot.caption = element_blank())
-    p <- add_zero_line(p)
-    plots[[i]] <- p
-  }
-
-  # Combine plots
-  if (length(plots) > 0) {
-    if (length(plots) <= 2) {
-      combined_plots <- wrap_plots(plots, nrow = 1)
-    } else if (length(plots) <= 4) {
-      combined_plots <- wrap_plots(plots, nrow = 2)
-    } else {
-      combined_plots <- wrap_plots(plots, nrow = 3)
+    # Plot each smooth term
+    for (i in 1:nrow(smooth_terms)) {
+        term_name <- rownames(smooth_terms)[i]
+        p <- draw(best_model$gam, select = term_name, rug = FALSE, residuals = FALSE) +
+            custom_theme +
+            theme(plot.caption = element_blank())
+        p <- add_zero_line(p)
+        plots[[i]] <- p
     }
-    print(combined_plots)
-  }
 
+    # Combine plots
+    if (length(plots) > 0) {
+        if (length(plots) <= 2) {
+            combined_plots <- wrap_plots(plots, nrow = 1)
+        } else if (length(plots) <= 4) {
+            combined_plots <- wrap_plots(plots, nrow = 2)
+        } else {
+            combined_plots <- wrap_plots(plots, nrow = 3)
+        }
+        print(combined_plots)
+    }
 } else {
-  # For linear models, create partial residual plots
-  cat("Best model uses linear terms. Creating partial residual plots...\n")
+    # For linear models, create partial residual plots
+    cat("Best model uses linear terms. Creating partial residual plots...\n")
 
-  # Extract coefficients
-  coef_summary <- summary(best_model$gam)$p.table
-  print(coef_summary)
+    # Extract coefficients
+    coef_summary <- summary(best_model$gam)$p.table
+    print(coef_summary)
 }
 ```
 
@@ -550,49 +612,49 @@ if (has_smooth) {
 has_wind <- grepl("wind_max_gust", best_formula)
 
 if (has_wind) {
-  cat("Wind is included in the best model.\n\n")
+    cat("Wind is included in the best model.\n\n")
 
-  # Extract wind coefficient or smooth term details
-  if (grepl("s\\(wind_max_gust", best_formula)) {
-    # Smooth term
-    smooth_table <- summary(best_model$gam)$s.table
-    wind_row <- grep("wind_max_gust", rownames(smooth_table))
+    # Extract wind coefficient or smooth term details
+    if (grepl("s\\(wind_max_gust", best_formula)) {
+        # Smooth term
+        smooth_table <- summary(best_model$gam)$s.table
+        wind_row <- grep("wind_max_gust", rownames(smooth_table))
 
-    if (length(wind_row) > 0) {
-      wind_smooth <- smooth_table[wind_row[1], ]
-      cat("Wind effect (smooth term):\n")
-      cat("EDF:", round(wind_smooth["edf"], 3), "\n")
-      cat("F-statistic:", round(wind_smooth["F"], 3), "\n")
-      cat("p-value:", format.pval(wind_smooth["p-value"], digits = 3), "\n")
+        if (length(wind_row) > 0) {
+            wind_smooth <- smooth_table[wind_row[1], ]
+            cat("Wind effect (smooth term):\n")
+            cat("EDF:", round(wind_smooth["edf"], 3), "\n")
+            cat("F-statistic:", round(wind_smooth["F"], 3), "\n")
+            cat("p-value:", format.pval(wind_smooth["p-value"], digits = 3), "\n")
+        }
+    } else {
+        # Linear term
+        param_table <- summary(best_model$gam)$p.table
+        wind_row <- grep("wind_max_gust", rownames(param_table))
+
+        if (length(wind_row) > 0) {
+            wind_coef <- param_table[wind_row[1], ]
+            cat("Wind effect (linear term):\n")
+            cat("Coefficient:", round(wind_coef["Estimate"], 4), "\n")
+            cat("Std. Error:", round(wind_coef["Std. Error"], 4), "\n")
+            cat("t-value:", round(wind_coef["t value"], 3), "\n")
+            cat("p-value:", format.pval(wind_coef["Pr(>|t|)"], digits = 3), "\n")
+        }
     }
-  } else {
-    # Linear term
-    param_table <- summary(best_model$gam)$p.table
-    wind_row <- grep("wind_max_gust", rownames(param_table))
-
-    if (length(wind_row) > 0) {
-      wind_coef <- param_table[wind_row[1], ]
-      cat("Wind effect (linear term):\n")
-      cat("Coefficient:", round(wind_coef["Estimate"], 4), "\n")
-      cat("Std. Error:", round(wind_coef["Std. Error"], 4), "\n")
-      cat("t-value:", round(wind_coef["t value"], 3), "\n")
-      cat("p-value:", format.pval(wind_coef["Pr(>|t|)"], digits = 3), "\n")
-    }
-  }
 } else {
-  cat("Wind is NOT included in the best model.\n")
-  cat("Testing wind effect by comparing models with and without wind...\n\n")
+    cat("Wind is NOT included in the best model.\n")
+    cat("Testing wind effect by comparing models with and without wind...\n\n")
 
-  # Find best model with wind
-  wind_models <- aic_results %>%
-    filter(grepl("wind_max_gust", Formula))
+    # Find best model with wind
+    wind_models <- aic_results %>%
+        filter(grepl("wind_max_gust", Formula))
 
-  if (nrow(wind_models) > 0) {
-    best_wind_model <- wind_models[1, ]
-    cat("Best model with wind:", best_wind_model$Model, "\n")
-    cat("Delta AIC from best overall:", round(best_wind_model$Delta_AIC, 3), "\n")
-    cat("This suggests wind does not improve model fit.\n")
-  }
+    if (nrow(wind_models) > 0) {
+        best_wind_model <- wind_models[1, ]
+        cat("Best model with wind:", best_wind_model$Model, "\n")
+        cat("Delta AIC from best overall:", round(best_wind_model$Delta_AIC, 3), "\n")
+        cat("This suggests wind does not improve model fit.\n")
+    }
 }
 ```
 
@@ -605,39 +667,39 @@ temp_in_model <- sapply(temp_vars, function(x) grepl(x, best_formula))
 
 cat("Temperature variables in best model:\n")
 for (i in 1:length(temp_vars)) {
-  if (temp_in_model[i]) {
-    cat("-", temp_vars[i], "\n")
-  }
+    if (temp_in_model[i]) {
+        cat("-", temp_vars[i], "\n")
+    }
 }
 
 # If temperature is in the model, show its effect
 if (any(temp_in_model)) {
-  cat("\nTemperature effects:\n")
+    cat("\nTemperature effects:\n")
 
-  for (var in temp_vars[temp_in_model]) {
-    if (grepl(paste0("s\\(", var), best_formula)) {
-      # Smooth term
-      smooth_table <- summary(best_model$gam)$s.table
-      smooth_name <- paste0("s(", var, ")")
+    for (var in temp_vars[temp_in_model]) {
+        if (grepl(paste0("s\\(", var), best_formula)) {
+            # Smooth term
+            smooth_table <- summary(best_model$gam)$s.table
+            smooth_name <- paste0("s(", var, ")")
 
-      if (smooth_name %in% rownames(smooth_table)) {
-        temp_smooth <- smooth_table[smooth_name, ]
-        cat("\n", var, "(smooth term):\n")
-        cat("  EDF:", round(temp_smooth["edf"], 3), "\n")
-        cat("  F-statistic:", round(temp_smooth["F"], 3), "\n")
-        cat("  p-value:", format.pval(temp_smooth["p-value"], digits = 3), "\n")
-      }
-    } else if (var %in% rownames(summary(best_model$gam)$p.table)) {
-      # Linear term
-      param_table <- summary(best_model$gam)$p.table
-      temp_coef <- param_table[var, ]
-      cat("\n", var, "(linear term):\n")
-      cat("  Coefficient:", round(temp_coef["Estimate"], 4), "\n")
-      cat("  Std. Error:", round(temp_coef["Std. Error"], 4), "\n")
-      cat("  t-value:", round(temp_coef["t value"], 3), "\n")
-      cat("  p-value:", format.pval(temp_coef["Pr(>|t|)"], digits = 3), "\n")
+            if (smooth_name %in% rownames(smooth_table)) {
+                temp_smooth <- smooth_table[smooth_name, ]
+                cat("\n", var, "(smooth term):\n")
+                cat("  EDF:", round(temp_smooth["edf"], 3), "\n")
+                cat("  F-statistic:", round(temp_smooth["F"], 3), "\n")
+                cat("  p-value:", format.pval(temp_smooth["p-value"], digits = 3), "\n")
+            }
+        } else if (var %in% rownames(summary(best_model$gam)$p.table)) {
+            # Linear term
+            param_table <- summary(best_model$gam)$p.table
+            temp_coef <- param_table[var, ]
+            cat("\n", var, "(linear term):\n")
+            cat("  Coefficient:", round(temp_coef["Estimate"], 4), "\n")
+            cat("  Std. Error:", round(temp_coef["Std. Error"], 4), "\n")
+            cat("  t-value:", round(temp_coef["t value"], 3), "\n")
+            cat("  p-value:", format.pval(temp_coef["Pr(>|t|)"], digits = 3), "\n")
+        }
     }
-  }
 }
 ```
 
@@ -658,19 +720,68 @@ qqline(residuals(best_model$lme, type = "normalized"))
 
 # Scale-location plot
 plot(fitted(best_model$lme), sqrt(abs(residuals(best_model$lme, type = "normalized"))),
-     main = "Scale-Location Plot",
-     xlab = "Fitted values",
-     ylab = "sqrt(|Standardized residuals|)")
+    main = "Scale-Location Plot",
+    xlab = "Fitted values",
+    ylab = "sqrt(|Standardized residuals|)"
+)
 lines(lowess(fitted(best_model$lme), sqrt(abs(residuals(best_model$lme, type = "normalized")))), col = "red")
 
 # Histogram of residuals
 hist(residuals(best_model$lme, type = "normalized"),
-     breaks = 30,
-     main = "Distribution of Residuals",
-     xlab = "Standardized Residuals",
-     col = "lightblue")
+    breaks = 30,
+    main = "Distribution of Residuals",
+    xlab = "Standardized Residuals",
+    col = "lightblue"
+)
 
 par(mfrow = c(1, 1))
+```
+
+## Outlier Investigation
+
+```{r outlier-investigation}
+# First, let's examine extreme values in our data before fitting models
+cat("Response variable summary:\n")
+print(summary(model_data$butterfly_diff_95th_cbrt))
+
+cat("\nExtremes in response variable:\n")
+print(quantile(model_data$butterfly_diff_95th_cbrt, c(0.001, 0.01, 0.05, 0.95, 0.99, 0.999), na.rm = TRUE))
+
+# Identify the most extreme observations
+extreme_high <- model_data %>%
+    arrange(desc(butterfly_diff_95th_cbrt)) %>%
+    head(5) %>%
+    select(deployment_id, date_t, butterfly_diff_95th_cbrt,
+           butterflies_95th_percentile_t, butterflies_95th_percentile_t_1,
+           temp_max_t_1, wind_max_gust_t_1)
+
+extreme_low <- model_data %>%
+    arrange(butterfly_diff_95th_cbrt) %>%
+    head(5) %>%
+    select(deployment_id, date_t, butterfly_diff_95th_cbrt,
+           butterflies_95th_percentile_t, butterflies_95th_percentile_t_1,
+           temp_max_t_1, wind_max_gust_t_1)
+
+cat("\nTop 5 most extreme HIGH values:\n")
+print(extreme_high)
+
+cat("\nTop 5 most extreme LOW values:\n")
+print(extreme_low)
+
+# Check if extreme values correspond to specific deployments
+cat("\nExtreme values by deployment:\n")
+extreme_summary <- model_data %>%
+    group_by(deployment_id) %>%
+    summarise(
+        n_obs = n(),
+        min_change = min(butterfly_diff_95th_cbrt),
+        max_change = max(butterfly_diff_95th_cbrt),
+        range_change = max_change - min_change,
+        .groups = 'drop'
+    ) %>%
+    arrange(desc(range_change))
+
+print(head(extreme_summary, 10))
 ```
 
 ## Sensitivity Analysis
@@ -682,21 +793,111 @@ residuals_std <- residuals(best_model$lme, type = "normalized")
 outliers <- which(abs(residuals_std) > 3)
 
 if (length(outliers) > 0) {
-  cat("Number of potential outliers (|standardized residual| > 3):", length(outliers), "\n")
-  cat("Proportion of data:", round(length(outliers) / nrow(model_data) * 100, 2), "%\n\n")
+    cat("Number of potential outliers (|standardized residual| > 3):", length(outliers), "\n")
+    cat("Proportion of data:", round(length(outliers) / nrow(model_data) * 100, 2), "%\n\n")
 
-  # Refit without outliers
-  model_data_clean <- model_data[-outliers, ]
-  best_model_clean <- fit_model_safely(aic_results$Formula[1], model_data_clean)
+    # Refit without outliers
+    model_data_clean <- model_data[-outliers, ]
+    best_model_clean <- fit_model_safely(aic_results$Formula[1], model_data_clean)
 
-  if (!is.null(best_model_clean)) {
-    cat("Model comparison with outliers removed:\n")
-    cat("Original R²:", round(summary(best_model$gam)$r.sq, 4), "\n")
-    cat("Without outliers R²:", round(summary(best_model_clean$gam)$r.sq, 4), "\n")
-  }
+    if (!is.null(best_model_clean)) {
+        cat("Model comparison with outliers removed:\n")
+        cat("Original R²:", round(summary(best_model$gam)$r.sq, 4), "\n")
+        cat("Without outliers R²:", round(summary(best_model_clean$gam)$r.sq, 4), "\n")
+    }
 } else {
-  cat("No extreme outliers detected (|standardized residual| > 3)\n")
+    cat("No extreme outliers detected (|standardized residual| > 3)\n")
 }
+```
+
+## Correlation Structure Diagnostics
+
+```{r correlation-diagnostics}
+# Investigate potential issues with correlation structures
+cat("Investigating correlation structure issues...\n\n")
+
+# Check data structure for correlation modeling
+cat("Data structure for temporal correlation:\n")
+temporal_structure <- model_data %>%
+    group_by(deployment_id) %>%
+    summarise(
+        n_days = n(),
+        date_range = paste(min(date_t), "to", max(date_t)),
+        day_sequence_range = paste(min(day_sequence), "to", max(day_sequence)),
+        .groups = 'drop'
+    ) %>%
+    arrange(desc(n_days))
+
+print(head(temporal_structure, 10))
+
+# Check if there are gaps in the day sequences that could cause issues
+cat("\nChecking for gaps in day sequences within deployments:\n")
+gap_check <- model_data %>%
+    arrange(deployment_id, day_sequence) %>%
+    group_by(deployment_id) %>%
+    mutate(
+        day_diff = c(NA, diff(day_sequence)),
+        has_gap = day_diff > 1
+    ) %>%
+    filter(has_gap, .preserve = TRUE) %>%
+    summarise(
+        n_gaps = sum(has_gap, na.rm = TRUE),
+        max_gap = max(day_diff, na.rm = TRUE),
+        .groups = 'drop'
+    )
+
+if (nrow(gap_check) > 0) {
+    print(gap_check)
+    cat("\nGaps in day sequences detected - this could cause issues with temporal correlation!\n")
+} else {
+    cat("No gaps detected in day sequences within deployments.\n")
+}
+
+# Compare simple models with different correlation structures
+cat("\nComparing simple null model with different correlation structures:\n")
+simple_models <- list()
+
+# Fit null model with each correlation structure
+for (corr_name in names(correlation_structures)) {
+    corr_struct <- correlation_structures[[corr_name]]
+
+    simple_models[[corr_name]] <- tryCatch({
+        if (is.null(corr_struct)) {
+            gamm(butterfly_diff_95th_cbrt ~ 1,
+                data = model_data,
+                random = random_structure,
+                method = "REML"
+            )
+        } else {
+            gamm(butterfly_diff_95th_cbrt ~ 1,
+                data = model_data,
+                random = random_structure,
+                correlation = corr_struct,
+                method = "REML"
+            )
+        }
+    }, error = function(e) {
+        cat("Failed to fit null model with", corr_name, ":", e$message, "\n")
+        return(NULL)
+    })
+}
+
+# Compare AICs of simple models
+simple_comparison <- map_dfr(names(simple_models), function(name) {
+    model <- simple_models[[name]]
+    if (!is.null(model)) {
+        data.frame(
+            Correlation = name,
+            AIC = AIC(model$lme),
+            LogLik = as.numeric(logLik(model$lme)),
+            stringsAsFactors = FALSE
+        )
+    }
+}) %>%
+    arrange(AIC) %>%
+    mutate(Delta_AIC = AIC - min(AIC))
+
+print(simple_comparison)
 ```
 
 ## Alternative Model Exploration
@@ -706,13 +907,13 @@ if (length(outliers) > 0) {
 cat("Examining top 3 models for consistency of effects:\n\n")
 
 for (i in 1:min(3, nrow(aic_results))) {
-  model_name <- aic_results$Model[i]
-  model <- successful_models[[model_name]]
+    model_name <- aic_results$Model[i]
+    model <- successful_models[[model_name]]
 
-  cat("Model", i, "(", model_name, "):\n")
-  cat("Formula:", aic_results$Formula[i], "\n")
-  cat("Delta AIC:", round(aic_results$Delta_AIC[i], 3), "\n")
-  cat("R²:", round(summary(model$gam)$r.sq, 4), "\n\n")
+    cat("Model", i, "(", model_name, "):\n")
+    cat("Formula:", aic_results$Formula[i], "\n")
+    cat("Delta AIC:", round(aic_results$Delta_AIC[i], 3), "\n")
+    cat("R²:", round(summary(model$gam)$r.sq, 4), "\n\n")
 }
 ```
 
@@ -739,47 +940,53 @@ cat("Key Findings:\n")
 
 # Wind effect
 if (has_wind) {
-  cat("- Wind IS included in the best model\n")
-  if (grepl("s\\(wind_max_gust", best_formula)) {
-    wind_p <- summary(best_model$gam)$s.table["s(wind_max_gust_t_1)", "p-value"]
-    cat("  - Effect type: Non-linear (smooth)\n")
-    cat("  - Significance: p =", format.pval(wind_p, digits = 3), "\n")
-  } else {
-    wind_p <- summary(best_model$gam)$p.table["wind_max_gust_t_1", "Pr(>|t|)"]
-    cat("  - Effect type: Linear\n")
-    cat("  - Significance: p =", format.pval(wind_p, digits = 3), "\n")
-  }
+    cat("- Wind IS included in the best model\n")
+    if (grepl("s\\(wind_max_gust", best_formula)) {
+        wind_p <- summary(best_model$gam)$s.table["s(wind_max_gust_t_1)", "p-value"]
+        cat("  - Effect type: Non-linear (smooth)\n")
+        cat("  - Significance: p =", format.pval(wind_p, digits = 3), "\n")
+    } else {
+        wind_p <- summary(best_model$gam)$p.table["wind_max_gust_t_1", "Pr(>|t|)"]
+        cat("  - Effect type: Linear\n")
+        cat("  - Significance: p =", format.pval(wind_p, digits = 3), "\n")
+    }
 } else {
-  cat("- Wind is NOT included in the best model\n")
-  wind_models <- aic_results %>% filter(grepl("wind_max_gust", Formula))
-  if (nrow(wind_models) > 0) {
-    cat("  - Best model with wind has Delta AIC =", round(wind_models$Delta_AIC[1], 3), "\n")
-  }
+    cat("- Wind is NOT included in the best model\n")
+    wind_models <- aic_results %>% filter(grepl("wind_max_gust", Formula))
+    if (nrow(wind_models) > 0) {
+        cat("  - Best model with wind has Delta AIC =", round(wind_models$Delta_AIC[1], 3), "\n")
+    }
 }
 
 # Temperature effects
 if (any(temp_in_model)) {
-  cat("\n- Temperature effects:\n")
-  for (var in temp_vars[temp_in_model]) {
-    cat("  -", var, "is included\n")
-  }
+    cat("\n- Temperature effects:\n")
+    for (var in temp_vars[temp_in_model]) {
+        cat("  -", var, "is included\n")
+    }
 } else {
-  cat("\n- No temperature variables in the best model\n")
+    cat("\n- No temperature variables in the best model\n")
 }
 
 # Other predictors
 if (grepl("sum_butterflies_direct_sun", best_formula)) {
-  cat("\n- Sun exposure IS included in the best model\n")
+    cat("\n- Sun exposure IS included in the best model\n")
 }
 
 if (grepl("butterflies_95th_percentile_t_1", best_formula)) {
-  cat("- Previous day baseline IS included in the best model\n")
+    cat("- Previous day baseline IS included in the best model\n")
 } else {
-  cat("- Previous day baseline is NOT in the model (testing absolute effects)\n")
+    cat("- Previous day baseline is NOT in the model (testing absolute effects)\n")
 }
 
-if (grepl("days_since_oct15", best_formula)) {
-  cat("- Seasonal progression IS included in the best model\n")
+# Temporal autocorrelation is handled in the random structure
+best_correlation <- aic_results$Correlation[1]
+cat("- Temporal autocorrelation: Best model uses", best_correlation, "correlation structure\n")
+
+if (best_correlation != "no_corr") {
+    cat("  - This indicates significant temporal autocorrelation in residuals\n")
+} else {
+    cat("  - No significant temporal autocorrelation detected\n")
 }
 
 cat("\n", rep("=", 60), collapse = "", "\n")
@@ -794,31 +1001,35 @@ if (!dir.exists(export_dir)) dir.create(export_dir, recursive = TRUE)
 
 # Export model comparison table (if we have results)
 if (exists("aic_results") && nrow(aic_results) > 0) {
-  write_csv(aic_results %>% head(10),
-            file.path(export_dir, "daily_model_comparison.csv"))
+    write_csv(
+        aic_results %>% head(10),
+        file.path(export_dir, "daily_model_comparison.csv")
+    )
 
-  # Export best model summary
-  best_model_summary <- data.frame(
-    Model = aic_results$Model[1],
-    Formula = aic_results$Formula[1],
-    AIC = aic_results$AIC[1],
-    Delta_AIC = aic_results$Delta_AIC[1],
-    stringsAsFactors = FALSE
-  )
+    # Export best model summary
+    best_model_summary <- data.frame(
+        Model = aic_results$Model[1],
+        Formula = aic_results$Formula[1],
+        AIC = aic_results$AIC[1],
+        Delta_AIC = aic_results$Delta_AIC[1],
+        stringsAsFactors = FALSE
+    )
 
-  write_csv(best_model_summary,
-            file.path(export_dir, "daily_best_model_summary.csv"))
+    write_csv(
+        best_model_summary,
+        file.path(export_dir, "daily_best_model_summary.csv")
+    )
 
-  cat("\nResults exported to:", export_dir, "\n")
-  cat("Model comparison table with", nrow(aic_results), "models exported\n")
+    cat("\nResults exported to:", export_dir, "\n")
+    cat("Model comparison table with", nrow(aic_results), "models exported\n")
 } else {
-  cat("\nNo model results to export\n")
+    cat("\nNo model results to export\n")
 }
 ```
 
 ## Conclusions
 
-This daily-level analysis examined the **absolute effects** of previous day's weather conditions on monarch butterfly abundance changes, measured as the 95th percentile of counts. Importantly, this analysis deliberately excludes the previous day's butterfly count to test direct environmental effects rather than proportional changes.
+This daily-level analysis examined the **absolute effects** of previous day's weather conditions on monarch butterfly abundance changes, measured as the 95th percentile of counts. Importantly, this analysis deliberately excludes the previous day's butterfly count to test direct environmental effects rather than proportional changes. Temporal patterns are modeled through autocorrelation structures in the random effects rather than as fixed effects.
 
 The analysis reveals:
 
@@ -830,6 +1041,8 @@ The analysis reveals:
 
 4. **Interpretation**: By excluding the previous day's baseline count, these models test whether environmental variables have consistent absolute effects on butterfly numbers regardless of the starting population size. This is complementary to models that include the baseline, which test for proportional or density-dependent effects.
 
-5. **Temporal Scale**: Daily aggregation captures cumulative weather effects over 24-hour periods, providing insights into how sustained environmental conditions (rather than brief events) influence monarch roosting populations.
+5. **Temporal Autocorrelation**: `r if(exists("best_correlation") && best_correlation != "no_corr") {"The best model includes temporal autocorrelation, indicating that butterfly abundance changes on consecutive days are not independent. This suggests systematic temporal patterns beyond what environmental variables explain."} else {"No significant temporal autocorrelation was detected, suggesting that environmental variables capture the main systematic patterns in daily abundance changes."}`
+
+6. **Temporal Scale**: Daily aggregation captures cumulative weather effects over 24-hour periods, providing insights into how sustained environmental conditions (rather than brief events) influence monarch roosting populations.
 
 The analysis of absolute effects provides important insights into whether environmental variables have fixed magnitude effects on butterfly abundance or whether their effects scale with population size.
