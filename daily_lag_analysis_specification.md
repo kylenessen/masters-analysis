@@ -34,7 +34,7 @@ Transform 30-minute interval butterfly count data into daily aggregations, then 
    - `max_butterflies`: Maximum total_butterflies count
    - `butterflies_95th_percentile`: 95th percentile of total_butterflies
    - `butterflies_top3_mean`: Average of top 3 butterfly counts (use zeros if <3 observations)
-   - `max_butterflies_direct_sun`: Maximum butterflies_direct_sun count
+   - `sum_butterflies_direct_sun`: Sum of all butterflies_direct_sun counts throughout the day
    - `time_of_max`: Timestamp when maximum count occurred
 
 3. **Calculate daily temperature metrics** (daytime only):
@@ -104,11 +104,11 @@ Transform 30-minute interval butterfly count data into daily aggregations, then 
 
    - Current day butterfly metrics (for reference):
      * max_butterflies_t, butterflies_95th_percentile_t, butterflies_top3_mean_t
-     * max_butterflies_direct_sun_t, time_of_max_t
+     * sum_butterflies_direct_sun_t, time_of_max_t
 
    - Previous day butterfly metrics:
      * max_butterflies_t_1, butterflies_95th_percentile_t_1, butterflies_top3_mean_t_1
-     * max_butterflies_direct_sun_t_1, time_of_max_t_1
+     * sum_butterflies_direct_sun_t_1, time_of_max_t_1
 
    - Previous day weather predictors:
      * temp_max_t_1, temp_min_t_1, temp_mean_t_1
