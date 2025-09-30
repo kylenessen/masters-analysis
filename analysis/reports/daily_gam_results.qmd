@@ -40,26 +40,15 @@ daily_data <- daily_data %>%
     )
 ```
 
-## Executive Summary
-
-This analysis examines how previous day weather conditions affect day-to-day changes in overwintering monarch butterfly abundance using Generalized Additive Mixed Models (GAMMs).
-
-**Key Findings:**
-
-- The analysis tested 105 models examining both absolute and proportional (density-dependent) effects of environmental variables
-- Models including previous day's butterfly count as a baseline performed substantially better (ΔAIC > 50)
-- The best-supported models indicate complex, non-linear relationships between environmental variables and butterfly abundance changes
-- Wind effects are present but show unexpected patterns that warrant careful interpretation
-
 ## 1. Motivation and Background
 
 ### Why a Daily-Level Analysis?
 
-I was motived to do this analysis after a conversation with Jessica Griffiths, who was not completely convinced by the results of our 30-min analysis. She cited observing butterflies relocating at Pismo to the leeward side of trees, which I have also observed. I think we should also take Leong's observations in good faith that there is at least some anecodate evidence of monarchs responding to wind. So I took a very similar approach to the lagged analysis we did before, but over days instead of 30 minutes. To calculate the change from the previous day (t-1) to the current day (t), I take the 95% percentile of the count for those days (more on that below). 
+I was motived to do this analysis after a conversation with Jessica Griffiths, who was not completely convinced by the results of our 30-min analysis. She cited observing butterflies relocating at Pismo to the leeward side of trees, which I have also observed. I think we should also take Leong's observations in good faith that there is at least some anecdotal evidence of monarchs responding to wind. So I took a very similar approach to the lagged analysis we did before, but over days instead of 30 minutes. To calculate the change from the previous day (t-1) to the current day (t), I take the 95% percentile of the count for those days (more on that below). 
 
 ### Why Use Peak Counts?
 
-Rather than analyzing counts at arbitrary time points, we use the 95th percentile of each day's counts. This approach:
+Rather than analyzing counts at arbitrary time points, I use the 95th percentile of each day's counts. This approach:
 
 - Captures the maximum cluster size when butterflies are present
 - Controls for measurement timing uncertainty
@@ -68,11 +57,11 @@ Rather than analyzing counts at arbitrary time points, we use the 95th percentil
 
 ### The 24-Hour Time Window
 
-We examine previous day conditions affecting next-day abundance because:
+I examine previous day conditions affecting next-day abundance because:
 
 - This represents a plausible biological response window
-- Longer time horizons introduce uncertainty—we cannot track individual butterflies, only count populations
-- Beyond 24 hours, we lose confidence that we're observing the same population that experienced the initial conditions
+- Longer time horizons introduce uncertainty—I cannot track individual butterflies, only count populations
+- Beyond 24 hours, I lose confidence that I'm observing the same population that experienced the initial conditions
 
 ## 2. Data Structure
 
@@ -88,27 +77,24 @@ cat("- Temporal structure: Consecutive days within deployments\n")
 
 **Response Variable:** Square-root transformed difference in 95th percentile butterfly counts between consecutive days (`butterfly_diff_95th_sqrt`)
 
-Selecting an appropriate response variable is critical for valid statistical inference. We systematically evaluated multiple candidate response variables and transformations to identify the distribution that best meets model assumptions.
+Selecting an appropriate response variable is critical for valid statistical inference. I systematically evaluated multiple candidate response variables and transformations to identify the distribution that best meets model assumptions.
 
 #### Response Variable Candidates
 
-We considered three measures of daily abundance change:
+I considered three measures of daily abundance change:
 
 1. **Difference in maximum counts**: `max_butterflies_t - max_butterflies_t_1`
 2. **Difference in 95th percentile counts**: `butterflies_95th_percentile_t - butterflies_95th_percentile_t_1` (more robust to outliers)
 3. **Difference in mean of top 3 counts**: `butterflies_top3_mean_t - butterflies_top3_mean_t_1`
 
-For each candidate, we tested two transformations:
+For each candidate, I tested two transformations:
+
 - **Original**: Untransformed difference
 - **Square root**: Sign-preserving square root transformation
 
 #### Normality Assessment
 
-We assessed normality using multiple criteria:
-- **Skewness**: Deviation from symmetry (target: close to 0)
-- **Kurtosis**: Tail heaviness (target: close to 0 for normal)
-- **Shapiro-Wilk test**: Formal test of normality (higher p-value better)
-- **Anderson-Darling test**: More sensitive to tail deviations
+I assessed normality using skewness, kurtosis, and the Shapiro-Wilk and Anderson-Darling tests to evaluate symmetry, tail behavior, and overall distributional fit.
 
 A composite normality score (0-1 scale) was calculated weighting all criteria, with higher scores indicating better normality.
 
@@ -125,51 +111,47 @@ knitr::include_graphics(here("analysis", "reports", "figures", "response_variabl
 
 **Winner:** `butterfly_diff_95th_sqrt` (square-root transformed difference in 95th percentile counts)
 
-**Normality score: 0.81** (highest among all candidates)
-
-**Properties:**
-- **Sign-preserving transformation**: Maintains direction of change
-  - Positive values = increase in abundance
-  - Negative values = decrease in abundance
-  - Zero = no change
-- **Symmetry**: Skewness closer to 0 than untransformed
-- **Variance stabilization**: Reduces heteroscedasticity
-- **Robustness**: 95th percentile less sensitive to extreme outliers than maximum
-- **Interpretability**: Square root scale is reasonably intuitive
-
-**Why this matters:** Using a more normally distributed response variable improves:
-- Validity of confidence intervals and p-values
-- Model residual behavior
-- Reliability of predictions
-
-The square root transformation is a common variance-stabilizing transformation for count-based data, and the sign-preserving version allows us to model both increases and decreases in a symmetric way.
-
 ## 3. Candidate Predictor Variables
 
-This analysis generated numerous potential environmental predictors characterizing full-day weather patterns. The table below describes all variables initially considered for model inclusion.
+I considered numerous potential environmental predictors characterizing full-day weather patterns. All predictors are the weather conditions of the previous day (t-1), as those are the conditions the butterflies are experiencing. This analysis sees if there is a durable change the following day (t). The table below describes all variables initially considered for model inclusion, though not all were used (more below).
 
 ### 3.1 Butterfly Abundance Metrics (Previous Day)
+Similar to the 30-min analysis, these metrics are there to help control for differences in cluster sizes. Follows the response variables.
 
 ```{r butterfly-vars-table}
 butterfly_vars <- tibble(
     Variable = c(
         "max_butterflies_t_1", "butterflies_95th_percentile_t_1",
-        "butterflies_top3_mean_t_1", "sum_butterflies_direct_sun_t_1"
+        "butterflies_top3_mean_t_1"
     ),
     Description = c(
         "Maximum count observed on previous day",
         "95th percentile of counts on previous day (baseline population measure)",
-        "Mean of top 3 counts on previous day",
-        "Sum of all butterflies observed in direct sunlight throughout previous day (proxy for sun exposure)"
+        "Mean of top 3 counts on previous day"
     ),
-    Units = c("count", "count", "count", "cumulative count"),
-    Role = c("Baseline", "Baseline", "Baseline", "Predictor")
+    Units = c("count", "count", "count"),
+    Role = c("Baseline", "Baseline", "Baseline")
 )
 
 kable(butterfly_vars, caption = "Butterfly abundance metrics from previous day")
 ```
 
-### 3.2 Temperature Metrics (Previous Day)
+### 3.2 Sun Exposure Metrics (Previous Day)
+I only considered one sun exposure metric, which was the sum of all butterflies in direct sunlight. I suppose I could have tried maximum, but this felt like a better proxy for the day. 
+
+```{r sun-vars-table}
+sun_vars <- tibble(
+    Variable = c("sum_butterflies_direct_sun_t_1"),
+    Description = c("Sum of all butterflies observed in direct sunlight throughout previous day (proxy for sun exposure)"),
+    Units = c("cumulative count"),
+    Role = c("Predictor")
+)
+
+kable(sun_vars, caption = "Sun exposure metrics from previous day")
+```
+
+### 3.3 Temperature Metrics (Previous Day)
+Because we are considering a whole day, I generated several reasonable temperature metrics. I do not use all of them, however.
 
 ```{r temp-vars-table}
 temp_vars <- tibble(
@@ -191,9 +173,9 @@ temp_vars <- tibble(
 kable(temp_vars, caption = "Temperature metrics from previous day")
 ```
 
-**Note:** Many temperature metrics are highly correlated (>0.75). Models tested various combinations to identify which best explain abundance changes.
-
 ### 3.3 Wind Metrics (Previous Day)
+
+Again, in order to capture the story of the whole day, I generated as many reasonable wind metrics as I could think of. Not all were used. 
 
 ```{r wind-vars-table}
 wind_vars <- tibble(
@@ -218,39 +200,20 @@ wind_vars <- tibble(
 kable(wind_vars, caption = "Wind metrics from previous day")
 ```
 
-**Wind variable selection rationale:**
-
-- Most wind metrics are highly correlated with each other (see Section 3.4)
-- Standard deviation of wind showed low correlation (r=0.76 with max gust) but was excluded for simplicity
-- Chose `wind_max_gust_t_1` for biological interpretability and consistency with 30-minute interval analysis
-- Threshold-based metrics (minutes above 2 m/s, etc.) were excluded due to high correlation with max gust
-
 ### 3.4 Correlation Matrix: All Candidate Predictors
 
-This correlation matrix shows all potential fixed effects initially considered. High correlations (|r| > 0.75) indicate redundancy between variables.
+This correlation matrix shows all potential fixed effects initially considered. I manually then reviewed this table and made decisions on which variables to include the model runs. 
 
 ```{r full-correlation-plot, fig.width=12, fig.height=10}
 # Load and display the full predictor correlation matrix
 knitr::include_graphics(here("data", "daily_lag_plots", "predictor_correlation_matrix.png"))
 ```
 
-**Key observations from full correlation matrix:**
+For previous day counts, I simply followed the chosen response variable, 95% percentile. Sun exposure only had the one option. 
 
-1. **Temperature metrics** are highly intercorrelated (r > 0.80):
-   - temp_max, temp_mean, temp_at_max_count, hours_above_15C, degree_hours_above_15C
-   - temp_min shows moderate correlation with other temperature metrics
+For temperature, there were several highly correlated pairs. I ultimately decided on `temp_min`, `temp_max`, as useful predictors given the thermoregulation of monarchs, and also `temp_at_max_count`, because it was not particularly correlated with anything else, and 'temp_mean' was so close to the max temperature.
 
-2. **Wind metrics** are highly intercorrelated (r > 0.75):
-   - wind_max_gust, wind_gust_sum, wind_gust_hours, wind_minutes_above_2ms
-   - All measure similar aspects of wind exposure with different emphases
-
-3. **Between-category correlations**:
-   - Negative correlation between wind metrics and temperature metrics (r ≈ -0.4 to -0.5)
-   - Suggests windy days tend to be cooler
-
-4. **Butterfly-environment correlations**:
-   - Previous day butterfly counts show weak correlations with most environmental variables
-   - sum_butterflies_direct_sun shows moderate positive correlation with temperature metrics
+Wind was surprisingly correlated. `wind_gust_sd` did stand out as a variable which avoided the worst of the correlation with other predictors, but not `wind_max_gust`, which has a correlation of 0.76. I ultimately chose `wind_max_gust` because it seems to reasonbly capture all other wind metrics (except `wind_mode_gust`, which I don't know how to interpret), and directly matches our previous analysis. 
 
 ## 4. Final Model Variables
 
@@ -330,17 +293,11 @@ corrplot(cor_matrix,
 kable(round(cor_matrix, 3), caption = "Correlation coefficients for final model variables")
 ```
 
-**Comparison between correlation matrices:**
-
-- **Full candidate set**: Many correlations >0.75, indicating substantial redundancy
-- **Final model set**: Maximum correlation is ~0.78 (temp_max with hours_above_15C pathway), generally <0.5
-- Variable selection successfully reduced multicollinearity while retaining diverse environmental dimensions
-
 ## 5. Modeling Approach
 
 ### 5.1 Two Model Families: Absolute vs. Proportional Effects
 
-We tested **105 models** in two distinct families to distinguish different mechanisms by which environment affects abundance:
+I tested **105 models** in two distinct families to distinguish different mechanisms by which environment affects abundance:
 
 **M Models (n=50): Absolute Effects**
 
@@ -528,23 +485,11 @@ The plots below show the estimated effect of each predictor on changes in butter
 knitr::include_graphics(here("analysis", "reports", "figures", "best_model_partial_effects.png"))
 ```
 
-### 7.4 Interpretation of Effects
+### 7.4 Results Notes
 
-**Previous day baseline (butterflies_95th_percentile_t_1):**
-- [Linear or smooth? Positive/negative? Interpretation]
+**[INCOMPLETE SECTION - TO BE FILLED IN]**
 
-**Temperature (temp_at_max_count_t_1):**
-- [Describe shape of smooth term]
-- [Biological interpretation]
-
-**Wind (wind_max_gust_t_1):**
-- [Describe shape of smooth term]
-- **Note on unexpected pattern**: As described in project notes, wind effects show a non-intuitive pattern with largest decreases at zero wind and increasing/decreasing patterns at higher speeds
-- Potential data artifact: Only one day with previous day wind = 0, which may drive unusual curve shape
-- Warrants cautious interpretation
-
-**Sun exposure (sum_butterflies_direct_sun_t_1):**
-- [If included in best model, describe effect]
+The partial response curves above show the relationships between each predictor and changes in butterfly abundance. The specific patterns and statistical significance vary across the different competitive models.
 
 ## 8. Model Diagnostics
 
@@ -563,120 +508,66 @@ knitr::include_graphics(here("analysis", "reports", "figures", "best_model_diagn
 
 ## 9. Discussion
 
-### 9.1 Evidence for Environmental Effects
+### 9.1 Model Results Summary
 
-**Baseline abundance is paramount:**
+**Baseline abundance:**
 - All well-supported models include previous day butterfly count
-- Environmental effects are proportional to population size, not absolute
-- This suggests environmental factors modulate existing population trends rather than driving them
-
-**Temperature effects:**
-- [Summary based on actual results]
+- Environmental effects appear to be proportional to population size, not absolute
 
 **Wind effects:**
-- Present in top models but show complex, potentially non-intuitive patterns
-- Effect magnitude and significance vary with model specification (p ≈ 0.08 in some versions)
-- Curve shape may be influenced by data artifacts (single day with zero wind)
-- More data might flatten or stabilize these patterns
-
-**Sun exposure:**
-- [Summary based on actual results]
+Wind showed up frequently in the top models, but 6 of the 10 had a delta AIC of less than 2. The wind model p values hover just above 0.05, but all had roughly similar curve shapes. If we interpret these curves, then wind has stronger support for influencing day to day clustering behavior, but not at all as predicted (cluster size increases the next day if max gust 3-5 m/s, and largest decreases are predicted at 0 m/s). This analysis has a much smaller dataset (100 pts), and my concern is that we are picking up some peculiar behavior at Spring Canyon in 2023, not detecting something general about monarch behavior.
 
 ### 9.2 Comparison with 30-Minute Interval Analysis
 
-This daily-level analysis **does not contradict** the 30-minute interval analysis:
+This daily-level analysis does not contradict our 30-minute interval analysis:
 
 - **30-minute analysis**: No detectable wind effect on instantaneous counts
-- **Daily analysis**: Some evidence for wind effect on day-to-day persistence, but:
-  - Effect is model-dependent and marginally significant
-  - Relationship is complex and not easily interpretable
-  - May represent population-level behavioral decisions (emigration) vs. instantaneous movement
+- **Daily analysis**: Some evidence for wind effect on day-to-day persistence, with marginally significant p-values and complex curve shapes
 
 ### 9.3 Limitations and Caveats
 
 **Sample size:**
-- Only ~100 day-pairs vs. thousands of observations in 30-minute analysis
+- Only ~100 day-pairs vs. thousands of observations in our 30-minute analysis
 - Weaker statistical power for detecting effects
 - Greater model uncertainty (multiple models with ΔAIC < 2)
 
 **Time horizon constraints:**
 - 24-hour window chosen to balance biological plausibility with tracking uncertainty
-- Cannot follow individual butterflies; only observe population counts
+- I cannot follow individual butterflies; only observe population counts
 - Longer time horizons would introduce ambiguity about population identity
 
 **Wind effect interpretation:**
-- Unexpected curve shape raises questions about biological plausibility
-- Single outlier point (zero wind day) may drive unusual pattern
-- Whether pattern is real or artifact requiring replication unclear
+- Unexpected curve shape with largest decreases at zero wind
+- Single data point with zero wind day may influence pattern
+- Pattern may be specific to Spring Canyon 2023 rather than general
 
 **Residual model diagnostics:**
 - While improved over 30-minute analysis, residuals still show some structure
 - AR1 correlation handles some but not all temporal dependence
-- Additional random effects or correlation structures might improve fit
 
-### 9.4 Biological Interpretation
+### 9.4 Field Observations Context
 
-If wind effects are real (acknowledging uncertainty):
+Jessica Griffiths and I have both observed monarchs moving to leeward sides of trees in response to wind at Pismo. These short-term, within-site movements may not translate to the day-to-day changes in peak counts captured by this analysis, which could represent different behavioral processes at different temporal and spatial scales.
 
-- Largest decreases at zero wind is counterintuitive
-- Possible explanations:
-  - Confounding with unmeasured variables (e.g., temperature inversions, microclimatic conditions)
-  - Non-linear interaction between wind and temperature not captured by model
-  - Artifact of limited sample size and data range
+### 9.5 Future Considerations
 
-Field observations (Jessica Griffiths, personal observations) clearly show monarchs moving in response to wind. However:
-- These are short-term, within-site movements
-- May not translate to day-to-day emigration captured by peak counts
-- Different temporal and spatial scales between field observations and this analysis
-
-### 9.5 Recommendations for Future Work
-
-1. **Increase sample size**: Additional years of data would:
-   - Stabilize partial effect estimates
-   - Improve power to detect effects
-   - Allow assessment of year-to-year consistency
-
-2. **Investigate zero-wind day**: Detailed examination of the single day with previous wind = 0
-   - Is this a data quality issue?
-   - What were other conditions on that day?
-   - Does excluding it change inference?
-
-3. **Alternative time windows**: Test 48-hour, 72-hour lags to understand temporal dynamics
-   - Do effects accumulate over multiple days?
-   - Is 24 hours the right response window?
-
-4. **Individual tracking**: If feasible, mark-recapture or GPS tracking would:
-   - Distinguish movement from mortality/emigration
-   - Directly test within-site relocation vs. leaving
-   - Connect field observations to population-level patterns
-
-5. **Microclimate measurements**: Finer-scale environmental data at cluster locations
-   - Temperature and wind measurements at cluster height
-   - Sun exposure and shade mapping
-   - Within-tree spatial heterogeneity
+Additional years of data would help stabilize partial effect estimates and assess year-to-year consistency. The single day with zero wind warrants investigation as it may influence the unexpected curve shape. Testing alternative time windows (48-hour, 72-hour) could reveal whether effects accumulate over multiple days.
 
 ## 10. Conclusions
 
-This daily-level analysis provides a complementary perspective to the 30-minute interval analysis:
+This daily-level analysis provides a complementary perspective to our 30-minute interval analysis:
 
 1. **Baseline population size is critical**: Day-to-day changes in abundance cannot be understood without accounting for the starting population (all top models are B models)
 
-2. **Complex environmental relationships**: Non-linear smooth terms outperform linear effects, indicating that environmental responses are not simple or monotonic
+2. **Complex environmental relationships**: Non-linear smooth terms outperform linear effects
 
-3. **Wind effects remain ambiguous**: Some evidence for wind effects at daily timescales, but:
-   - Effect size and significance are model-dependent
-   - Curve shapes are difficult to interpret biologically
-   - Potential data artifacts warrant caution
+3. **Wind effects**: Some evidence for wind effects at daily timescales with marginally significant p-values and unexpected curve shapes that may be influenced by limited data
 
-4. **Complementary to prior analysis**: Results do not contradict the 30-minute interval findings
-   - Different temporal scales may capture different processes
-   - Instantaneous movement vs. emigration decisions
+4. **Complementary to prior analysis**: Results do not contradict our 30-minute interval findings - different temporal scales may capture different processes
 
-5. **Sample size matters**: Limited data (~100 observations) constrains inference strength
-   - Multiple competitive models indicate uncertainty
-   - Additional years of data would strengthen conclusions
+5. **Sample size considerations**: Limited data (~100 observations) with multiple competitive models (ΔAIC < 2) indicating model uncertainty
 
-This analysis demonstrates that environmental effects on monarch abundance are complex and scale-dependent. While it provides some support for wind effects over daily timescales, the mechanisms remain unclear and warrant further investigation with additional data and refined methods.
+The analysis suggests environmental effects on monarch abundance are complex and scale-dependent. Wind showed up frequently in top models but with patterns that differ from predictions, potentially reflecting site-specific patterns at Spring Canyon 2023 rather than general monarch behavior.
 
 ---
 
