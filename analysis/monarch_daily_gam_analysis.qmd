@@ -345,7 +345,17 @@ for (i in 1:nrow(top_transformations)) {
 }
 
 # Arrange plots in grid
+normality_grid <- do.call(grid.arrange, c(plots, ncol = 3))
+normality_grid
+```
+
+```{r export-normality-visualization}
+# Export normality visualization for results write-up
+png(here("analysis", "reports", "figures", "response_variable_normality.png"),
+    width = 14, height = 10, units = "in", res = 300)
 do.call(grid.arrange, c(plots, ncol = 3))
+dev.off()
+cat("Exported normality visualization to: analysis/reports/figures/response_variable_normality.png\n")
 ```
 
 ### Temperature Patterns

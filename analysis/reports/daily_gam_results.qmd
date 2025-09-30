@@ -90,11 +90,65 @@ cat("- Date range:", format(min(daily_data$date_t)), "to", format(max(daily_data
 cat("- Temporal structure: Consecutive days within deployments\n")
 ```
 
+### 2.1 Response Variable Selection
+
 **Response Variable:** Square-root transformed difference in 95th percentile butterfly counts between consecutive days (`butterfly_diff_95th_sqrt`)
 
-- Selected as the most normally distributed transformation (normality score: 0.81)
-- Sign-preserving transformation: maintains direction of change
-- Positive values = increase in abundance; negative values = decrease
+Selecting an appropriate response variable is critical for valid statistical inference. We systematically evaluated multiple candidate response variables and transformations to identify the distribution that best meets model assumptions.
+
+#### Response Variable Candidates
+
+We considered three measures of daily abundance change:
+
+1. **Difference in maximum counts**: `max_butterflies_t - max_butterflies_t_1`
+2. **Difference in 95th percentile counts**: `butterflies_95th_percentile_t - butterflies_95th_percentile_t_1` (more robust to outliers)
+3. **Difference in mean of top 3 counts**: `butterflies_top3_mean_t - butterflies_top3_mean_t_1`
+
+For each candidate, we tested two transformations:
+- **Original**: Untransformed difference
+- **Square root**: Sign-preserving square root transformation
+
+#### Normality Assessment
+
+We assessed normality using multiple criteria:
+- **Skewness**: Deviation from symmetry (target: close to 0)
+- **Kurtosis**: Tail heaviness (target: close to 0 for normal)
+- **Shapiro-Wilk test**: Formal test of normality (higher p-value better)
+- **Anderson-Darling test**: More sensitive to tail deviations
+
+A composite normality score (0-1 scale) was calculated weighting all criteria, with higher scores indicating better normality.
+
+#### Results: Normality Comparison
+
+```{r normality-comparison-figure, fig.width=14, fig.height=10}
+# Display normality visualization showing all candidate transformations
+knitr::include_graphics(here("analysis", "reports", "figures", "response_variable_normality.png"))
+```
+
+**Figure 1.** Normality assessment for candidate response variables and transformations. Each panel shows the distribution (histogram) with a normal curve overlay (red line). Rank indicates overall normality score, with Rank 1 being most normal. The normality score combines skewness, kurtosis, and formal normality tests.
+
+#### Selected Response Variable
+
+**Winner:** `butterfly_diff_95th_sqrt` (square-root transformed difference in 95th percentile counts)
+
+**Normality score: 0.81** (highest among all candidates)
+
+**Properties:**
+- **Sign-preserving transformation**: Maintains direction of change
+  - Positive values = increase in abundance
+  - Negative values = decrease in abundance
+  - Zero = no change
+- **Symmetry**: Skewness closer to 0 than untransformed
+- **Variance stabilization**: Reduces heteroscedasticity
+- **Robustness**: 95th percentile less sensitive to extreme outliers than maximum
+- **Interpretability**: Square root scale is reasonably intuitive
+
+**Why this matters:** Using a more normally distributed response variable improves:
+- Validity of confidence intervals and p-values
+- Model residual behavior
+- Reliability of predictions
+
+The square root transformation is a common variance-stabilizing transformation for count-based data, and the sign-preserving version allows us to model both increases and decreases in a symmetric way.
 
 ## 3. Candidate Predictor Variables
 
