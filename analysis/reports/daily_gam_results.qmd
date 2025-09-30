@@ -42,7 +42,7 @@ daily_data <- daily_data %>%
 
 ## Executive Summary
 
-This analysis examines how previous day weather conditions affect day-to-day changes in overwintering monarch butterfly abundance using Generalized Additive Mixed Models (GAMMs). The analysis was motivated by field observations suggesting that monarchs respond to wind by relocating to more sheltered positions, and by a need to examine effects over longer time horizons than the 30-minute interval analysis.
+This analysis examines how previous day weather conditions affect day-to-day changes in overwintering monarch butterfly abundance using Generalized Additive Mixed Models (GAMMs).
 
 **Key Findings:**
 
@@ -55,13 +55,7 @@ This analysis examines how previous day weather conditions affect day-to-day cha
 
 ### Why a Daily-Level Analysis?
 
-The impetus for this analysis came from discussions with Jessica Griffiths, who expressed skepticism about the absence of wind effects in the 30-minute interval analysis. Both she and I have observed monarchs at Pismo relocating in response to wind—specifically moving to the leeward side of trees when exposed to strong south winds. These observations, combined with Kingston Leong's documented observations of wind effects, suggested the need for a different analytical approach.
-
-**Key rationale:**
-
-1. **Longer time horizons**: Day-to-day changes may capture more durable behavioral responses (persistence vs. emigration) than instantaneous counts
-2. **Reduced temporal noise**: Using daily peak counts removes confounding effects of diurnal movement patterns (morning dispersal, afternoon cluster reformation)
-3. **Different response mechanisms**: Unfavorable conditions on day *t-1* may lead to emigration detectable on day *t*
+I was motived to do this analysis after a conversation with Jessica Griffiths, who was not completely convinced by the results of our 30-min analysis. She cited observing butterflies relocating at Pismo to the leeward side of trees, which I have also observed. I think we should also take Leong's observations in good faith that there is at least some anecodate evidence of monarchs responding to wind. So I took a very similar approach to the lagged analysis we did before, but over days instead of 30 minutes. To calculate the change from the previous day (t-1) to the current day (t), I take the 95% percentile of the count for those days (more on that below). 
 
 ### Why Use Peak Counts?
 
