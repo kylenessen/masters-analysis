@@ -44,7 +44,7 @@ daily_data <- daily_data %>%
 
 ### Why a Daily-Level Analysis?
 
-I was motived to do this analysis after a conversation with Jessica Griffiths, who was not completely convinced by the results of our 30-min analysis. She cited observing butterflies relocating at Pismo to the leeward side of trees, which I have also observed. I think we should also take Leong's observations in good faith that there is at least some anecdotal evidence of monarchs responding to wind. So I took a very similar approach to the lagged analysis we did before, but over days instead of 30 minutes. To calculate the change from the previous day (t-1) to the current day (t), I take the 95% percentile of the count for those days (more on that below). 
+I was motivated to do this analysis after a conversation with Jessica Griffiths, who was not completely convinced by the results of our 30-minute analysis. She cited observing butterflies relocating at Pismo to the leeward side of trees, which I have also observed. I think we should also take Leong's observations in good faith that there is at least some anecdotal evidence of monarchs responding to wind. So I took a very similar approach to the lagged analysis we did before, but over days instead of 30 minutes. To calculate the change from the previous day (t-1) to the current day (t), I use the 95th percentile of the count for those days (more on that below). 
 
 ### Why Use Peak Counts?
 
@@ -57,7 +57,7 @@ Rather than analyzing counts at arbitrary time points, I use the 95th percentile
 
 ### The 24-Hour Time Window
 
-I examine previous day conditions affecting next-day abundance because:
+I examine previous-day conditions affecting next-day abundance because:
 
 - This represents a plausible biological response window
 - Longer time horizons introduce uncertainty—I cannot track individual butterflies, only count populations
@@ -96,7 +96,7 @@ For each candidate, I tested two transformations:
 
 I assessed normality using skewness, kurtosis, and the Shapiro-Wilk and Anderson-Darling tests to evaluate symmetry, tail behavior, and overall distributional fit.
 
-A composite normality score (0-1 scale) was calculated weighting all criteria, with higher scores indicating better normality.
+A composite normality score (0-1 scale) was calculated by weighting all criteria, with higher scores indicating better normality.
 
 #### Results: Normality Comparison
 
@@ -113,10 +113,10 @@ knitr::include_graphics(here("analysis", "reports", "figures", "response_variabl
 
 ## 3. Candidate Predictor Variables
 
-I considered numerous potential environmental predictors characterizing full-day weather patterns. All predictors are the weather conditions of the previous day (t-1), as those are the conditions the butterflies are experiencing. This analysis sees if there is a durable change the following day (t). The table below describes all variables initially considered for model inclusion, though not all were used (more below).
+I considered numerous potential environmental predictors characterizing full-day weather patterns. All predictors represent weather conditions from the previous day (t-1), as those are the conditions the butterflies experienced. This analysis examines whether there is a durable change the following day (t). The tables below describe all variables initially considered for model inclusion, though not all were used (see correlation analysis below).
 
 ### 3.1 Butterfly Abundance Metrics (Previous Day)
-Similar to the 30-min analysis, these metrics are there to help control for differences in cluster sizes. Follows the response variables.
+Similar to the 30-minute analysis, these metrics help control for differences in cluster sizes and follow the same structure as the response variables.
 
 ```{r butterfly-vars-table}
 butterfly_vars <- tibble(
@@ -137,7 +137,7 @@ kable(butterfly_vars, caption = "Butterfly abundance metrics from previous day")
 ```
 
 ### 3.2 Sun Exposure Metrics (Previous Day)
-I only considered one sun exposure metric, which was the sum of all butterflies in direct sunlight. I suppose I could have tried maximum, but this felt like a better proxy for the day. 
+I only considered one sun exposure metric: the sum of all butterflies in direct sunlight. I could have tried the maximum, but the sum felt like a better proxy for the entire day. 
 
 ```{r sun-vars-table}
 sun_vars <- tibble(
@@ -151,7 +151,7 @@ kable(sun_vars, caption = "Sun exposure metrics from previous day")
 ```
 
 ### 3.3 Temperature Metrics (Previous Day)
-Because we are considering a whole day, I generated several reasonable temperature metrics. I do not use all of them, however.
+Because we are considering an entire day, I generated several reasonable temperature metrics, though not all were used in the final models.
 
 ```{r temp-vars-table}
 temp_vars <- tibble(
@@ -173,9 +173,9 @@ temp_vars <- tibble(
 kable(temp_vars, caption = "Temperature metrics from previous day")
 ```
 
-### 3.3 Wind Metrics (Previous Day)
+### 3.4 Wind Metrics (Previous Day)
 
-Again, in order to capture the story of the whole day, I generated as many reasonable wind metrics as I could think of. Not all were used. 
+To capture the full story of each day, I generated as many reasonable wind metrics as I could think of, though not all were used in the final models. 
 
 ```{r wind-vars-table}
 wind_vars <- tibble(
@@ -200,20 +200,20 @@ wind_vars <- tibble(
 kable(wind_vars, caption = "Wind metrics from previous day")
 ```
 
-### 3.4 Correlation Matrix: All Candidate Predictors
+### 3.5 Correlation Matrix: All Candidate Predictors
 
-This correlation matrix shows all potential fixed effects initially considered. I manually then reviewed this table and made decisions on which variables to include the model runs. 
+This correlation matrix shows all potential fixed effects initially considered. I manually reviewed this table to make decisions about which variables to include in the model runs. 
 
 ```{r full-correlation-plot, fig.width=12, fig.height=10}
 # Load and display the full predictor correlation matrix
 knitr::include_graphics(here("data", "daily_lag_plots", "predictor_correlation_matrix.png"))
 ```
 
-For previous day counts, I simply followed the chosen response variable, 95% percentile. Sun exposure only had the one option. 
+For previous-day counts, I simply followed the chosen response variable (95th percentile). Sun exposure had only one option.
 
-For temperature, there were several highly correlated pairs. I ultimately decided on `temp_min`, `temp_max`, as useful predictors given the thermoregulation of monarchs, and also `temp_at_max_count`, because it was not particularly correlated with anything else, and 'temp_mean' was so close to the max temperature.
+For temperature, there were several highly correlated pairs. I ultimately decided on `temp_min` and `temp_max` as useful predictors given the thermoregulation of monarchs, and also `temp_at_max_count` because it was not particularly correlated with other variables and `temp_mean` was too similar to max temperature.
 
-Wind was surprisingly correlated. `wind_gust_sd` did stand out as a variable which avoided the worst of the correlation with other predictors, but not `wind_max_gust`, which has a correlation of 0.76. I ultimately chose `wind_max_gust` because it seems to reasonbly capture all other wind metrics (except `wind_mode_gust`, which I don't know how to interpret), and directly matches our previous analysis. 
+Wind metrics were surprisingly correlated. `wind_gust_sd` stood out as a variable that avoided the worst correlation with other predictors, but still had a correlation of 0.76 with `wind_max_gust`. I ultimately chose `wind_max_gust` because it reasonably captures all other wind metrics (except `wind_mode_gust`, which I don't know how to interpret) and directly matches our previous analysis. 
 
 ## 4. Final Model Variables
 
