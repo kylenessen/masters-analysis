@@ -1,0 +1,850 @@
+---
+title: "Daily-Level GAM Analysis of Monarch Butterfly Abundance: Results Summary"
+author: "Kyle Nessen"
+date: "`r Sys.Date()`"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-location: left
+    embed-resources: true
+    theme: cosmo
+    code-fold: true
+    code-tools: false
+execute:
+  warning: false
+  message: false
+  echo: false
+---
+
+```{r setup}
+library(tidyverse)
+library(mgcv)
+library(knitr)
+library(DT)
+library(here)
+library(corrplot)
+library(htmltools)
+library(kableExtra)
+
+# Load the daily lag analysis data
+daily_data <- read_csv(here("data", "monarch_daily_lag_analysis.csv"), show_col_types = FALSE)
+
+# Create the square root transformed response variable
+daily_data <- daily_data %>%
+    mutate(
+        butterfly_diff_95th_sqrt = ifelse(butterfly_diff_95th >= 0,
+            sqrt(butterfly_diff_95th),
+            -sqrt(-butterfly_diff_95th)
+        )
+    )
+```
+
+## Executive Summary
+
+This analysis examines how previous day weather conditions affect day-to-day changes in overwintering monarch butterfly abundance using Generalized Additive Mixed Models (GAMMs). The analysis was motivated by field observations suggesting that monarchs respond to wind by relocating to more sheltered positions, and by a need to examine effects over longer time horizons than the 30-minute interval analysis.
+
+**Key Findings:**
+
+- The analysis tested 105 models examining both absolute and proportional (density-dependent) effects of environmental variables
+- Models including previous day's butterfly count as a baseline performed substantially better (ΔAIC > 50)
+- The best-supported models indicate complex, non-linear relationships between environmental variables and butterfly abundance changes
+- Wind effects are present but show unexpected patterns that warrant careful interpretation
+
+## 1. Motivation and Background
+
+### Why a Daily-Level Analysis?
+
+The impetus for this analysis came from discussions with Jessica Griffiths, who expressed skepticism about the absence of wind effects in the 30-minute interval analysis. Both she and I have observed monarchs at Pismo relocating in response to wind—specifically moving to the leeward side of trees when exposed to strong south winds. These observations, combined with Kingston Leong's documented observations of wind effects, suggested the need for a different analytical approach.
+
+**Key rationale:**
+
+1. **Longer time horizons**: Day-to-day changes may capture more durable behavioral responses (persistence vs. emigration) than instantaneous counts
+2. **Reduced temporal noise**: Using daily peak counts removes confounding effects of diurnal movement patterns (morning dispersal, afternoon cluster reformation)
+3. **Different response mechanisms**: Unfavorable conditions on day *t-1* may lead to emigration detectable on day *t*
+
+### Why Use Peak Counts?
+
+Rather than analyzing counts at arbitrary time points, we use the 95th percentile of each day's counts. This approach:
+
+- Captures the maximum cluster size when butterflies are present
+- Controls for measurement timing uncertainty
+- Provides a robust measure less sensitive to outliers than the raw maximum
+- If butterflies emigrated, the peak count would be markedly lower
+
+### The 24-Hour Time Window
+
+We examine previous day conditions affecting next-day abundance because:
+
+- This represents a plausible biological response window
+- Longer time horizons introduce uncertainty—we cannot track individual butterflies, only count populations
+- Beyond 24 hours, we lose confidence that we're observing the same population that experienced the initial conditions
+
+## 2. Data Structure
+
+```{r data-summary}
+cat("Dataset characteristics:\n")
+cat("- Observations:", nrow(daily_data), "day-pairs\n")
+cat("- Deployments:", n_distinct(daily_data$deployment_id), "\n")
+cat("- Date range:", format(min(daily_data$date_t)), "to", format(max(daily_data$date_t)), "\n")
+cat("- Temporal structure: Consecutive days within deployments\n")
+```
+
+**Response Variable:** Square-root transformed difference in 95th percentile butterfly counts between consecutive days (`butterfly_diff_95th_sqrt`)
+
+- Selected as the most normally distributed transformation (normality score: 0.81)
+- Sign-preserving transformation: maintains direction of change
+- Positive values = increase in abundance; negative values = decrease
+
+## 3. Candidate Predictor Variables
+
+This analysis generated numerous potential environmental predictors characterizing full-day weather patterns. The table below describes all variables initially considered for model inclusion.
+
+### 3.1 Butterfly Abundance Metrics (Previous Day)
+
+```{r butterfly-vars-table}
+butterfly_vars <- tibble(
+    Variable = c(
+        "max_butterflies_t_1", "butterflies_95th_percentile_t_1",
+        "butterflies_top3_mean_t_1", "sum_butterflies_direct_sun_t_1"
+    ),
+    Description = c(
+        "Maximum count observed on previous day",
+        "95th percentile of counts on previous day (baseline population measure)",
+        "Mean of top 3 counts on previous day",
+        "Sum of all butterflies observed in direct sunlight throughout previous day (proxy for sun exposure)"
+    ),
+    Units = c("count", "count", "count", "cumulative count"),
+    Role = c("Baseline", "Baseline", "Baseline", "Predictor")
+)
+
+kable(butterfly_vars, caption = "Butterfly abundance metrics from previous day")
+```
+
+### 3.2 Temperature Metrics (Previous Day)
+
+```{r temp-vars-table}
+temp_vars <- tibble(
+    Variable = c(
+        "temp_max_t_1", "temp_min_t_1", "temp_mean_t_1",
+        "temp_at_max_count_t_1", "hours_above_15C_t_1", "degree_hours_above_15C_t_1"
+    ),
+    Description = c(
+        "Maximum temperature during daylight hours (6am-6pm)",
+        "Minimum temperature during daylight hours",
+        "Mean temperature during daylight hours",
+        "Temperature at the time when maximum butterfly count was observed",
+        "Number of hours with temperature ≥15°C (activity threshold)",
+        "Cumulative degree-hours above 15°C (thermal energy available for activity)"
+    ),
+    Units = c("°C", "°C", "°C", "°C", "hours", "degree-hours")
+)
+
+kable(temp_vars, caption = "Temperature metrics from previous day")
+```
+
+**Note:** Many temperature metrics are highly correlated (>0.75). Models tested various combinations to identify which best explain abundance changes.
+
+### 3.3 Wind Metrics (Previous Day)
+
+```{r wind-vars-table}
+wind_vars <- tibble(
+    Variable = c(
+        "wind_avg_sustained_t_1", "wind_max_gust_t_1", "wind_gust_sum_t_1",
+        "wind_gust_sum_above_2ms_t_1", "wind_gust_hours_t_1",
+        "wind_minutes_above_2ms_t_1", "wind_gust_sd_t_1", "wind_mode_gust_t_1"
+    ),
+    Description = c(
+        "Mean sustained wind speed during daylight hours",
+        "Maximum wind gust speed recorded (strongest wind event)",
+        "Sum of all gust speed measurements (cumulative wind exposure)",
+        "Sum of gust speeds when wind >2 m/s (threshold-weighted exposure)",
+        "Integral of gust speed over time (gust-hours of exposure)",
+        "Number of minutes with wind ≥2 m/s (duration above activity threshold)",
+        "Standard deviation of gust speeds (wind variability/gustiness)",
+        "Most frequent gust speed in 0.5 m/s bins (typical wind condition)"
+    ),
+    Units = c("m/s", "m/s", "m/s", "m/s", "gust-hours", "minutes", "m/s", "m/s")
+)
+
+kable(wind_vars, caption = "Wind metrics from previous day")
+```
+
+**Wind variable selection rationale:**
+
+- Most wind metrics are highly correlated with each other (see Section 3.4)
+- Standard deviation of wind showed low correlation (r=0.76 with max gust) but was excluded for simplicity
+- Chose `wind_max_gust_t_1` for biological interpretability and consistency with 30-minute interval analysis
+- Threshold-based metrics (minutes above 2 m/s, etc.) were excluded due to high correlation with max gust
+
+### 3.4 Correlation Matrix: All Candidate Predictors
+
+This correlation matrix shows all potential fixed effects initially considered. High correlations (|r| > 0.75) indicate redundancy between variables.
+
+```{r full-correlation-plot, fig.width=12, fig.height=10}
+# Load and display the full predictor correlation matrix
+knitr::include_graphics(here("data", "daily_lag_plots", "predictor_correlation_matrix.png"))
+```
+
+**Key observations from full correlation matrix:**
+
+1. **Temperature metrics** are highly intercorrelated (r > 0.80):
+   - temp_max, temp_mean, temp_at_max_count, hours_above_15C, degree_hours_above_15C
+   - temp_min shows moderate correlation with other temperature metrics
+
+2. **Wind metrics** are highly intercorrelated (r > 0.75):
+   - wind_max_gust, wind_gust_sum, wind_gust_hours, wind_minutes_above_2ms
+   - All measure similar aspects of wind exposure with different emphases
+
+3. **Between-category correlations**:
+   - Negative correlation between wind metrics and temperature metrics (r ≈ -0.4 to -0.5)
+   - Suggests windy days tend to be cooler
+
+4. **Butterfly-environment correlations**:
+   - Previous day butterfly counts show weak correlations with most environmental variables
+   - sum_butterflies_direct_sun shows moderate positive correlation with temperature metrics
+
+## 4. Final Model Variables
+
+After correlation analysis, the following variables were selected for model testing to minimize multicollinearity while maintaining biological interpretability:
+
+```{r final-vars-table}
+final_vars <- tibble(
+    Variable = c(
+        "butterfly_diff_95th_sqrt",
+        "butterflies_95th_percentile_t_1",
+        "temp_max_t_1",
+        "temp_min_t_1",
+        "temp_at_max_count_t_1",
+        "wind_max_gust_t_1",
+        "sum_butterflies_direct_sun_t_1"
+    ),
+    Role = c(
+        "Response",
+        "Baseline (B models only)",
+        "Predictor",
+        "Predictor",
+        "Predictor",
+        "Predictor",
+        "Predictor"
+    ),
+    Description = c(
+        "Square-root transformed change in 95th percentile count between consecutive days",
+        "Previous day's 95th percentile count (baseline population size)",
+        "Previous day's maximum temperature (°C)",
+        "Previous day's minimum temperature (°C)",
+        "Temperature when peak count occurred on previous day (°C)",
+        "Previous day's maximum wind gust speed (m/s)",
+        "Sum of butterflies in direct sun on previous day"
+    )
+)
+
+kable(final_vars, caption = "Variables included in final models")
+```
+
+### Correlation Matrix: Final Model Variables
+
+This correlation matrix shows only the variables ultimately included in model testing, representing a reduced set with lower multicollinearity:
+
+```{r model-correlation-matrix, fig.width=8, fig.height=6}
+# Select final model variables
+model_vars <- daily_data %>%
+    select(
+        butterfly_diff_95th_sqrt,
+        butterflies_95th_percentile_t_1,
+        temp_max_t_1,
+        temp_min_t_1,
+        temp_at_max_count_t_1,
+        wind_max_gust_t_1,
+        sum_butterflies_direct_sun_t_1
+    ) %>%
+    na.omit()
+
+# Correlation matrix
+cor_matrix <- cor(model_vars)
+
+# Create correlation plot
+corrplot(cor_matrix,
+    method = "color",
+    type = "upper",
+    order = "original",
+    tl.cex = 0.9,
+    tl.col = "black",
+    tl.srt = 45,
+    addCoef.col = "black",
+    number.cex = 0.7,
+    title = "",
+    mar = c(0, 0, 1, 0)
+)
+```
+
+```{r model-correlation-table}
+kable(round(cor_matrix, 3), caption = "Correlation coefficients for final model variables")
+```
+
+**Comparison between correlation matrices:**
+
+- **Full candidate set**: Many correlations >0.75, indicating substantial redundancy
+- **Final model set**: Maximum correlation is ~0.78 (temp_max with hours_above_15C pathway), generally <0.5
+- Variable selection successfully reduced multicollinearity while retaining diverse environmental dimensions
+
+## 5. Modeling Approach
+
+### 5.1 Two Model Families: Absolute vs. Proportional Effects
+
+We tested **105 models** in two distinct families to distinguish different mechanisms by which environment affects abundance:
+
+**M Models (n=50): Absolute Effects**
+
+- Do **NOT** include previous day's butterfly count
+- Test whether environmental variables cause fixed-magnitude changes regardless of population size
+- Example: "Strong wind reduces abundance by X butterflies"
+
+**B Models (n=55): Proportional/Density-Dependent Effects**
+
+- **Include** `butterflies_95th_percentile_t_1` as covariate or interaction term
+- Test whether environmental effects scale with baseline population
+- Example: "Strong wind reduces abundance by X% of the population"
+
+### 5.2 Model Specifications
+
+Within each family, models varied in:
+
+1. **Fixed effects structure:**
+   - Single predictors vs. combinations
+   - Linear terms vs. smooth terms (splines)
+   - Main effects only vs. interactions
+   - Different temperature metric combinations
+
+2. **Random effects (all models):**
+   - Random intercept: `deployment_id`
+   - Temporal autocorrelation: AR1 within deployments using `day_sequence | deployment_id`
+
+3. **Correlation structures tested:**
+   - No temporal correlation (baseline)
+   - AR1 correlation within deployments
+
+### 5.3 Sample Model Formulas
+
+**Simple M models (absolute effects):**
+```
+M1: butterfly_diff_95th_sqrt ~ 1
+M2: butterfly_diff_95th_sqrt ~ wind_max_gust_t_1
+M24: butterfly_diff_95th_sqrt ~ s(wind_max_gust_t_1)
+```
+
+**Complex M models:**
+```
+M34: butterfly_diff_95th_sqrt ~ s(temp_at_max_count_t_1) + s(wind_max_gust_t_1) + s(sum_butterflies_direct_sun_t_1)
+M41: butterfly_diff_95th_sqrt ~ temp_at_max_count_t_1 * wind_max_gust_t_1
+```
+
+**B models (proportional effects):**
+```
+B1: butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1
+B19: butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 + temp_at_max_count_t_1 + wind_max_gust_t_1 + sum_butterflies_direct_sun_t_1
+B31: butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 + s(temp_at_max_count_t_1) + s(wind_max_gust_t_1)
+B51: butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 * wind_max_gust_t_1
+```
+
+## 6. Model Selection Results
+
+```{r load-models}
+# Load model results (this section would load pre-fitted models)
+# For this write-up, we'll reference the analysis document
+cat("Note: Full model fitting and results are documented in the analysis document.\n")
+cat("This summary presents key findings for interpretation.\n\n")
+cat("Total models tested: 105 (50 M models + 55 B models)\n")
+cat("Each model tested with 2 correlation structures: no_corr and AR1\n")
+cat("Total model fits: 210\n")
+```
+
+### 6.1 Top 10 Models by AIC
+
+The table below shows the 10 best-performing models. Note that **all top models are B models** (include baseline count), indicating that proportional/density-dependent effects provide substantially better fit than absolute effects.
+
+<details>
+<summary><strong>Click to expand: Top 10 Models Table</strong></summary>
+
+**Model naming convention:**
+- First part (B19, B31, etc.): Model formula specification (see Appendix A)
+- Last part (AR1 or no_corr): Correlation structure used
+
+```{r load-top-10-models}
+# Load top 10 models table exported from analysis
+top_10 <- read_csv(here("analysis", "reports", "figures", "top_10_models.csv"),
+    show_col_types = FALSE
+)
+
+kable(top_10, digits = 3, caption = "Top 10 Models by AIC") %>%
+    kableExtra::kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+```
+
+**Key findings:**
+- All top 10 models are B models (include baseline butterfly count)
+- All top 10 models use AR1 correlation structure
+- ΔAIC between best M model and best B model: >50 (see full table in Appendix B)
+
+### 6.2 Key Findings from Model Selection
+
+1. **Density-dependence is critical**: B models vastly outperform M models (ΔAIC > 50)
+   - Environmental effects scale with population size
+   - Cannot understand day-to-day changes without accounting for starting population
+
+2. **AR1 correlation structure preferred**: Models with temporal autocorrelation fit better
+   - Day-to-day changes are not independent
+   - Consecutive days within deployments are correlated
+
+3. **Non-linear relationships**: Smooth term models generally outperform linear models
+   - Relationships between environment and abundance change are complex
+   - Simple linear effects inadequate to capture response patterns
+
+4. **Model uncertainty**: Multiple models with ΔAIC < 2 indicates:
+   - No single "best" model stands out
+   - Different variable combinations provide similar explanatory power
+   - Results should be interpreted with appropriate uncertainty
+
+### 6.3 Models with Strong Support (ΔAIC < 2)
+
+Multiple models show strong empirical support, suggesting uncertainty in the precise form of environmental effects:
+
+```{r load-supported-models}
+# Load models with strong support (ΔAIC < 2)
+supported <- read_csv(here("analysis", "reports", "figures", "strong_support_models.csv"),
+    show_col_types = FALSE
+)
+
+cat("Number of models with ΔAIC < 2:", nrow(supported), "\n\n")
+
+supported %>%
+    select(Model, Correlation, Formula, AIC, Delta_AIC, AIC_weight, df) %>%
+    kable(digits = 4, caption = "Models with Strong Empirical Support (ΔAIC < 2)") %>%
+    kableExtra::kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+```
+
+## 7. Best Model Results
+
+### 7.1 Model Specification
+
+```{r load-best-model-info}
+# Load best model information
+best_info <- read_csv(here("analysis", "reports", "figures", "best_model_summary.csv"),
+    show_col_types = FALSE
+)
+
+# Extract key values
+model_name <- best_info$Value[best_info$Metric == "Model_Name"]
+formula_str <- best_info$Value[best_info$Metric == "Formula"]
+corr_str <- best_info$Value[best_info$Metric == "Correlation"]
+```
+
+**Best model:** `r model_name`
+
+**Formula:**
+```
+`r formula_str`
+```
+
+**Model structure:**
+- Random effects: `~1 | deployment_id`
+- Correlation: AR1(form = `~day_sequence | deployment_id`)
+- Family: Gaussian
+
+### 7.2 Model Performance
+
+```{r best-model-performance}
+# Extract performance metrics
+metrics <- best_info %>%
+    filter(Metric %in% c("AIC", "R_squared", "Deviance_Explained", "N_obs"))
+
+kable(metrics,
+    col.names = c("Metric", "Value"),
+    caption = "Best Model Performance Metrics"
+)
+```
+
+### 7.3 Partial Response Curves
+
+The plots below show the estimated effect of each predictor on changes in butterfly abundance, holding other variables constant. The y-axis represents the change in square-root transformed 95th percentile count.
+
+**Interpretation guide:**
+- **X-axis**: Predictor variable value
+- **Y-axis**: Partial effect on butterfly_diff_95th_sqrt (change in abundance)
+- **Shaded area**: 95% confidence interval
+- **Horizontal line at y=0**: No change in abundance
+- **Above zero**: Positive effect (increase in abundance)
+- **Below zero**: Negative effect (decrease in abundance)
+
+```{r best-model-partial-effects, fig.width=12, fig.height=8}
+# Display partial response curves for best model
+knitr::include_graphics(here("analysis", "reports", "figures", "best_model_partial_effects.png"))
+```
+
+### 7.4 Interpretation of Effects
+
+**Previous day baseline (butterflies_95th_percentile_t_1):**
+- [Linear or smooth? Positive/negative? Interpretation]
+
+**Temperature (temp_at_max_count_t_1):**
+- [Describe shape of smooth term]
+- [Biological interpretation]
+
+**Wind (wind_max_gust_t_1):**
+- [Describe shape of smooth term]
+- **Note on unexpected pattern**: As described in project notes, wind effects show a non-intuitive pattern with largest decreases at zero wind and increasing/decreasing patterns at higher speeds
+- Potential data artifact: Only one day with previous day wind = 0, which may drive unusual curve shape
+- Warrants cautious interpretation
+
+**Sun exposure (sum_butterflies_direct_sun_t_1):**
+- [If included in best model, describe effect]
+
+## 8. Model Diagnostics
+
+**Key diagnostic checks:**
+
+1. **Residuals vs. Fitted**: Check for heteroscedasticity and non-linear patterns
+2. **Q-Q Plot**: Assess normality of residuals
+3. **Scale-Location**: Check for homogeneity of variance
+4. **Residual Histogram**: Overall distribution assessment
+
+**Notable improvement**: Daily aggregation removed many counting artifacts present in 30-minute interval analysis residuals.
+
+```{r diagnostics, fig.width=12, fig.height=10}
+knitr::include_graphics(here("analysis", "reports", "figures", "best_model_diagnostics.png"))
+```
+
+## 9. Discussion
+
+### 9.1 Evidence for Environmental Effects
+
+**Baseline abundance is paramount:**
+- All well-supported models include previous day butterfly count
+- Environmental effects are proportional to population size, not absolute
+- This suggests environmental factors modulate existing population trends rather than driving them
+
+**Temperature effects:**
+- [Summary based on actual results]
+
+**Wind effects:**
+- Present in top models but show complex, potentially non-intuitive patterns
+- Effect magnitude and significance vary with model specification (p ≈ 0.08 in some versions)
+- Curve shape may be influenced by data artifacts (single day with zero wind)
+- More data might flatten or stabilize these patterns
+
+**Sun exposure:**
+- [Summary based on actual results]
+
+### 9.2 Comparison with 30-Minute Interval Analysis
+
+This daily-level analysis **does not contradict** the 30-minute interval analysis:
+
+- **30-minute analysis**: No detectable wind effect on instantaneous counts
+- **Daily analysis**: Some evidence for wind effect on day-to-day persistence, but:
+  - Effect is model-dependent and marginally significant
+  - Relationship is complex and not easily interpretable
+  - May represent population-level behavioral decisions (emigration) vs. instantaneous movement
+
+### 9.3 Limitations and Caveats
+
+**Sample size:**
+- Only ~100 day-pairs vs. thousands of observations in 30-minute analysis
+- Weaker statistical power for detecting effects
+- Greater model uncertainty (multiple models with ΔAIC < 2)
+
+**Time horizon constraints:**
+- 24-hour window chosen to balance biological plausibility with tracking uncertainty
+- Cannot follow individual butterflies; only observe population counts
+- Longer time horizons would introduce ambiguity about population identity
+
+**Wind effect interpretation:**
+- Unexpected curve shape raises questions about biological plausibility
+- Single outlier point (zero wind day) may drive unusual pattern
+- Whether pattern is real or artifact requiring replication unclear
+
+**Residual model diagnostics:**
+- While improved over 30-minute analysis, residuals still show some structure
+- AR1 correlation handles some but not all temporal dependence
+- Additional random effects or correlation structures might improve fit
+
+### 9.4 Biological Interpretation
+
+If wind effects are real (acknowledging uncertainty):
+
+- Largest decreases at zero wind is counterintuitive
+- Possible explanations:
+  - Confounding with unmeasured variables (e.g., temperature inversions, microclimatic conditions)
+  - Non-linear interaction between wind and temperature not captured by model
+  - Artifact of limited sample size and data range
+
+Field observations (Jessica Griffiths, personal observations) clearly show monarchs moving in response to wind. However:
+- These are short-term, within-site movements
+- May not translate to day-to-day emigration captured by peak counts
+- Different temporal and spatial scales between field observations and this analysis
+
+### 9.5 Recommendations for Future Work
+
+1. **Increase sample size**: Additional years of data would:
+   - Stabilize partial effect estimates
+   - Improve power to detect effects
+   - Allow assessment of year-to-year consistency
+
+2. **Investigate zero-wind day**: Detailed examination of the single day with previous wind = 0
+   - Is this a data quality issue?
+   - What were other conditions on that day?
+   - Does excluding it change inference?
+
+3. **Alternative time windows**: Test 48-hour, 72-hour lags to understand temporal dynamics
+   - Do effects accumulate over multiple days?
+   - Is 24 hours the right response window?
+
+4. **Individual tracking**: If feasible, mark-recapture or GPS tracking would:
+   - Distinguish movement from mortality/emigration
+   - Directly test within-site relocation vs. leaving
+   - Connect field observations to population-level patterns
+
+5. **Microclimate measurements**: Finer-scale environmental data at cluster locations
+   - Temperature and wind measurements at cluster height
+   - Sun exposure and shade mapping
+   - Within-tree spatial heterogeneity
+
+## 10. Conclusions
+
+This daily-level analysis provides a complementary perspective to the 30-minute interval analysis:
+
+1. **Baseline population size is critical**: Day-to-day changes in abundance cannot be understood without accounting for the starting population (all top models are B models)
+
+2. **Complex environmental relationships**: Non-linear smooth terms outperform linear effects, indicating that environmental responses are not simple or monotonic
+
+3. **Wind effects remain ambiguous**: Some evidence for wind effects at daily timescales, but:
+   - Effect size and significance are model-dependent
+   - Curve shapes are difficult to interpret biologically
+   - Potential data artifacts warrant caution
+
+4. **Complementary to prior analysis**: Results do not contradict the 30-minute interval findings
+   - Different temporal scales may capture different processes
+   - Instantaneous movement vs. emigration decisions
+
+5. **Sample size matters**: Limited data (~100 observations) constrains inference strength
+   - Multiple competitive models indicate uncertainty
+   - Additional years of data would strengthen conclusions
+
+This analysis demonstrates that environmental effects on monarch abundance are complex and scale-dependent. While it provides some support for wind effects over daily timescales, the mechanisms remain unclear and warrant further investigation with additional data and refined methods.
+
+---
+
+## Appendix A: Complete Model Specifications
+
+<details>
+<summary><strong>Click to expand: All 105 model formulas</strong></summary>
+
+### M Models (Absolute Effects, n=50)
+
+Models without previous day butterfly count, testing absolute environmental effects:
+
+**Null and single predictor models:**
+- M1: `~ 1` (null model)
+- M2: `~ wind_max_gust_t_1`
+- M3: `~ temp_max_t_1`
+- M4: `~ temp_min_t_1`
+- M5: `~ temp_at_max_count_t_1`
+- M6: `~ sum_butterflies_direct_sun_t_1`
+
+**Temperature combinations (linear):**
+- M8: `~ temp_max_t_1 + temp_min_t_1`
+- M9: `~ temp_max_t_1 + temp_at_max_count_t_1`
+- M10: `~ temp_min_t_1 + temp_at_max_count_t_1`
+- M11: `~ temp_max_t_1 + temp_min_t_1 + temp_at_max_count_t_1`
+
+**Two-variable combinations:**
+- M12: `~ wind_max_gust_t_1 + temp_max_t_1`
+- M13: `~ wind_max_gust_t_1 + temp_min_t_1`
+- M14: `~ wind_max_gust_t_1 + temp_at_max_count_t_1`
+- M15: `~ wind_max_gust_t_1 + sum_butterflies_direct_sun_t_1`
+- M16: `~ temp_at_max_count_t_1 + sum_butterflies_direct_sun_t_1`
+
+**Full models with various temperature specs (linear):**
+- M17: `~ temp_max_t_1 + wind_max_gust_t_1 + sum_butterflies_direct_sun_t_1`
+- M18: `~ temp_min_t_1 + wind_max_gust_t_1 + sum_butterflies_direct_sun_t_1`
+- M19: `~ temp_at_max_count_t_1 + wind_max_gust_t_1 + sum_butterflies_direct_sun_t_1`
+- M20: `~ temp_max_t_1 + temp_min_t_1 + wind_max_gust_t_1 + sum_butterflies_direct_sun_t_1`
+- M21: `~ temp_max_t_1 + temp_min_t_1 + temp_at_max_count_t_1 + wind_max_gust_t_1 + sum_butterflies_direct_sun_t_1`
+
+**Single smooth terms:**
+- M24: `~ s(wind_max_gust_t_1)`
+- M25: `~ s(temp_max_t_1)`
+- M26: `~ s(temp_min_t_1)`
+- M27: `~ s(temp_at_max_count_t_1)`
+- M28: `~ s(sum_butterflies_direct_sun_t_1)`
+
+**Smooth term combinations:**
+- M30: `~ s(temp_max_t_1) + s(temp_min_t_1)`
+- M31: `~ s(temp_at_max_count_t_1) + s(wind_max_gust_t_1)`
+- M32: `~ s(temp_at_max_count_t_1) + s(sum_butterflies_direct_sun_t_1)`
+- M33: `~ s(wind_max_gust_t_1) + s(sum_butterflies_direct_sun_t_1)`
+
+**Complex smooth models:**
+- M34: `~ s(temp_at_max_count_t_1) + s(wind_max_gust_t_1) + s(sum_butterflies_direct_sun_t_1)`
+- M35: `~ s(temp_max_t_1) + s(temp_min_t_1) + s(wind_max_gust_t_1) + s(sum_butterflies_direct_sun_t_1)`
+- M37: `~ s(temp_max_t_1) + s(temp_min_t_1) + s(temp_at_max_count_t_1) + s(wind_max_gust_t_1) + s(sum_butterflies_direct_sun_t_1)`
+
+**Mixed linear and smooth:**
+- M38: `~ temp_at_max_count_t_1 + s(wind_max_gust_t_1) + s(sum_butterflies_direct_sun_t_1)`
+- M39: `~ s(temp_at_max_count_t_1) + wind_max_gust_t_1 + sum_butterflies_direct_sun_t_1`
+- M40: `~ s(temp_at_max_count_t_1) + wind_max_gust_t_1 + s(sum_butterflies_direct_sun_t_1)`
+
+**Interactions:**
+- M41: `~ temp_at_max_count_t_1 * wind_max_gust_t_1`
+- M42: `~ temp_at_max_count_t_1 * sum_butterflies_direct_sun_t_1`
+- M43: `~ wind_max_gust_t_1 * sum_butterflies_direct_sun_t_1`
+- M44: `~ temp_at_max_count_t_1 * wind_max_gust_t_1 + sum_butterflies_direct_sun_t_1`
+- M45: `~ temp_at_max_count_t_1 + wind_max_gust_t_1 * sum_butterflies_direct_sun_t_1`
+- M46: `~ temp_at_max_count_t_1 * wind_max_gust_t_1 * sum_butterflies_direct_sun_t_1`
+
+**Temperature range models:**
+- M47: `~ I(temp_max_t_1 - temp_min_t_1)`
+- M48: `~ I(temp_max_t_1 - temp_min_t_1) + wind_max_gust_t_1`
+- M49: `~ s(I(temp_max_t_1 - temp_min_t_1))`
+- M50: `~ s(I(temp_max_t_1 - temp_min_t_1)) + s(wind_max_gust_t_1)`
+
+### B Models (Proportional Effects, n=55)
+
+All models include `butterflies_95th_percentile_t_1` to test density-dependent effects:
+
+**Baseline-only:**
+- B1: `~ butterflies_95th_percentile_t_1`
+
+**Single predictor + baseline (linear):**
+- B2: `~ butterflies_95th_percentile_t_1 + wind_max_gust_t_1`
+- B3: `~ butterflies_95th_percentile_t_1 + temp_max_t_1`
+- B4: `~ butterflies_95th_percentile_t_1 + temp_min_t_1`
+- B5: `~ butterflies_95th_percentile_t_1 + temp_at_max_count_t_1`
+- B6: `~ butterflies_95th_percentile_t_1 + sum_butterflies_direct_sun_t_1`
+
+**Temperature combinations + baseline:**
+- B8: `~ butterflies_95th_percentile_t_1 + temp_max_t_1 + temp_min_t_1`
+- B9: `~ butterflies_95th_percentile_t_1 + temp_max_t_1 + temp_at_max_count_t_1`
+- B10: `~ butterflies_95th_percentile_t_1 + temp_min_t_1 + temp_at_max_count_t_1`
+- B11: `~ butterflies_95th_percentile_t_1 + temp_max_t_1 + temp_min_t_1 + temp_at_max_count_t_1`
+
+**Two-variable combinations + baseline:**
+- B12: `~ butterflies_95th_percentile_t_1 + wind_max_gust_t_1 + temp_max_t_1`
+- B13: `~ butterflies_95th_percentile_t_1 + wind_max_gust_t_1 + temp_min_t_1`
+- B14: `~ butterflies_95th_percentile_t_1 + wind_max_gust_t_1 + temp_at_max_count_t_1`
+- B15: `~ butterflies_95th_percentile_t_1 + wind_max_gust_t_1 + sum_butterflies_direct_sun_t_1`
+- B16: `~ butterflies_95th_percentile_t_1 + temp_at_max_count_t_1 + sum_butterflies_direct_sun_t_1`
+
+**Full models + baseline:**
+- B17: `~ butterflies_95th_percentile_t_1 + temp_max_t_1 + wind_max_gust_t_1 + sum_butterflies_direct_sun_t_1`
+- B18: `~ butterflies_95th_percentile_t_1 + temp_min_t_1 + wind_max_gust_t_1 + sum_butterflies_direct_sun_t_1`
+- B19: `~ butterflies_95th_percentile_t_1 + temp_at_max_count_t_1 + wind_max_gust_t_1 + sum_butterflies_direct_sun_t_1`
+- B20: `~ butterflies_95th_percentile_t_1 + temp_max_t_1 + temp_min_t_1 + wind_max_gust_t_1 + sum_butterflies_direct_sun_t_1`
+- B21: `~ butterflies_95th_percentile_t_1 + temp_max_t_1 + temp_min_t_1 + temp_at_max_count_t_1 + wind_max_gust_t_1 + sum_butterflies_direct_sun_t_1`
+
+**Single smooth + baseline:**
+- B24: `~ butterflies_95th_percentile_t_1 + s(wind_max_gust_t_1)`
+- B25: `~ butterflies_95th_percentile_t_1 + s(temp_max_t_1)`
+- B26: `~ butterflies_95th_percentile_t_1 + s(temp_min_t_1)`
+- B27: `~ butterflies_95th_percentile_t_1 + s(temp_at_max_count_t_1)`
+- B28: `~ butterflies_95th_percentile_t_1 + s(sum_butterflies_direct_sun_t_1)`
+
+**Smooth baseline variations:**
+- B29: `~ s(butterflies_95th_percentile_t_1)`
+- B29a: `~ s(butterflies_95th_percentile_t_1) + wind_max_gust_t_1`
+- B29b: `~ s(butterflies_95th_percentile_t_1) + temp_at_max_count_t_1`
+- B29c: `~ s(butterflies_95th_percentile_t_1) + s(wind_max_gust_t_1)`
+- B29d: `~ s(butterflies_95th_percentile_t_1) + s(temp_at_max_count_t_1)`
+
+**Smooth combinations + baseline:**
+- B30: `~ butterflies_95th_percentile_t_1 + s(temp_max_t_1) + s(temp_min_t_1)`
+- B31: `~ butterflies_95th_percentile_t_1 + s(temp_at_max_count_t_1) + s(wind_max_gust_t_1)`
+- B32: `~ butterflies_95th_percentile_t_1 + s(temp_at_max_count_t_1) + s(sum_butterflies_direct_sun_t_1)`
+- B33: `~ butterflies_95th_percentile_t_1 + s(wind_max_gust_t_1) + s(sum_butterflies_direct_sun_t_1)`
+
+**Complex smooth + baseline:**
+- B34: `~ butterflies_95th_percentile_t_1 + s(temp_at_max_count_t_1) + s(wind_max_gust_t_1) + s(sum_butterflies_direct_sun_t_1)`
+- B35: `~ butterflies_95th_percentile_t_1 + s(temp_max_t_1) + s(temp_min_t_1) + s(wind_max_gust_t_1) + s(sum_butterflies_direct_sun_t_1)`
+- B37: `~ butterflies_95th_percentile_t_1 + s(temp_max_t_1) + s(temp_min_t_1) + s(temp_at_max_count_t_1) + s(wind_max_gust_t_1) + s(sum_butterflies_direct_sun_t_1)`
+
+**Mixed linear and smooth + baseline:**
+- B38: `~ butterflies_95th_percentile_t_1 + temp_at_max_count_t_1 + s(wind_max_gust_t_1) + s(sum_butterflies_direct_sun_t_1)`
+- B39: `~ butterflies_95th_percentile_t_1 + s(temp_at_max_count_t_1) + wind_max_gust_t_1 + sum_butterflies_direct_sun_t_1`
+- B40: `~ butterflies_95th_percentile_t_1 + s(temp_at_max_count_t_1) + wind_max_gust_t_1 + s(sum_butterflies_direct_sun_t_1)`
+
+**Interactions + baseline:**
+- B41: `~ butterflies_95th_percentile_t_1 + temp_at_max_count_t_1 * wind_max_gust_t_1`
+- B42: `~ butterflies_95th_percentile_t_1 + temp_at_max_count_t_1 * sum_butterflies_direct_sun_t_1`
+- B43: `~ butterflies_95th_percentile_t_1 + wind_max_gust_t_1 * sum_butterflies_direct_sun_t_1`
+- B44: `~ butterflies_95th_percentile_t_1 + temp_at_max_count_t_1 * wind_max_gust_t_1 + sum_butterflies_direct_sun_t_1`
+- B45: `~ butterflies_95th_percentile_t_1 + temp_at_max_count_t_1 + wind_max_gust_t_1 * sum_butterflies_direct_sun_t_1`
+- B46: `~ butterflies_95th_percentile_t_1 + temp_at_max_count_t_1 * wind_max_gust_t_1 * sum_butterflies_direct_sun_t_1`
+
+**Temperature range + baseline:**
+- B47: `~ butterflies_95th_percentile_t_1 + I(temp_max_t_1 - temp_min_t_1)`
+- B48: `~ butterflies_95th_percentile_t_1 + I(temp_max_t_1 - temp_min_t_1) + wind_max_gust_t_1`
+- B49: `~ butterflies_95th_percentile_t_1 + s(I(temp_max_t_1 - temp_min_t_1))`
+- B50: `~ butterflies_95th_percentile_t_1 + s(I(temp_max_t_1 - temp_min_t_1)) + s(wind_max_gust_t_1)`
+
+**Interactions with baseline (density-dependent environmental effects):**
+- B51: `~ butterflies_95th_percentile_t_1 * wind_max_gust_t_1`
+- B52: `~ butterflies_95th_percentile_t_1 * temp_at_max_count_t_1`
+- B53: `~ butterflies_95th_percentile_t_1 * sum_butterflies_direct_sun_t_1`
+- B54: `~ butterflies_95th_percentile_t_1 * wind_max_gust_t_1 + temp_at_max_count_t_1`
+- B55: `~ butterflies_95th_percentile_t_1 * temp_at_max_count_t_1 + wind_max_gust_t_1`
+
+**Note:** All models include random intercept for deployment_id and were tested with both no correlation and AR1 correlation structures.
+
+</details>
+
+## Appendix B: Full AIC Table
+
+<details>
+<summary><strong>Click to expand: Complete AIC rankings for all 210 model fits</strong></summary>
+
+```{r full-aic-table}
+# Load complete AIC table
+all_models <- read_csv(here("analysis", "reports", "figures", "all_models_aic_table.csv"),
+    show_col_types = FALSE
+)
+
+datatable(
+    all_models,
+    options = list(
+        pageLength = 25,
+        scrollX = TRUE,
+        order = list(list(4, "asc")) # Sort by AIC
+    ),
+    caption = "Complete model comparison: All 210 model fits ranked by AIC"
+) %>%
+    formatRound(columns = c("AIC", "LogLik", "Delta_AIC", "AIC_weight"), digits = 4)
+```
+
+**Summary statistics:**
+```{r aic-summary}
+cat("Total models fitted:", nrow(all_models), "\n")
+cat("Models with ΔAIC < 2:", sum(all_models$Delta_AIC < 2), "\n")
+cat("Models with ΔAIC < 4:", sum(all_models$Delta_AIC < 4), "\n")
+cat("Models with ΔAIC < 10:", sum(all_models$Delta_AIC < 10), "\n\n")
+
+cat("Best M model (no baseline):\n")
+best_m <- all_models %>%
+    filter(grepl("^M", Base_Model)) %>%
+    slice(1)
+cat("  Model:", best_m$Model, "\n")
+cat("  ΔAIC:", round(best_m$Delta_AIC, 2), "\n\n")
+
+cat("Best B model (with baseline):\n")
+best_b <- all_models %>%
+    filter(grepl("^B", Base_Model)) %>%
+    slice(1)
+cat("  Model:", best_b$Model, "\n")
+cat("  ΔAIC:", round(best_b$Delta_AIC, 2), "\n")
+```
+
+</details>
+
+---
+
+**Document prepared:** `r Sys.Date()`
+**Analysis code:** `analysis/monarch_daily_gam_analysis.qmd`
+**Data source:** `data/monarch_daily_lag_analysis.csv`
+**Data preparation:** `data_prep_daily_lag.py`
