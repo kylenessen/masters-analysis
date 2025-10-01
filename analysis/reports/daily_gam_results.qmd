@@ -7,6 +7,7 @@ format:
     toc: true
     toc-depth: 3
     toc-location: left
+    number-sections: true
     embed-resources: true
     theme: cosmo
     code-fold: true
@@ -40,7 +41,7 @@ daily_data <- daily_data %>%
     )
 ```
 
-## 1. Motivation and Background
+## Motivation and Background
 
 ### Why a Daily-Level Analysis?
 
@@ -63,7 +64,7 @@ I examine previous-day conditions affecting next-day abundance because:
 - Longer time horizons introduce uncertainty—I cannot track individual butterflies, only count populations
 - Beyond 24 hours, I lose confidence that I'm observing the same population that experienced the initial conditions
 
-## 2. Data Structure
+## Data Structure
 
 ```{r data-summary}
 cat("Dataset characteristics:\n")
@@ -73,7 +74,7 @@ cat("- Date range:", format(min(daily_data$date_t)), "to", format(max(daily_data
 cat("- Temporal structure: Consecutive days within deployments\n")
 ```
 
-### 2.1 Response Variable Selection
+### Response Variable Selection
 
 **Response Variable:** Square-root transformed difference in 95th percentile butterfly counts between consecutive days (`butterfly_diff_95th_sqrt`)
 
@@ -105,17 +106,17 @@ A composite normality score (0-1 scale) was calculated by weighting all criteria
 knitr::include_graphics(here("analysis", "reports", "figures", "response_variable_normality.png"))
 ```
 
-**Figure 1.** Normality assessment for candidate response variables and transformations. Each panel shows the distribution (histogram) with a normal curve overlay (red line). Rank indicates overall normality score, with Rank 1 being most normal. The normality score combines skewness, kurtosis, and formal normality tests.
+**Figure.** Normality assessment for candidate response variables and transformations. Each panel shows the distribution (histogram) with a normal curve overlay (red line). Rank indicates overall normality score, with Rank 1 being most normal. The normality score combines skewness, kurtosis, and formal normality tests.
 
 #### Selected Response Variable
 
 **Winner:** `butterfly_diff_95th_sqrt` (square-root transformed difference in 95th percentile counts)
 
-## 3. Candidate Predictor Variables
+## Candidate Predictor Variables
 
 I considered numerous potential environmental predictors characterizing full-day weather patterns. All predictors represent weather conditions from the previous day (t-1), as those are the conditions the butterflies experienced. This analysis examines whether there is a durable change the following day (t). The tables below describe all variables initially considered for model inclusion, though not all were used (see correlation analysis below).
 
-### 3.1 Butterfly Abundance Metrics (Previous Day)
+### Butterfly Abundance Metrics (Previous Day)
 Similar to the 30-minute analysis, these metrics help control for differences in cluster sizes and follow the same structure as the response variables.
 
 ```{r butterfly-vars-table}
@@ -136,7 +137,7 @@ butterfly_vars <- tibble(
 kable(butterfly_vars, caption = "Butterfly abundance metrics from previous day")
 ```
 
-### 3.2 Sun Exposure Metrics (Previous Day)
+### Sun Exposure Metrics (Previous Day)
 I only considered one sun exposure metric: the sum of all butterflies in direct sunlight. I could have tried the maximum, but the sum felt like a better proxy for the entire day. 
 
 ```{r sun-vars-table}
@@ -150,7 +151,7 @@ sun_vars <- tibble(
 kable(sun_vars, caption = "Sun exposure metrics from previous day")
 ```
 
-### 3.3 Temperature Metrics (Previous Day)
+### Temperature Metrics (Previous Day)
 Because we are considering an entire day, I generated several reasonable temperature metrics, though not all were used in the final models.
 
 ```{r temp-vars-table}
@@ -173,7 +174,7 @@ temp_vars <- tibble(
 kable(temp_vars, caption = "Temperature metrics from previous day")
 ```
 
-### 3.4 Wind Metrics (Previous Day)
+### Wind Metrics (Previous Day)
 
 To capture the full story of each day, I generated as many reasonable wind metrics as I could think of, though not all were used in the final models. 
 
@@ -200,7 +201,7 @@ wind_vars <- tibble(
 kable(wind_vars, caption = "Wind metrics from previous day")
 ```
 
-### 3.5 Correlation Matrix: All Candidate Predictors
+### Correlation Matrix: All Candidate Predictors
 
 This correlation matrix shows all potential fixed effects initially considered. I manually reviewed this table to make decisions about which variables to include in the model runs. 
 
@@ -215,7 +216,7 @@ For temperature, there were several highly correlated pairs. I ultimately decide
 
 Wind metrics were surprisingly correlated. `wind_gust_sd` stood out as a variable that avoided the worst correlation with other predictors, but still had a correlation of 0.76 with `wind_max_gust`. I ultimately chose `wind_max_gust` because it reasonably captures all other wind metrics (except `wind_mode_gust`, which I don't know how to interpret) and directly matches our previous analysis. 
 
-## 4. Final Model Variables
+## Final Model Variables
 
 After correlation analysis, the following variables were selected for model testing to minimize multicollinearity while maintaining biological interpretability:
 
@@ -293,9 +294,9 @@ corrplot(cor_matrix,
 kable(round(cor_matrix, 3), caption = "Correlation coefficients for final model variables")
 ```
 
-## 5. Modeling Approach
+## Modeling Approach
 
-### 5.1 Two Model Families: Absolute vs. Proportional Effects
+### Two Model Families: Absolute vs. Proportional Effects
 
 I tested **105 models** in two distinct families to distinguish different mechanisms by which environment affects abundance:
 
@@ -311,7 +312,7 @@ I tested **105 models** in two distinct families to distinguish different mechan
 - Test whether environmental effects scale with baseline population
 - Example: "Strong wind reduces abundance by X% of the population"
 
-### 5.2 Model Specifications
+### Model Specifications
 
 Within each family, models varied in:
 
@@ -329,7 +330,7 @@ Within each family, models varied in:
    - No temporal correlation (baseline)
    - AR1 correlation within deployments
 
-### 5.3 Sample Model Formulas
+### Sample Model Formulas
 
 **Simple M models (absolute effects):**
 ```
@@ -352,7 +353,7 @@ B31: butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 + s(temp_at_max_
 B51: butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 * wind_max_gust_t_1
 ```
 
-## 6. Model Selection Results
+## Model Selection Results
 
 ```{r load-models}
 # Load model results (this section would load pre-fitted models)
@@ -364,7 +365,7 @@ cat("Each model tested with 2 correlation structures: no_corr and AR1\n")
 cat("Total model fits: 210\n")
 ```
 
-### 6.1 Top 10 Models by AIC
+### Top 10 Models by AIC
 
 The table below shows the 10 best-performing models. Note that **all top models are B models** (include baseline count), indicating that proportional/density-dependent effects provide substantially better fit than absolute effects.
 
@@ -390,7 +391,7 @@ kable(top_10, digits = 3, caption = "Top 10 Models by AIC") %>%
 - All top 10 models use AR1 correlation structure
 - ΔAIC between best M model and best B model: >50 (see full table in Appendix B)
 
-### 6.2 Key Findings from Model Selection
+### Key Findings from Model Selection
 
 1. **Density-dependence is critical**: B models vastly outperform M models (ΔAIC > 50)
    - Environmental effects scale with population size
@@ -409,7 +410,7 @@ kable(top_10, digits = 3, caption = "Top 10 Models by AIC") %>%
    - Different variable combinations provide similar explanatory power
    - Results should be interpreted with appropriate uncertainty
 
-### 6.3 Models with Strong Support (ΔAIC < 2)
+### Models with Strong Support (ΔAIC < 2)
 
 Multiple models show strong empirical support, suggesting uncertainty in the precise form of environmental effects:
 
@@ -427,11 +428,11 @@ supported %>%
     kableExtra::kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
 ```
 
-## 9. Top 3 Models - Detailed Comparison
+## Top 3 Models - Detailed Comparison
 
 Given the model selection uncertainty (multiple models with ΔAIC < 2), it's important to examine the top-ranked models in detail to understand which patterns are robust across competing formulations and which depend on model specification.
 
-### 9.1 Top 3 Model Summary
+### Top 3 Model Summary
 
 ```{r load-top-3-summary}
 # Load top 3 models detailed summary
@@ -454,7 +455,7 @@ kable(top_3_summary,
 - R² values are very similar: `r paste(round(top_3_summary$R_squared, 4), collapse = ", ")`
 - All three models explain similar amounts of deviance
 
-### 9.2 Model 1 (Best Model)
+### Model 1 (Best Model)
 
 **Formula:** `r top_3_summary$Formula[1]`
 
@@ -476,7 +477,7 @@ knitr::include_graphics(
 )
 ```
 
-**Figure 9.1.** Partial response curves for Model 1. Each panel shows the smooth effect of a predictor on the response variable (change in 95th percentile butterfly count), holding other variables constant.
+**Figure.** Partial response curves for Model 1. Each panel shows the smooth effect of a predictor on the response variable (change in 95th percentile butterfly count), holding other variables constant.
 
 #### Diagnostics
 
@@ -486,9 +487,9 @@ knitr::include_graphics(
 )
 ```
 
-**Figure 9.2.** Diagnostic plots for Model 1 showing residual patterns, normality assessment, variance homogeneity, and residual distribution.
+**Figure.** Diagnostic plots for Model 1 showing residual patterns, normality assessment, variance homogeneity, and residual distribution.
 
-### 9.3 Model 2
+### Model 2
 
 **Formula:** `r top_3_summary$Formula[2]`
 
@@ -512,7 +513,7 @@ knitr::include_graphics(
 )
 ```
 
-**Figure 9.3.** Partial response curves for Model 2.
+**Figure.** Partial response curves for Model 2.
 
 #### Diagnostics
 
@@ -522,9 +523,9 @@ knitr::include_graphics(
 )
 ```
 
-**Figure 9.4.** Diagnostic plots for Model 2.
+**Figure.** Diagnostic plots for Model 2.
 
-### 9.4 Model 3
+### Model 3
 
 **Formula:** `r top_3_summary$Formula[3]`
 
@@ -548,7 +549,7 @@ knitr::include_graphics(
 )
 ```
 
-**Figure 9.5.** Partial response curves for Model 3.
+**Figure.** Partial response curves for Model 3.
 
 #### Diagnostics
 
@@ -558,9 +559,9 @@ knitr::include_graphics(
 )
 ```
 
-**Figure 9.6.** Diagnostic plots for Model 3.
+**Figure.** Diagnostic plots for Model 3.
 
-## 10. Discussion
+## Discussion
 The wind effects show unexpected patterns in these results. The direct sunlight relationship is also interesting, with an initial dip followed by increases in cluster size with more light exposure. I'm uncertain about the interpretation of these results and whether they should be included in our conclusions. I'd appreciate your thoughts on these patterns. 
 
 ---
