@@ -1,0 +1,21 @@
+
+Family: gaussian 
+Link function: identity 
+
+Formula:
+butterfly_diff_95th_sqrt ~ s(butterflies_95th_percentile_t_1) + 
+    s(wind_max_gust_t_1)
+
+Parametric coefficients:
+            Estimate Std. Error t value Pr(>|t|)
+(Intercept)   -1.078      1.068  -1.009    0.315
+
+Approximate significance of smooth terms:
+                                     edf Ref.df      F  p-value    
+s(butterflies_95th_percentile_t_1) 1.153  1.153 24.194 1.55e-06 ***
+s(wind_max_gust_t_1)               2.491  2.491  2.877   0.0649 .  
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+R-sq.(adj) =  0.175   
+  Scale est. = 44.916    n = 100

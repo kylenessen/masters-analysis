@@ -427,147 +427,141 @@ supported %>%
     kableExtra::kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
 ```
 
-## 7. Best Model Results
+## 9. Top 3 Models - Detailed Comparison
 
-### 7.1 Model Specification
+Given the model selection uncertainty (multiple models with ΔAIC < 2), it's important to examine the top-ranked models in detail to understand which patterns are robust across competing formulations and which depend on model specification.
 
-```{r load-best-model-info}
-# Load best model information
-best_info <- read_csv(here("analysis", "reports", "figures", "best_model_summary.csv"),
+### 9.1 Top 3 Model Summary
+
+```{r load-top-3-summary}
+# Load top 3 models detailed summary
+top_3_summary <- read_csv(
+    here("analysis", "reports", "figures", "top_3_models_summary.csv"),
     show_col_types = FALSE
 )
 
-# Extract key values
-model_name <- best_info$Value[best_info$Metric == "Model_Name"]
-formula_str <- best_info$Value[best_info$Metric == "Formula"]
-corr_str <- best_info$Value[best_info$Metric == "Correlation"]
+kable(top_3_summary,
+    digits = c(0, 0, 0, 0, 3, 3, 4, 4, 2),
+    caption = "Top 3 Models: Summary Statistics"
+) %>%
+    kableExtra::kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
 ```
 
-**Best model:** `r model_name`
+**Key observations:**
 
-**Formula:**
+- ΔAIC ranges from 0 to `r round(max(top_3_summary$Delta_AIC), 2)`, indicating strong empirical support for all three models
+- Combined AIC weight: `r round(sum(top_3_summary$AIC_Weight), 3)` (models collectively account for most of the model weight)
+- R² values are very similar: `r paste(round(top_3_summary$R_squared, 4), collapse = ", ")`
+- All three models explain similar amounts of deviance
+
+### 9.2 Model 1 (Best Model)
+
+**Formula:** `r top_3_summary$Formula[1]`
+
+#### Model Output
+
+```{r model-1-summary, comment=""}
+# Read and display model summary text
+model_1_summary <- readLines(
+    here("analysis", "reports", "figures", "top_3_model_1_summary.txt")
+)
+cat(model_1_summary, sep = "\n")
 ```
-`r formula_str`
-```
 
-**Model structure:**
-- Random effects: `~1 | deployment_id`
-- Correlation: AR1(form = `~day_sequence | deployment_id`)
-- Family: Gaussian
+#### Partial Effects
 
-### 7.2 Model Performance
-
-```{r best-model-performance}
-# Extract performance metrics
-metrics <- best_info %>%
-    filter(Metric %in% c("AIC", "R_squared", "Deviance_Explained", "N_obs"))
-
-kable(metrics,
-    col.names = c("Metric", "Value"),
-    caption = "Best Model Performance Metrics"
+```{r model-1-partial, fig.width=14, fig.height=8}
+knitr::include_graphics(
+    here("analysis", "reports", "figures", "top_3_model_1_partial_effects.png")
 )
 ```
 
-### 7.3 Partial Response Curves
+**Figure 9.1.** Partial response curves for Model 1. Each panel shows the smooth effect of a predictor on the response variable (change in 95th percentile butterfly count), holding other variables constant.
 
-The plots below show the estimated effect of each predictor on changes in butterfly abundance, holding other variables constant. The y-axis represents the change in square-root transformed 95th percentile count.
+#### Diagnostics
 
-**Interpretation guide:**
-- **X-axis**: Predictor variable value
-- **Y-axis**: Partial effect on butterfly_diff_95th_sqrt (change in abundance)
-- **Shaded area**: 95% confidence interval
-- **Horizontal line at y=0**: No change in abundance
-- **Above zero**: Positive effect (increase in abundance)
-- **Below zero**: Negative effect (decrease in abundance)
-
-```{r best-model-partial-effects, fig.width=12, fig.height=8}
-# Display partial response curves for best model
-knitr::include_graphics(here("analysis", "reports", "figures", "best_model_partial_effects.png"))
+```{r model-1-diagnostics, fig.width=12, fig.height=10}
+knitr::include_graphics(
+    here("analysis", "reports", "figures", "top_3_model_1_diagnostics.png")
+)
 ```
 
-### 7.4 Results Notes
+**Figure 9.2.** Diagnostic plots for Model 1 showing residual patterns, normality assessment, variance homogeneity, and residual distribution.
 
-**[INCOMPLETE SECTION - TO BE FILLED IN]**
+### 9.3 Model 2
 
-The partial response curves above show the relationships between each predictor and changes in butterfly abundance. The specific patterns and statistical significance vary across the different competitive models.
+**Formula:** `r top_3_summary$Formula[2]`
 
-## 8. Model Diagnostics
+**ΔAIC:** `r round(top_3_summary$Delta_AIC[2], 3)`
 
-**Key diagnostic checks:**
+#### Model Output
 
-1. **Residuals vs. Fitted**: Check for heteroscedasticity and non-linear patterns
-2. **Q-Q Plot**: Assess normality of residuals
-3. **Scale-Location**: Check for homogeneity of variance
-4. **Residual Histogram**: Overall distribution assessment
-
-**Notable improvement**: Daily aggregation removed many counting artifacts present in 30-minute interval analysis residuals.
-
-```{r diagnostics, fig.width=12, fig.height=10}
-knitr::include_graphics(here("analysis", "reports", "figures", "best_model_diagnostics.png"))
+```{r model-2-summary, comment=""}
+# Read and display model summary text
+model_2_summary <- readLines(
+    here("analysis", "reports", "figures", "top_3_model_2_summary.txt")
+)
+cat(model_2_summary, sep = "\n")
 ```
 
-## 9. Discussion
+#### Partial Effects
 
-### 9.1 Model Results Summary
+```{r model-2-partial, fig.width=14, fig.height=8}
+knitr::include_graphics(
+    here("analysis", "reports", "figures", "top_3_model_2_partial_effects.png")
+)
+```
 
-**Baseline abundance:**
-- All well-supported models include previous day butterfly count
-- Environmental effects appear to be proportional to population size, not absolute
+**Figure 9.3.** Partial response curves for Model 2.
 
-**Wind effects:**
-Wind showed up frequently in the top models, but 6 of the 10 had a delta AIC of less than 2. The wind model p values hover just above 0.05, but all had roughly similar curve shapes. If we interpret these curves, then wind has stronger support for influencing day to day clustering behavior, but not at all as predicted (cluster size increases the next day if max gust 3-5 m/s, and largest decreases are predicted at 0 m/s). This analysis has a much smaller dataset (100 pts), and my concern is that we are picking up some peculiar behavior at Spring Canyon in 2023, not detecting something general about monarch behavior.
+#### Diagnostics
 
-### 9.2 Comparison with 30-Minute Interval Analysis
+```{r model-2-diagnostics, fig.width=12, fig.height=10}
+knitr::include_graphics(
+    here("analysis", "reports", "figures", "top_3_model_2_diagnostics.png")
+)
+```
 
-This daily-level analysis does not contradict our 30-minute interval analysis:
+**Figure 9.4.** Diagnostic plots for Model 2.
 
-- **30-minute analysis**: No detectable wind effect on instantaneous counts
-- **Daily analysis**: Some evidence for wind effect on day-to-day persistence, with marginally significant p-values and complex curve shapes
+### 9.4 Model 3
 
-### 9.3 Limitations and Caveats
+**Formula:** `r top_3_summary$Formula[3]`
 
-**Sample size:**
-- Only ~100 day-pairs vs. thousands of observations in our 30-minute analysis
-- Weaker statistical power for detecting effects
-- Greater model uncertainty (multiple models with ΔAIC < 2)
+**ΔAIC:** `r round(top_3_summary$Delta_AIC[3], 3)`
 
-**Time horizon constraints:**
-- 24-hour window chosen to balance biological plausibility with tracking uncertainty
-- I cannot follow individual butterflies; only observe population counts
-- Longer time horizons would introduce ambiguity about population identity
+#### Model Output
 
-**Wind effect interpretation:**
-- Unexpected curve shape with largest decreases at zero wind
-- Single data point with zero wind day may influence pattern
-- Pattern may be specific to Spring Canyon 2023 rather than general
+```{r model-3-summary, comment=""}
+# Read and display model summary text
+model_3_summary <- readLines(
+    here("analysis", "reports", "figures", "top_3_model_3_summary.txt")
+)
+cat(model_3_summary, sep = "\n")
+```
 
-**Residual model diagnostics:**
-- While improved over 30-minute analysis, residuals still show some structure
-- AR1 correlation handles some but not all temporal dependence
+#### Partial Effects
 
-### 9.4 Field Observations Context
+```{r model-3-partial, fig.width=14, fig.height=8}
+knitr::include_graphics(
+    here("analysis", "reports", "figures", "top_3_model_3_partial_effects.png")
+)
+```
 
-Jessica Griffiths and I have both observed monarchs moving to leeward sides of trees in response to wind at Pismo. These short-term, within-site movements may not translate to the day-to-day changes in peak counts captured by this analysis, which could represent different behavioral processes at different temporal and spatial scales.
+**Figure 9.5.** Partial response curves for Model 3.
 
-### 9.5 Future Considerations
+#### Diagnostics
 
-Additional years of data would help stabilize partial effect estimates and assess year-to-year consistency. The single day with zero wind warrants investigation as it may influence the unexpected curve shape. Testing alternative time windows (48-hour, 72-hour) could reveal whether effects accumulate over multiple days.
+```{r model-3-diagnostics, fig.width=12, fig.height=10}
+knitr::include_graphics(
+    here("analysis", "reports", "figures", "top_3_model_3_diagnostics.png")
+)
+```
 
-## 10. Conclusions
+**Figure 9.6.** Diagnostic plots for Model 3.
 
-This daily-level analysis provides a complementary perspective to our 30-minute interval analysis:
-
-1. **Baseline population size is critical**: Day-to-day changes in abundance cannot be understood without accounting for the starting population (all top models are B models)
-
-2. **Complex environmental relationships**: Non-linear smooth terms outperform linear effects
-
-3. **Wind effects**: Some evidence for wind effects at daily timescales with marginally significant p-values and unexpected curve shapes that may be influenced by limited data
-
-4. **Complementary to prior analysis**: Results do not contradict our 30-minute interval findings - different temporal scales may capture different processes
-
-5. **Sample size considerations**: Limited data (~100 observations) with multiple competitive models (ΔAIC < 2) indicating model uncertainty
-
-The analysis suggests environmental effects on monarch abundance are complex and scale-dependent. Wind showed up frequently in top models but with patterns that differ from predictions, potentially reflecting site-specific patterns at Spring Canyon 2023 rather than general monarch behavior.
+## 10. Discussion
+The wind effects show unexpected patterns in these results. The direct sunlight relationship is also interesting, with an initial dip followed by increases in cluster size with more light exposure. I'm uncertain about the interpretation of these results and whether they should be included in our conclusions. I'd appreciate your thoughts on these patterns. 
 
 ---
 

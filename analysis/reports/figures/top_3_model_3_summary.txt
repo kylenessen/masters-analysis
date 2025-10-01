@@ -1,0 +1,23 @@
+
+Family: gaussian 
+Link function: identity 
+
+Formula:
+butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 + 
+    s(sum_butterflies_direct_sun_t_1)
+
+Parametric coefficients:
+                                 Estimate Std. Error t value Pr(>|t|)    
+(Intercept)                      3.560773   1.315741   2.706  0.00807 ** 
+butterflies_95th_percentile_t_1 -0.038876   0.007134  -5.449 3.97e-07 ***
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+Approximate significance of smooth terms:
+                                    edf Ref.df     F p-value   
+s(sum_butterflies_direct_sun_t_1) 2.886  2.886 6.284 0.00297 **
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+R-sq.(adj) =  0.168   
+  Scale est. = 46.265    n = 100

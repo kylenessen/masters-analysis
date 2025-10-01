@@ -1,0 +1,4 @@
+Rank,Model,Formula,Correlation,AIC,Delta_AIC,AIC_Weight,R_squared,Deviance_Explained
+1,B33_AR1,butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 + s(wind_max_gust_t_1) + s(sum_butterflies_direct_sun_t_1),AR1,668.401,0,0.1477,0.2264,
+2,B29c_AR1,butterfly_diff_95th_sqrt ~ s(butterflies_95th_percentile_t_1) + s(wind_max_gust_t_1),AR1,668.671,0.27,0.1291,0.1753,
+3,B28_AR1,butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 + s(sum_butterflies_direct_sun_t_1),AR1,669.101,0.7,0.1041,0.1679,
