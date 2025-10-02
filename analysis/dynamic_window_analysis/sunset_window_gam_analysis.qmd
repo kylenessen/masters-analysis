@@ -382,46 +382,6 @@ corrplot(cor_matrix,
 )
 ```
 
-```{r correlation-table}
-# Print correlation matrix as table
-kable(round(cor_matrix, 3),
-    caption = "Correlation coefficients for all candidate predictors"
-)
-```
-
-### Highly Correlated Pairs (|r| > 0.7)
-
-```{r high-correlation-pairs}
-# Find pairs with high correlation
-high_cor_pairs <- data.frame()
-
-for (i in 1:(nrow(cor_matrix) - 1)) {
-    for (j in (i + 1):ncol(cor_matrix)) {
-        cor_val <- cor_matrix[i, j]
-        if (abs(cor_val) > 0.7) {
-            high_cor_pairs <- rbind(
-                high_cor_pairs,
-                data.frame(
-                    Var1 = rownames(cor_matrix)[i],
-                    Var2 = colnames(cor_matrix)[j],
-                    Correlation = round(cor_val, 3)
-                )
-            )
-        }
-    }
-}
-
-if (nrow(high_cor_pairs) > 0) {
-    high_cor_pairs <- high_cor_pairs %>%
-        arrange(desc(abs(Correlation)))
-
-    kable(high_cor_pairs,
-        caption = "Predictor pairs with |r| > 0.7 (potential multicollinearity issues)"
-    )
-} else {
-    cat("No predictor pairs with |r| > 0.7\n")
-}
-```
 
 ## Model Building Strategy
 
@@ -441,7 +401,7 @@ Based on correlation analysis and biological relevance, we implement a comprehen
 **Response variable:** `butterfly_diff_sqrt`
 
 **Random structure (constant across all models):**
-- Deployment random effect: `s(deployment_id, bs="re")`
+- Deployment random effect: `random = list(deployment_id = ~1)`
 - AR1 temporal autocorrelation: `correlation = corAR1(form = ~ observation_order_t | deployment_id)`
 
 ### Model Complexity Levels
