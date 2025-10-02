@@ -1,0 +1,11 @@
+Model,Base_Model,Correlation,Formula,AIC,LogLik,df,Delta_AIC,AIC_weight
+B33_AR1,B33,AR1,butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 + s(wind_max_gust_t_1) + s(sum_butterflies_direct_sun_t_1),668.4010775095599,-325.2005387547799,9,0,0.14774160568039624
+B29c_AR1,B29c,AR1,butterfly_diff_95th_sqrt ~ s(butterflies_95th_percentile_t_1) + s(wind_max_gust_t_1),668.6710841155262,-326.3355420577631,8,0.2700066059663868,0.12908376533908988
+B28_AR1,B28,AR1,butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 + s(sum_butterflies_direct_sun_t_1),669.101019922612,-327.550509961306,7,0.6999424130520993,0.10411474766100999
+B35_AR1,B35,AR1,butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 + s(temp_max_t_1) + s(temp_min_t_1) + s(wind_max_gust_t_1) + s(sum_butterflies_direct_sun_t_1),669.5730189811057,-321.7865094905529,13,1.1719414715458925,0.08222785428306464
+B37_AR1,B37,AR1,butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 + s(temp_max_t_1) + s(temp_min_t_1) + s(temp_at_max_count_t_1) + s(wind_max_gust_t_1) + s(sum_butterflies_direct_sun_t_1),669.594085751188,-319.797042875594,15,1.1930082416281493,0.08136626233892208
+B29_AR1,B29,AR1,butterfly_diff_95th_sqrt ~ s(butterflies_95th_percentile_t_1),669.6853220736622,-328.8426610368311,6,1.2842445641023232,0.0777378725069558
+B34_AR1,B34,AR1,butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 + s(temp_at_max_count_t_1) + s(wind_max_gust_t_1) + s(sum_butterflies_direct_sun_t_1),670.0162536536635,-324.00812682683176,11,1.615176144103657,0.0658827579898668
+B29a_AR1,B29a,AR1,butterfly_diff_95th_sqrt ~ s(butterflies_95th_percentile_t_1) + wind_max_gust_t_1,670.5041176089303,-328.25205880446515,7,2.103040099370446,0.05162183751632432
+B38_AR1,B38,AR1,butterfly_diff_95th_sqrt ~ butterflies_95th_percentile_t_1 + temp_at_max_count_t_1 + s(wind_max_gust_t_1) + s(sum_butterflies_direct_sun_t_1),670.6905115209028,-325.3452557604514,10,2.2894340113429053,0.0470282194166711
+B29d_AR1,B29d,AR1,butterfly_diff_95th_sqrt ~ s(butterflies_95th_percentile_t_1) + s(temp_at_max_count_t_1),670.8642534888331,-327.43212674441656,8,2.4631759792732737,0.04311525378794225

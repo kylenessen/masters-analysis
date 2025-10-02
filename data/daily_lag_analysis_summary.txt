@@ -1,0 +1,72 @@
+============================================================
+DAILY LAG ANALYSIS SUMMARY REPORT
+Generated: 2025-09-29 07:27:54
+============================================================
+
+DATASET OVERVIEW
+----------------------------------------
+Total deployments processed: 8
+Total days analyzed: 115
+Total lag pairs created: 103
+Date range: 2023-11-18 to 2024-02-03
+
+PHOTO COUNT STATISTICS
+----------------------------------------
+Mean photos per day: 21.1
+Median photos per day: 21.0
+Range: 15 - 23
+
+BUTTERFLY COUNT STATISTICS (Daily Maximum)
+----------------------------------------
+Mean daily max: 121.7
+Median daily max: 78.0
+Range: 0 - 770
+Days with zero butterflies: 8
+
+RESPONSE VARIABLE STATISTICS
+----------------------------------------
+
+butterfly_diff:
+  Mean: -10.10
+  Std: 108.34
+  Range: -376.00 to 464.00
+
+butterfly_diff_95th:
+  Mean: -8.92
+  Std: 86.93
+  Range: -310.00 to 256.60
+
+butterfly_diff_top3:
+  Mean: -8.55
+  Std: 87.14
+  Range: -276.67 to 302.33
+
+
+DEPLOYMENTS SUMMARY
+----------------------------------------
+Deployments with lag pairs: 7
+Mean pairs per deployment: 14.7
+Max pairs in a deployment: 31
+
+Pairs per deployment:
+  SC4: 31 pairs
+  SC10: 23 pairs
+  SC6: 20 pairs
+  SC8: 20 pairs
+  SC12: 6 pairs
+  SC1: 2 pairs
+  SC9: 1 pairs
+
+
+MISSING DATA SUMMARY
+----------------------------------------
+wind_avg_sustained_t_1: 3 missing (2.9%)
+wind_max_gust_t_1: 3 missing (2.9%)
+wind_gust_sum_t_1: 3 missing (2.9%)
+wind_gust_sum_above_2ms_t_1: 3 missing (2.9%)
+wind_gust_hours_t_1: 3 missing (2.9%)
+wind_gust_sd_t_1: 3 missing (2.9%)
+wind_mode_gust_t_1: 3 missing (2.9%)
+
+============================================================
+END OF REPORT
