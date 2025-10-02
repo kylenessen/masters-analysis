@@ -450,9 +450,10 @@ AIC will determine optimal functional form.
 
 ### Model Naming Convention
 
-Models named: `m[complexity]_[version]`
-- Complexity: `null`, `temp`, `wind`, `sun`, `additive`, `interact`, `full`
-- Version: `smooth` or `linear` (for baseline/lag functional form)
+Models named: `M1`, `M2`, `M3`, etc.
+- M1-M9: Smooth versions (max_butterflies_t_1 and lag_duration_hours as smooths)
+- M10-M18: Linear versions (max_butterflies_t_1 and lag_duration_hours as linear terms)
+- Complexity increases within each set: null → single predictors → additive → interactions
 
 ```{r model-setup}
 # Load required library for AR1
@@ -497,17 +498,17 @@ k_lag <- 5
 # SMOOTH VERSION: max_butterflies_t_1 and lag_duration_hours as smooths
 # ============================================================================
 
-# Null model (controls only)
-models$null_smooth <- gamm(
-    butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = 5) + s(lag_duration_hours, k = 5) +
+# M1: Null (controls only)
+models$M1 <- gamm(
+    butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline) + s(lag_duration_hours, k = k_lag) +
                           s(deployment_id, bs = "re"),
     data = model_data,
     correlation = ar1_cor,
     method = "REML"
 )
 
-# Single temperature predictors
-models$temp_min_smooth <- gamm(
+# M2: + temp_min
+models$M2 <- gamm(
     butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline) + s(lag_duration_hours, k = k_lag) +
                           s(temp_min) +
                           s(deployment_id, bs = "re"),
@@ -516,7 +517,8 @@ models$temp_min_smooth <- gamm(
     method = "REML"
 )
 
-models$temp_max_smooth <- gamm(
+# M3: + temp_max
+models$M3 <- gamm(
     butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline) + s(lag_duration_hours, k = k_lag) +
                           s(temp_max) +
                           s(deployment_id, bs = "re"),
@@ -525,7 +527,8 @@ models$temp_max_smooth <- gamm(
     method = "REML"
 )
 
-models$temp_at_max_smooth <- gamm(
+# M4: + temp_at_max_count_t_1
+models$M4 <- gamm(
     butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline) + s(lag_duration_hours, k = k_lag) +
                           s(temp_at_max_count_t_1) +
                           s(deployment_id, bs = "re"),
@@ -534,8 +537,8 @@ models$temp_at_max_smooth <- gamm(
     method = "REML"
 )
 
-# Single wind predictors
-models$wind_max_smooth <- gamm(
+# M5: + wind_max_gust
+models$M5 <- gamm(
     butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline) + s(lag_duration_hours, k = k_lag) +
                           s(wind_max_gust) +
                           s(deployment_id, bs = "re"),
@@ -544,8 +547,8 @@ models$wind_max_smooth <- gamm(
     method = "REML"
 )
 
-# Sun exposure
-models$sun_smooth <- gamm(
+# M6: + sum_butterflies_direct_sun
+models$M6 <- gamm(
     butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline) + s(lag_duration_hours, k = k_lag) +
                           s(sum_butterflies_direct_sun) +
                           s(deployment_id, bs = "re"),
@@ -554,8 +557,8 @@ models$sun_smooth <- gamm(
     method = "REML"
 )
 
-# Additive: all temperature
-models$temp_additive_smooth <- gamm(
+# M7: + all temp
+models$M7 <- gamm(
     butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline) + s(lag_duration_hours, k = k_lag) +
                           s(temp_min) + s(temp_max) + s(temp_at_max_count_t_1) +
                           s(deployment_id, bs = "re"),
@@ -564,51 +567,23 @@ models$temp_additive_smooth <- gamm(
     method = "REML"
 )
 
-# Additive: temp + wind
-models$temp_wind_smooth <- gamm(
-    butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline) + s(lag_duration_hours, k = k_lag) +
-                          s(temp_min) + s(temp_max) + s(temp_at_max_count_t_1) +
-                          s(wind_max_gust) +
-                          s(deployment_id, bs = "re"),
-    data = model_data,
-    correlation = ar1_cor,
-    method = "REML"
-)
-
-# Additive: temp + wind + sun
-models$full_additive_smooth <- gamm(
+# M8: + all temp + wind
+models$M8 <- gamm(
     butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline) + s(lag_duration_hours, k = k_lag) +
                           s(temp_min) + s(temp_max) + s(temp_at_max_count_t_1) +
                           s(wind_max_gust) +
-                          s(sum_butterflies_direct_sun) +
                           s(deployment_id, bs = "re"),
     data = model_data,
     correlation = ar1_cor,
     method = "REML"
 )
 
-# Interactions: temp x wind (biologically relevant)
-models$temp_wind_interact_smooth <- gamm(
-    butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline) + s(lag_duration_hours, k = k_lag) +
-                          s(temp_min) + s(temp_max) + s(temp_at_max_count_t_1) +
-                          s(wind_max_gust) +
-                          ti(temp_min, wind_max_gust) +
-                          ti(temp_max, wind_max_gust) +
-                          s(deployment_id, bs = "re"),
-    data = model_data,
-    correlation = ar1_cor,
-    method = "REML"
-)
-
-# Full interaction model with sun
-models$full_interact_smooth <- gamm(
+# M9: + all temp + wind + sun
+models$M9 <- gamm(
     butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline) + s(lag_duration_hours, k = k_lag) +
                           s(temp_min) + s(temp_max) + s(temp_at_max_count_t_1) +
                           s(wind_max_gust) +
                           s(sum_butterflies_direct_sun) +
-                          ti(temp_min, wind_max_gust) +
-                          ti(temp_max, wind_max_gust) +
-                          ti(temp_min, sum_butterflies_direct_sun) +
                           s(deployment_id, bs = "re"),
     data = model_data,
     correlation = ar1_cor,
@@ -619,8 +594,8 @@ models$full_interact_smooth <- gamm(
 # LINEAR VERSION: max_butterflies_t_1 and lag_duration_hours as linear
 # ============================================================================
 
-# Null model (controls only)
-models$null_linear <- gamm(
+# M10: Null (controls only, linear)
+models$M10 <- gamm(
     butterfly_diff_sqrt ~ max_butterflies_t_1 + lag_duration_hours +
                           s(deployment_id, bs = "re"),
     data = model_data,
@@ -628,8 +603,8 @@ models$null_linear <- gamm(
     method = "REML"
 )
 
-# Single temperature predictors
-models$temp_min_linear <- gamm(
+# M11: + temp_min
+models$M11 <- gamm(
     butterfly_diff_sqrt ~ max_butterflies_t_1 + lag_duration_hours +
                           s(temp_min) +
                           s(deployment_id, bs = "re"),
@@ -638,7 +613,8 @@ models$temp_min_linear <- gamm(
     method = "REML"
 )
 
-models$temp_max_linear <- gamm(
+# M12: + temp_max
+models$M12 <- gamm(
     butterfly_diff_sqrt ~ max_butterflies_t_1 + lag_duration_hours +
                           s(temp_max) +
                           s(deployment_id, bs = "re"),
@@ -647,7 +623,8 @@ models$temp_max_linear <- gamm(
     method = "REML"
 )
 
-models$temp_at_max_linear <- gamm(
+# M13: + temp_at_max_count_t_1
+models$M13 <- gamm(
     butterfly_diff_sqrt ~ max_butterflies_t_1 + lag_duration_hours +
                           s(temp_at_max_count_t_1) +
                           s(deployment_id, bs = "re"),
@@ -656,8 +633,8 @@ models$temp_at_max_linear <- gamm(
     method = "REML"
 )
 
-# Single wind predictors
-models$wind_max_linear <- gamm(
+# M14: + wind_max_gust
+models$M14 <- gamm(
     butterfly_diff_sqrt ~ max_butterflies_t_1 + lag_duration_hours +
                           s(wind_max_gust) +
                           s(deployment_id, bs = "re"),
@@ -666,8 +643,8 @@ models$wind_max_linear <- gamm(
     method = "REML"
 )
 
-# Sun exposure
-models$sun_linear <- gamm(
+# M15: + sum_butterflies_direct_sun
+models$M15 <- gamm(
     butterfly_diff_sqrt ~ max_butterflies_t_1 + lag_duration_hours +
                           s(sum_butterflies_direct_sun) +
                           s(deployment_id, bs = "re"),
@@ -676,8 +653,8 @@ models$sun_linear <- gamm(
     method = "REML"
 )
 
-# Additive: all temperature
-models$temp_additive_linear <- gamm(
+# M16: + all temp
+models$M16 <- gamm(
     butterfly_diff_sqrt ~ max_butterflies_t_1 + lag_duration_hours +
                           s(temp_min) + s(temp_max) + s(temp_at_max_count_t_1) +
                           s(deployment_id, bs = "re"),
@@ -686,51 +663,23 @@ models$temp_additive_linear <- gamm(
     method = "REML"
 )
 
-# Additive: temp + wind
-models$temp_wind_linear <- gamm(
-    butterfly_diff_sqrt ~ max_butterflies_t_1 + lag_duration_hours +
-                          s(temp_min) + s(temp_max) + s(temp_at_max_count_t_1) +
-                          s(wind_max_gust) +
-                          s(deployment_id, bs = "re"),
-    data = model_data,
-    correlation = ar1_cor,
-    method = "REML"
-)
-
-# Additive: temp + wind + sun
-models$full_additive_linear <- gamm(
+# M17: + all temp + wind
+models$M17 <- gamm(
     butterfly_diff_sqrt ~ max_butterflies_t_1 + lag_duration_hours +
                           s(temp_min) + s(temp_max) + s(temp_at_max_count_t_1) +
                           s(wind_max_gust) +
-                          s(sum_butterflies_direct_sun) +
                           s(deployment_id, bs = "re"),
     data = model_data,
     correlation = ar1_cor,
     method = "REML"
 )
 
-# Interactions: temp x wind
-models$temp_wind_interact_linear <- gamm(
-    butterfly_diff_sqrt ~ max_butterflies_t_1 + lag_duration_hours +
-                          s(temp_min) + s(temp_max) + s(temp_at_max_count_t_1) +
-                          s(wind_max_gust) +
-                          ti(temp_min, wind_max_gust) +
-                          ti(temp_max, wind_max_gust) +
-                          s(deployment_id, bs = "re"),
-    data = model_data,
-    correlation = ar1_cor,
-    method = "REML"
-)
-
-# Full interaction model with sun
-models$full_interact_linear <- gamm(
+# M18: + all temp + wind + sun
+models$M18 <- gamm(
     butterfly_diff_sqrt ~ max_butterflies_t_1 + lag_duration_hours +
                           s(temp_min) + s(temp_max) + s(temp_at_max_count_t_1) +
                           s(wind_max_gust) +
                           s(sum_butterflies_direct_sun) +
-                          ti(temp_min, wind_max_gust) +
-                          ti(temp_max, wind_max_gust) +
-                          ti(temp_min, sum_butterflies_direct_sun) +
                           s(deployment_id, bs = "re"),
     data = model_data,
     correlation = ar1_cor,
