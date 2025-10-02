@@ -741,22 +741,22 @@ def create_dynamic_lag_pairs(
                 'time_of_max_t_1': previous_day['time_of_max'],
 
                 # Dynamic weather predictors (from window_start to window_end)
-                'temp_max_t_1': temp_metrics['temp_max'],
-                'temp_min_t_1': temp_metrics['temp_min'],
-                'temp_mean_t_1': temp_metrics['temp_mean'],
+                'temp_max': temp_metrics['temp_max'],
+                'temp_min': temp_metrics['temp_min'],
+                'temp_mean': temp_metrics['temp_mean'],
                 'temp_at_max_count_t_1': previous_day['temp_at_max_count'],  # Single point
-                'hours_above_15C_t_1': temp_metrics['hours_above_15C'],
-                'degree_hours_above_15C_t_1': temp_metrics['degree_hours_above_15C'],
+                'hours_above_15C': temp_metrics['hours_above_15C'],
+                'degree_hours_above_15C': temp_metrics['degree_hours_above_15C'],
 
                 # Dynamic wind metrics (from window_start to window_end)
-                'wind_avg_sustained_t_1': wind_metrics['wind_avg_sustained'],
-                'wind_max_gust_t_1': wind_metrics['wind_max_gust'],
-                'wind_gust_sum_t_1': wind_metrics['wind_gust_sum'],
-                'wind_gust_sum_above_2ms_t_1': wind_metrics['wind_gust_sum_above_2ms'],
-                'wind_gust_hours_t_1': wind_metrics['wind_gust_hours'],
-                'wind_minutes_above_2ms_t_1': wind_metrics['wind_minutes_above_2ms'],
-                'wind_gust_sd_t_1': wind_metrics['wind_gust_sd'],
-                'wind_mode_gust_t_1': wind_metrics['wind_mode_gust'],
+                'wind_avg_sustained': wind_metrics['wind_avg_sustained'],
+                'wind_max_gust': wind_metrics['wind_max_gust'],
+                'wind_gust_sum': wind_metrics['wind_gust_sum'],
+                'wind_gust_sum_above_2ms': wind_metrics['wind_gust_sum_above_2ms'],
+                'wind_gust_hours': wind_metrics['wind_gust_hours'],
+                'wind_minutes_above_2ms': wind_metrics['wind_minutes_above_2ms'],
+                'wind_gust_sd': wind_metrics['wind_gust_sd'],
+                'wind_mode_gust': wind_metrics['wind_mode_gust'],
 
                 # Dynamic sun exposure (from window_start to window_end, daylight only)
                 # Note: spans entire lag window regardless of calendar day

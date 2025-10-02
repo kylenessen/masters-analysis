@@ -87,10 +87,10 @@ summary_vars <- daily_data %>%
         butterflies_95th_percentile_t,
         butterflies_95th_percentile_t_1,
         butterfly_diff_95th,
-        temp_max_t_1,
-        temp_min_t_1,
+        temp_max,
+        temp_min,
         temp_at_max_count_t_1,
-        wind_max_gust_t_1,
+        wind_max_gust,
         sum_butterflies_direct_sun,
         lag_duration_hours,
         metrics_complete
@@ -114,23 +114,23 @@ butterfly_baseline_vars <- c(
 )
 
 temperature_vars <- c(
-    "temp_max_t_1",
-    "temp_min_t_1",
-    "temp_mean_t_1",
+    "temp_max",
+    "temp_min",
+    "temp_mean",
     "temp_at_max_count_t_1",
-    "hours_above_15C_t_1",
-    "degree_hours_above_15C_t_1"
+    "hours_above_15C",
+    "degree_hours_above_15C"
 )
 
 wind_vars <- c(
-    "wind_avg_sustained_t_1",
-    "wind_max_gust_t_1",
-    "wind_gust_sum_t_1",
-    "wind_gust_sum_above_2ms_t_1",
-    "wind_gust_hours_t_1",
-    "wind_minutes_above_2ms_t_1",
-    "wind_gust_sd_t_1",
-    "wind_mode_gust_t_1"
+    "wind_avg_sustained",
+    "wind_max_gust",
+    "wind_gust_sum",
+    "wind_gust_sum_above_2ms",
+    "wind_gust_hours",
+    "wind_minutes_above_2ms",
+    "wind_gust_sd",
+    "wind_mode_gust"
 )
 
 sun_vars <- c(
@@ -166,20 +166,20 @@ var_descriptions <- tribble(
     "butterflies_95th_percentile_t_1", "95th percentile count on previous day (baseline)", "Baseline",
     "max_butterflies_t_1", "Maximum count on previous day", "Baseline",
     "butterflies_top3_mean_t_1", "Mean of top 3 counts on previous day", "Baseline",
-    "temp_max_t_1", "Max temp from max count to sunset (includes overnight)", "Temperature",
-    "temp_min_t_1", "Min temp from max count to sunset (includes overnight)", "Temperature",
-    "temp_mean_t_1", "Mean temp from max count to sunset", "Temperature",
+    "temp_max", "Max temp from max count to sunset (includes overnight)", "Temperature",
+    "temp_min", "Min temp from max count to sunset (includes overnight)", "Temperature",
+    "temp_mean", "Mean temp from max count to sunset", "Temperature",
     "temp_at_max_count_t_1", "Temperature when max count occurred", "Temperature",
-    "hours_above_15C_t_1", "Hours ≥15°C in window", "Temperature",
-    "degree_hours_above_15C_t_1", "Cumulative degree-hours >15°C", "Temperature",
-    "wind_avg_sustained_t_1", "Mean sustained wind speed in window", "Wind",
-    "wind_max_gust_t_1", "Maximum gust in window (includes overnight)", "Wind",
-    "wind_gust_sum_t_1", "Sum of all gust measurements", "Wind",
-    "wind_gust_sum_above_2ms_t_1", "Sum of gusts >2 m/s", "Wind",
-    "wind_gust_hours_t_1", "Gust-hours (integral)", "Wind",
-    "wind_minutes_above_2ms_t_1", "Minutes with wind ≥2 m/s", "Wind",
-    "wind_gust_sd_t_1", "SD of gust speeds (variability)", "Wind",
-    "wind_mode_gust_t_1", "Most frequent gust speed", "Wind",
+    "hours_above_15C", "Hours ≥15°C in window", "Temperature",
+    "degree_hours_above_15C", "Cumulative degree-hours >15°C", "Temperature",
+    "wind_avg_sustained", "Mean sustained wind speed in window", "Wind",
+    "wind_max_gust", "Maximum gust in window (includes overnight)", "Wind",
+    "wind_gust_sum", "Sum of all gust measurements", "Wind",
+    "wind_gust_sum_above_2ms", "Sum of gusts >2 m/s", "Wind",
+    "wind_gust_hours", "Gust-hours (integral)", "Wind",
+    "wind_minutes_above_2ms", "Minutes with wind ≥2 m/s", "Wind",
+    "wind_gust_sd", "SD of gust speeds (variability)", "Wind",
+    "wind_mode_gust", "Most frequent gust speed", "Wind",
     "sum_butterflies_direct_sun", "Sum of butterflies in direct sun (entire lag window)", "Sun",
     "lag_duration_hours", "Window length in hours", "Window"
 )
