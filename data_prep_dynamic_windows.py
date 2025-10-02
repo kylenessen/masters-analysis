@@ -769,20 +769,20 @@ def create_dynamic_lag_pairs(
             # Calculate response variables
             # Max butterflies differences
             lag_record['butterfly_diff'] = current_day['max_butterflies'] - previous_day['max_butterflies']
-            lag_record['butterfly_diff_cbrt'] = np.sign(lag_record['butterfly_diff']) * np.power(abs(lag_record['butterfly_diff']), 1/3)
-            lag_record['butterfly_diff_log'] = np.sign(lag_record['butterfly_diff']) * np.log(abs(lag_record['butterfly_diff']) + 1)
+            lag_record['butterfly_diff_sqrt'] = np.sign(lag_record['butterfly_diff']) * np.sqrt(abs(lag_record['butterfly_diff']))
+            lag_record['butterfly_diff_sq'] = np.sign(lag_record['butterfly_diff']) * np.power(lag_record['butterfly_diff'], 2)
 
             # 95th percentile differences
             diff_95th = current_day['butterflies_95th_percentile'] - previous_day['butterflies_95th_percentile']
             lag_record['butterfly_diff_95th'] = diff_95th
-            lag_record['butterfly_diff_95th_cbrt'] = np.sign(diff_95th) * np.power(abs(diff_95th), 1/3)
-            lag_record['butterfly_diff_95th_log'] = np.sign(diff_95th) * np.log(abs(diff_95th) + 1)
+            lag_record['butterfly_diff_95th_sqrt'] = np.sign(diff_95th) * np.sqrt(abs(diff_95th))
+            lag_record['butterfly_diff_95th_sq'] = np.sign(diff_95th) * np.power(diff_95th, 2)
 
             # Top 3 mean differences
             diff_top3 = current_day['butterflies_top3_mean'] - previous_day['butterflies_top3_mean']
             lag_record['butterfly_diff_top3'] = diff_top3
-            lag_record['butterfly_diff_top3_cbrt'] = np.sign(diff_top3) * np.power(abs(diff_top3), 1/3)
-            lag_record['butterfly_diff_top3_log'] = np.sign(diff_top3) * np.log(abs(diff_top3) + 1)
+            lag_record['butterfly_diff_top3_sqrt'] = np.sign(diff_top3) * np.sqrt(abs(diff_top3))
+            lag_record['butterfly_diff_top3_sq'] = np.sign(diff_top3) * np.power(diff_top3, 2)
 
             lag_pairs.append(lag_record)
 
