@@ -1,0 +1,341 @@
+---
+title: "Dynamic Window GAM Analysis: Sunset Window (Max Count → Functional Sunset)"
+author: "Kyle Nessen"
+date: "`r Sys.Date()`"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-location: left
+    number-sections: true
+    embed-resources: true
+    theme: cosmo
+    code-fold: true
+    code-tools: false
+execute:
+  warning: false
+  message: false
+  echo: true
+  cache: false
+---
+
+## Background and Rationale
+
+This analysis addresses feedback from Francis regarding the temporal alignment of weather predictors with butterfly responses. The [original daily-level analysis](../../reports/daily_gam_results.html) used fixed 6am-6pm weather windows, which Francis identified as having a temporal logic issue:
+
+> "All of the metrics for wind, temperature and light, would need to be re-calculated for 24 hour periods that begin at the time of the highest count."
+
+### Francis's Key Points
+
+1. **Temporal alignment**: Butterflies can only respond to weather *after* it occurs
+2. **Biological timing**: If max count occurred at 2pm on day t-1, the relevant weather window should start at 2pm, not 6am
+3. **Roosting decisions**: Weather from max count through sunset determines whether butterflies abandon the roost
+
+### This Analysis
+
+**Weather window**: `time_of_max_count_t_1` → `last_observation_time_t` (functional sunset)
+
+- Weather metrics now include **overnight conditions** (24/7 temperature and wind)
+- Window lengths vary by observation (mean: 29.6 hours, range: 22.5-34.9 hours)
+- Captures weather exposure until roosting decisions are finalized at dusk
+- Tests the hypothesis: "Do weather conditions from peak count to sunset predict roost abandonment?"
+
+**Data source**: `data/monarch_daily_lag_analysis_sunset_window.csv` (103 lag pairs)
+
+---
+
+## Setup
+
+```{r setup}
+library(tidyverse)
+library(mgcv)
+library(knitr)
+library(here)
+library(corrplot)
+library(patchwork)
+library(gratia)
+
+# Load the sunset window data
+daily_data <- read_csv(here("data", "monarch_daily_lag_analysis_sunset_window.csv"))
+
+# Create the square root transformed response variable
+daily_data <- daily_data %>%
+    mutate(
+        butterfly_diff_95th_sqrt = ifelse(butterfly_diff_95th >= 0,
+            sqrt(butterfly_diff_95th),
+            -sqrt(-butterfly_diff_95th)
+        )
+    )
+```
+
+## Data Overview
+
+```{r data-summary}
+cat("Dataset dimensions:", nrow(daily_data), "rows x", ncol(daily_data), "columns\n")
+cat("Number of deployments:", n_distinct(daily_data$deployment_id), "\n")
+cat("Date range:", min(daily_data$date_t), "to", max(daily_data$date_t), "\n\n")
+
+cat("Window characteristics:\n")
+cat("- Mean lag duration:", round(mean(daily_data$lag_duration_hours, na.rm = TRUE), 2), "hours\n")
+cat("- Duration range:", round(min(daily_data$lag_duration_hours, na.rm = TRUE), 2), "-",
+    round(max(daily_data$lag_duration_hours, na.rm = TRUE), 2), "hours\n")
+cat("- Median data completeness:", round(median(daily_data$metrics_complete, na.rm = TRUE), 3), "\n\n")
+
+# Summary of key variables
+summary_vars <- daily_data %>%
+    select(
+        butterflies_95th_percentile_t,
+        butterflies_95th_percentile_t_1,
+        butterfly_diff_95th,
+        temp_max_t_1,
+        temp_min_t_1,
+        temp_at_max_count_t_1,
+        wind_max_gust_t_1,
+        sum_butterflies_direct_sun,
+        lag_duration_hours,
+        metrics_complete
+    )
+
+kable(summary(summary_vars), caption = "Summary statistics for key variables")
+```
+
+## Candidate Predictor Variables
+
+Following the original analysis structure, we consider all potential weather and baseline metrics, then use correlation analysis to select final predictors.
+
+### All Candidate Variables
+
+```{r candidate-variables}
+# Define all candidate predictors
+butterfly_baseline_vars <- c(
+    "butterflies_95th_percentile_t_1",
+    "max_butterflies_t_1",
+    "butterflies_top3_mean_t_1"
+)
+
+temperature_vars <- c(
+    "temp_max_t_1",
+    "temp_min_t_1",
+    "temp_mean_t_1",
+    "temp_at_max_count_t_1",
+    "hours_above_15C_t_1",
+    "degree_hours_above_15C_t_1"
+)
+
+wind_vars <- c(
+    "wind_avg_sustained_t_1",
+    "wind_max_gust_t_1",
+    "wind_gust_sum_t_1",
+    "wind_gust_sum_above_2ms_t_1",
+    "wind_gust_hours_t_1",
+    "wind_minutes_above_2ms_t_1",
+    "wind_gust_sd_t_1",
+    "wind_mode_gust_t_1"
+)
+
+sun_vars <- c(
+    "sum_butterflies_direct_sun"
+)
+
+window_vars <- c(
+    "lag_duration_hours"
+)
+
+# Combine all candidates
+all_predictors <- c(
+    butterfly_baseline_vars,
+    temperature_vars,
+    wind_vars,
+    sun_vars,
+    window_vars
+)
+
+cat("Total candidate predictors:", length(all_predictors), "\n")
+cat("- Butterfly baseline:", length(butterfly_baseline_vars), "\n")
+cat("- Temperature:", length(temperature_vars), "\n")
+cat("- Wind:", length(wind_vars), "\n")
+cat("- Sun exposure:", length(sun_vars), "\n")
+cat("- Window characteristics:", length(window_vars), "\n")
+```
+
+### Variable Descriptions
+
+```{r variable-descriptions}
+var_descriptions <- tribble(
+    ~Variable, ~Description, ~Type,
+    "butterflies_95th_percentile_t_1", "95th percentile count on previous day (baseline)", "Baseline",
+    "max_butterflies_t_1", "Maximum count on previous day", "Baseline",
+    "butterflies_top3_mean_t_1", "Mean of top 3 counts on previous day", "Baseline",
+    "temp_max_t_1", "Max temp from max count to sunset (includes overnight)", "Temperature",
+    "temp_min_t_1", "Min temp from max count to sunset (includes overnight)", "Temperature",
+    "temp_mean_t_1", "Mean temp from max count to sunset", "Temperature",
+    "temp_at_max_count_t_1", "Temperature when max count occurred", "Temperature",
+    "hours_above_15C_t_1", "Hours ≥15°C in window", "Temperature",
+    "degree_hours_above_15C_t_1", "Cumulative degree-hours >15°C", "Temperature",
+    "wind_avg_sustained_t_1", "Mean sustained wind speed in window", "Wind",
+    "wind_max_gust_t_1", "Maximum gust in window (includes overnight)", "Wind",
+    "wind_gust_sum_t_1", "Sum of all gust measurements", "Wind",
+    "wind_gust_sum_above_2ms_t_1", "Sum of gusts >2 m/s", "Wind",
+    "wind_gust_hours_t_1", "Gust-hours (integral)", "Wind",
+    "wind_minutes_above_2ms_t_1", "Minutes with wind ≥2 m/s", "Wind",
+    "wind_gust_sd_t_1", "SD of gust speeds (variability)", "Wind",
+    "wind_mode_gust_t_1", "Most frequent gust speed", "Wind",
+    "sum_butterflies_direct_sun", "Sum of butterflies in direct sun (entire lag window)", "Sun",
+    "lag_duration_hours", "Window length in hours", "Window"
+)
+
+kable(var_descriptions, caption = "Candidate predictor variables")
+```
+
+## Data Quality Assessment
+
+```{r data-quality}
+cat("Data completeness summary:\n")
+cat("- Observations with metrics_complete = 0:", sum(daily_data$metrics_complete == 0), "\n")
+cat("- Observations with wind_data_coverage < 0.5:", sum(daily_data$wind_data_coverage < 0.5), "\n")
+cat("- Mean temperature coverage:", round(mean(daily_data$temp_data_coverage), 3), "\n")
+cat("- Mean wind coverage:", round(mean(daily_data$wind_data_coverage), 3), "\n")
+cat("- Mean butterfly coverage:", round(mean(daily_data$butterfly_data_coverage), 3), "\n\n")
+
+# Show observations with low wind coverage
+low_wind <- daily_data %>%
+    filter(wind_data_coverage < 0.5) %>%
+    select(deployment_id, date_t_1, date_t, wind_data_coverage,
+           butterflies_95th_percentile_t_1, butterflies_95th_percentile_t)
+
+if (nrow(low_wind) > 0) {
+    cat("Observations with <50% wind coverage:\n")
+    kable(low_wind,
+          caption = "Low wind data coverage (likely wind database gaps, not zero-butterfly exclusions)",
+          digits = 3)
+} else {
+    cat("All observations have adequate wind coverage\n")
+}
+```
+
+```{r data-quality-plot, fig.width=10, fig.height=6}
+# Display the diagnostic plot created earlier
+knitr::include_graphics(here("analysis", "dynamic_window_analysis", "data_quality_diagnostics.png"))
+```
+
+**Note**: 5 observations (all from late January 2024) have limited wind data coverage. These appear to be gaps in the wind database rather than issues with the data preparation logic. All observations have butterflies present.
+
+### Filtering Low Quality Observations
+
+```{r filter-low-quality}
+# Filter observations with metrics_complete < 0.95
+low_quality <- daily_data %>%
+    filter(metrics_complete < 0.95)
+
+cat("Observations to exclude (metrics_complete < 0.95):", nrow(low_quality), "\n")
+cat("Percentage of dataset:", round(nrow(low_quality) / nrow(daily_data) * 100, 1), "%\n\n")
+
+if (nrow(low_quality) > 0) {
+    cat("Excluded observations have:\n")
+    cat("- Mean butterflies_95th_t_1:", round(mean(low_quality$butterflies_95th_percentile_t_1), 1), "\n")
+    cat("- Mean butterflies_95th_t:", round(mean(low_quality$butterflies_95th_percentile_t), 1), "\n")
+    cat("- Mean |butterfly_diff_95th|:", round(mean(abs(low_quality$butterfly_diff_95th)), 1), "\n")
+    cat("- Mean metrics_complete:", round(mean(low_quality$metrics_complete), 3), "\n\n")
+}
+
+# Apply filter
+daily_data <- daily_data %>%
+    filter(metrics_complete >= 0.95)
+
+cat("After filtering:\n")
+cat("- Observations retained:", nrow(daily_data), "\n")
+cat("- Mean butterflies_95th_t_1:", round(mean(daily_data$butterflies_95th_percentile_t_1), 1), "\n")
+cat("- Mean butterflies_95th_t:", round(mean(daily_data$butterflies_95th_percentile_t), 1), "\n")
+cat("- Mean |butterfly_diff_95th|:", round(mean(abs(daily_data$butterfly_diff_95th)), 1), "\n")
+cat("- Mean metrics_complete:", round(mean(daily_data$metrics_complete), 3), "\n")
+```
+
+**Rationale for exclusion**: The 7 excluded observations (6.8% of dataset) have relatively small butterfly counts (mean 95th percentile: 22.9 vs 123.1 for kept data) and incomplete weather data that could bias model estimates.
+
+## Correlation Matrix: All Candidate Predictors
+
+This correlation matrix shows all potential fixed effects to help identify multicollinearity and guide variable selection.
+
+```{r full-correlation-matrix, fig.width=14, fig.height=12}
+# Select all candidate predictors that exist in the dataset
+available_predictors <- all_predictors[all_predictors %in% names(daily_data)]
+
+# Create correlation matrix
+predictor_data <- daily_data %>%
+    select(all_of(available_predictors)) %>%
+    na.omit()
+
+cor_matrix <- cor(predictor_data)
+
+# Create correlation plot
+corrplot(cor_matrix,
+    method = "color",
+    type = "upper",
+    order = "original",
+    tl.cex = 0.8,
+    tl.col = "black",
+    tl.srt = 45,
+    addCoef.col = "black",
+    number.cex = 0.6,
+    title = "Correlation Matrix: All Candidate Predictors (Sunset Window)",
+    mar = c(0, 0, 2, 0)
+)
+```
+
+```{r correlation-table}
+# Print correlation matrix as table
+kable(round(cor_matrix, 3),
+      caption = "Correlation coefficients for all candidate predictors")
+```
+
+### Highly Correlated Pairs (|r| > 0.7)
+
+```{r high-correlation-pairs}
+# Find pairs with high correlation
+high_cor_pairs <- data.frame()
+
+for (i in 1:(nrow(cor_matrix)-1)) {
+    for (j in (i+1):ncol(cor_matrix)) {
+        cor_val <- cor_matrix[i, j]
+        if (abs(cor_val) > 0.7) {
+            high_cor_pairs <- rbind(
+                high_cor_pairs,
+                data.frame(
+                    Var1 = rownames(cor_matrix)[i],
+                    Var2 = colnames(cor_matrix)[j],
+                    Correlation = round(cor_val, 3)
+                )
+            )
+        }
+    }
+}
+
+if (nrow(high_cor_pairs) > 0) {
+    high_cor_pairs <- high_cor_pairs %>%
+        arrange(desc(abs(Correlation)))
+
+    kable(high_cor_pairs,
+          caption = "Predictor pairs with |r| > 0.7 (potential multicollinearity issues)")
+} else {
+    cat("No predictor pairs with |r| > 0.7\n")
+}
+```
+
+## Next Steps
+
+**Review the correlation matrix** to make decisions about:
+
+1. Which butterfly baseline metric to use (95th percentile, max, or top3 mean)
+2. Which temperature metrics to include (avoid highly correlated pairs)
+3. Which wind metrics to include (many are highly correlated)
+4. Whether to include `lag_duration_hours` as a random effect or fixed effect
+
+Once predictor selection is finalized, we'll proceed to:
+- Model fitting (M and B models as in original analysis)
+- Model selection via AIC
+- Detailed analysis of top models
+- Comparison with original fixed-window results
+
+---
+
+**Analysis paused here for predictor review and selection.**

@@ -759,7 +759,8 @@ def create_dynamic_lag_pairs(
                 'wind_mode_gust_t_1': wind_metrics['wind_mode_gust'],
 
                 # Dynamic sun exposure (from window_start to window_end, daylight only)
-                'sum_butterflies_direct_sun_t_1': sun_metrics['sum_butterflies_direct_sun'],
+                # Note: spans entire lag window regardless of calendar day
+                'sum_butterflies_direct_sun': sun_metrics['sum_butterflies_direct_sun'],
 
                 # Temporal variables
                 'days_since_oct15_t': current_day['days_since_oct15']
