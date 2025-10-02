@@ -406,28 +406,32 @@ Based on correlation analysis and biological relevance, we implement a comprehen
 
 ### Model Complexity Levels
 
-We fit models ranging from simple (single predictors) to complex (all terms + interactions):
+We systematically explore the entire model space defined by our 5 weather predictors:
 
-1. **Null model**: Baseline + controls only
-2. **Single predictor models**: One weather variable at a time
-3. **Additive models**: Multiple predictors, no interactions
-4. **Two-way interaction models**: Selected biologically relevant interactions
-5. **Full model**: All terms + key interactions
+1. **Null models** (2): Baseline + controls only
+2. **Single predictor models** (10): One weather variable at a time
+3. **Interaction-only models** (20): Pure two-way interactions without main effects
+4. **Main + interaction models** (20): Both main effects + their two-way interaction
+5. **Strategic additive models** (14): Biologically meaningful predictor combinations
+6. **Complex interaction models** (8): Multiple main effects + selected interaction sets
+7. **Full models** (2): All main effects + all 10 two-way interactions
+
+**Total: 76 models** comprehensively testing all meaningful combinations of the 5 selected weather predictors.
 
 ### Functional Form Comparison
 
-For `max_butterflies_t_1` and `lag_duration_hours`, we compare:
-- **Version A**: Both as smooth terms `s(...)`
-- **Version B**: Both as linear terms
+For baseline controls (`max_butterflies_t_1` and `lag_duration_hours`), every model is fitted in two versions:
+- **Smooth baseline**: Both as smooth terms `s(..., k=5)`
+- **Linear baseline**: Both as linear terms
 
-AIC will determine optimal functional form.
+AIC determines optimal functional form for each predictor combination.
 
 ### Model Naming Convention
 
-Models named: `M1`, `M2`, `M3`, etc.
-- M1-M9: Smooth versions (max_butterflies_t_1 and lag_duration_hours as smooths)
-- M10-M18: Linear versions (max_butterflies_t_1 and lag_duration_hours as linear terms)
-- Complexity increases within each set: null → single predictors → additive → interactions
+Models sequentially numbered `M1` through `M76`, systematically covering:
+- Increasing complexity: null → single → interactions → additive → complex → full
+- Each complexity level includes both smooth and linear baseline versions
+- Model descriptions track predictor combinations and baseline type
 
 ```{r model-setup}
 # Load required library for AR1
@@ -470,8 +474,9 @@ correlation_structures <- list(
 ## Model Fitting
 
 ```{r fit-models, cache=TRUE}
-# Initialize model list
+# Initialize model list and tracking
 models <- list()
+model_descriptions <- list()
 
 # Use AR1 correlation structure from defined structures
 ar1_cor <- correlation_structures$AR1
@@ -481,247 +486,611 @@ ar1_cor <- correlation_structures$AR1
 k_baseline <- 5
 k_lag <- 5
 
+# Define weather predictors
+weather_predictors <- c(
+    "temp_min", "temp_max", "temp_at_max_count_t_1",
+    "wind_max_gust", "sum_butterflies_direct_sun"
+)
+
+# Helper function to fit model with error handling
+fit_model_safe <- function(formula_str, baseline_type, model_name, description) {
+    tryCatch(
+        {
+            model <- gamm(
+                as.formula(formula_str),
+                data = model_data,
+                random = random_structure,
+                correlation = ar1_cor,
+                method = "REML"
+            )
+            models[[model_name]] <<- model
+            model_descriptions[[model_name]] <<- description
+            cat(sprintf("✓ %s: %s\n", model_name, description))
+            return(TRUE)
+        },
+        error = function(e) {
+            cat(sprintf("✗ %s failed: %s\n", model_name, e$message))
+            return(FALSE)
+        }
+    )
+}
+
 # ============================================================================
-# SMOOTH VERSION: max_butterflies_t_1 and lag_duration_hours as smooths
+# PART 1: NULL MODELS (2 models)
 # ============================================================================
+cat("\n=== FITTING NULL MODELS ===\n")
 
-# M1: Null (controls only)
-models$M1 <- gamm(
-    butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline) + s(lag_duration_hours, k = k_lag),
-    data = model_data,
-    random = random_structure,
-    correlation = ar1_cor,
-    method = "REML"
+# Smooth baseline
+fit_model_safe(
+    "butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline) + s(lag_duration_hours, k = k_lag)",
+    "smooth", "M1", "Null (smooth baseline)"
 )
 
-# M2: + temp_min
-models$M2 <- gamm(
-    butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline) + s(lag_duration_hours, k = k_lag) +
-        s(temp_min),
-    data = model_data,
-    random = random_structure,
-    correlation = ar1_cor,
-    method = "REML"
-)
-
-# M3: + temp_max
-models$M3 <- gamm(
-    butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline) + s(lag_duration_hours, k = k_lag) +
-        s(temp_max),
-    data = model_data,
-    random = random_structure,
-    correlation = ar1_cor,
-    method = "REML"
-)
-
-# M4: + temp_at_max_count_t_1
-models$M4 <- gamm(
-    butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline) + s(lag_duration_hours, k = k_lag) +
-        s(temp_at_max_count_t_1),
-    data = model_data,
-    random = random_structure,
-    correlation = ar1_cor,
-    method = "REML"
-)
-
-# M5: + wind_max_gust
-models$M5 <- gamm(
-    butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline) + s(lag_duration_hours, k = k_lag) +
-        s(wind_max_gust),
-    data = model_data,
-    random = random_structure,
-    correlation = ar1_cor,
-    method = "REML"
-)
-
-# M6: + sum_butterflies_direct_sun
-models$M6 <- gamm(
-    butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline) + s(lag_duration_hours, k = k_lag) +
-        s(sum_butterflies_direct_sun),
-    data = model_data,
-    random = random_structure,
-    correlation = ar1_cor,
-    method = "REML"
-)
-
-# M7: + all temp
-models$M7 <- gamm(
-    butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline) + s(lag_duration_hours, k = k_lag) +
-        s(temp_min) + s(temp_max) + s(temp_at_max_count_t_1),
-    data = model_data,
-    random = random_structure,
-    correlation = ar1_cor,
-    method = "REML"
-)
-
-# M8: + all temp + wind
-models$M8 <- gamm(
-    butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline) + s(lag_duration_hours, k = k_lag) +
-        s(temp_min) + s(temp_max) + s(temp_at_max_count_t_1) +
-        s(wind_max_gust),
-    data = model_data,
-    random = random_structure,
-    correlation = ar1_cor,
-    method = "REML"
-)
-
-# M9: + all temp + wind + sun
-models$M9 <- gamm(
-    butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline) + s(lag_duration_hours, k = k_lag) +
-        s(temp_min) + s(temp_max) + s(temp_at_max_count_t_1) +
-        s(wind_max_gust) +
-        s(sum_butterflies_direct_sun),
-    data = model_data,
-    random = random_structure,
-    correlation = ar1_cor,
-    method = "REML"
+# Linear baseline
+fit_model_safe(
+    "butterfly_diff_sqrt ~ max_butterflies_t_1 + lag_duration_hours",
+    "linear", "M2", "Null (linear baseline)"
 )
 
 # ============================================================================
-# LINEAR VERSION: max_butterflies_t_1 and lag_duration_hours as linear
+# PART 2: SINGLE PREDICTOR MODELS (10 models)
 # ============================================================================
+cat("\n=== FITTING SINGLE PREDICTOR MODELS ===\n")
 
-# M10: Null (controls only, linear)
-models$M10 <- gamm(
-    butterfly_diff_sqrt ~ max_butterflies_t_1 + lag_duration_hours,
-    data = model_data,
-    random = random_structure,
-    correlation = ar1_cor,
-    method = "REML"
+model_num <- 3
+for (pred in weather_predictors) {
+    # Smooth baseline
+    fit_model_safe(
+        sprintf("butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline) + s(lag_duration_hours, k = k_lag) + s(%s)", pred),
+        "smooth", paste0("M", model_num), sprintf("Single: %s (smooth)", pred)
+    )
+    model_num <- model_num + 1
+
+    # Linear baseline
+    fit_model_safe(
+        sprintf("butterfly_diff_sqrt ~ max_butterflies_t_1 + lag_duration_hours + s(%s)", pred),
+        "linear", paste0("M", model_num), sprintf("Single: %s (linear)", pred)
+    )
+    model_num <- model_num + 1
+}
+
+# ============================================================================
+# PART 3: TWO-WAY INTERACTION MODELS (20 models)
+# Only interactions, no main effects (tests pure interaction)
+# ============================================================================
+cat("\n=== FITTING TWO-WAY INTERACTION MODELS (interactions only) ===\n")
+
+# Generate all pairwise interactions
+interaction_pairs <- combn(weather_predictors, 2, simplify = FALSE)
+
+for (pair in interaction_pairs) {
+    pred1 <- pair[1]
+    pred2 <- pair[2]
+
+    # Smooth baseline
+    fit_model_safe(
+        sprintf("butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline) + s(lag_duration_hours, k = k_lag) + ti(%s, %s)", pred1, pred2),
+        "smooth", paste0("M", model_num), sprintf("Interaction: %s × %s (smooth)", pred1, pred2)
+    )
+    model_num <- model_num + 1
+
+    # Linear baseline
+    fit_model_safe(
+        sprintf("butterfly_diff_sqrt ~ max_butterflies_t_1 + lag_duration_hours + ti(%s, %s)", pred1, pred2),
+        "linear", paste0("M", model_num), sprintf("Interaction: %s × %s (linear)", pred1, pred2)
+    )
+    model_num <- model_num + 1
+}
+
+# ============================================================================
+# PART 4: MAIN EFFECTS + INTERACTION MODELS (20 models)
+# Both main effects + their interaction
+# ============================================================================
+cat("\n=== FITTING MAIN EFFECTS + INTERACTION MODELS ===\n")
+
+for (pair in interaction_pairs) {
+    pred1 <- pair[1]
+    pred2 <- pair[2]
+
+    # Smooth baseline
+    fit_model_safe(
+        sprintf(
+            "butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline) + s(lag_duration_hours, k = k_lag) + s(%s) + s(%s) + ti(%s, %s)",
+            pred1, pred2, pred1, pred2
+        ),
+        "smooth", paste0("M", model_num), sprintf("Additive + Interaction: %s + %s + %s×%s (smooth)", pred1, pred2, pred1, pred2)
+    )
+    model_num <- model_num + 1
+
+    # Linear baseline
+    fit_model_safe(
+        sprintf(
+            "butterfly_diff_sqrt ~ max_butterflies_t_1 + lag_duration_hours + s(%s) + s(%s) + ti(%s, %s)",
+            pred1, pred2, pred1, pred2
+        ),
+        "linear", paste0("M", model_num), sprintf("Additive + Interaction: %s + %s + %s×%s (linear)", pred1, pred2, pred1, pred2)
+    )
+    model_num <- model_num + 1
+}
+
+# ============================================================================
+# PART 5: STRATEGIC ADDITIVE COMBINATIONS (14 models)
+# ============================================================================
+cat("\n=== FITTING STRATEGIC ADDITIVE MODELS ===\n")
+
+# All temperature
+additive_combos <- list(
+    list(
+        preds = c("temp_min", "temp_max", "temp_at_max_count_t_1"),
+        desc = "All temperature"
+    ),
+    list(
+        preds = c("temp_min", "temp_max"),
+        desc = "temp_min + temp_max"
+    ),
+    list(
+        preds = c("temp_min", "wind_max_gust"),
+        desc = "temp_min + wind_max_gust"
+    ),
+    list(
+        preds = c("temp_max", "wind_max_gust"),
+        desc = "temp_max + wind_max_gust"
+    ),
+    list(
+        preds = c("temp_at_max_count_t_1", "wind_max_gust"),
+        desc = "temp_at_max_count_t_1 + wind_max_gust"
+    ),
+    list(
+        preds = c("temp_min", "temp_max", "temp_at_max_count_t_1", "wind_max_gust"),
+        desc = "All temp + wind"
+    ),
+    list(
+        preds = weather_predictors,
+        desc = "All predictors (additive)"
+    )
 )
 
-# M11: + temp_min
-models$M11 <- gamm(
-    butterfly_diff_sqrt ~ max_butterflies_t_1 + lag_duration_hours +
-        s(temp_min),
-    data = model_data,
-    random = random_structure,
-    correlation = ar1_cor,
-    method = "REML"
-)
+for (combo in additive_combos) {
+    preds_str <- paste0("s(", combo$preds, ")", collapse = " + ")
 
-# M12: + temp_max
-models$M12 <- gamm(
-    butterfly_diff_sqrt ~ max_butterflies_t_1 + lag_duration_hours +
-        s(temp_max),
-    data = model_data,
-    random = random_structure,
-    correlation = ar1_cor,
-    method = "REML"
-)
+    # Smooth baseline
+    fit_model_safe(
+        sprintf(
+            "butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline) + s(lag_duration_hours, k = k_lag) + %s",
+            preds_str
+        ),
+        "smooth", paste0("M", model_num), sprintf("Additive: %s (smooth)", combo$desc)
+    )
+    model_num <- model_num + 1
 
-# M13: + temp_at_max_count_t_1
-models$M13 <- gamm(
-    butterfly_diff_sqrt ~ max_butterflies_t_1 + lag_duration_hours +
-        s(temp_at_max_count_t_1),
-    data = model_data,
-    random = random_structure,
-    correlation = ar1_cor,
-    method = "REML"
-)
+    # Linear baseline
+    fit_model_safe(
+        sprintf(
+            "butterfly_diff_sqrt ~ max_butterflies_t_1 + lag_duration_hours + %s",
+            preds_str
+        ),
+        "linear", paste0("M", model_num), sprintf("Additive: %s (linear)", combo$desc)
+    )
+    model_num <- model_num + 1
+}
 
-# M14: + wind_max_gust
-models$M14 <- gamm(
-    butterfly_diff_sqrt ~ max_butterflies_t_1 + lag_duration_hours +
-        s(wind_max_gust),
-    data = model_data,
-    random = random_structure,
-    correlation = ar1_cor,
-    method = "REML"
-)
+# ============================================================================
+# PART 6: COMPLEX MODELS WITH MULTIPLE INTERACTIONS (8 models)
+# ============================================================================
+cat("\n=== FITTING COMPLEX INTERACTION MODELS ===\n")
 
-# M15: + sum_butterflies_direct_sun
-models$M15 <- gamm(
-    butterfly_diff_sqrt ~ max_butterflies_t_1 + lag_duration_hours +
-        s(sum_butterflies_direct_sun),
-    data = model_data,
-    random = random_structure,
-    correlation = ar1_cor,
-    method = "REML"
-)
+# All temperature additive + all temp interactions
+temp_preds <- c("temp_min", "temp_max", "temp_at_max_count_t_1")
+temp_pairs <- combn(temp_preds, 2, simplify = FALSE)
+temp_main <- paste0("s(", temp_preds, ")", collapse = " + ")
+temp_interactions <- paste0(sapply(temp_pairs, function(p) sprintf("ti(%s, %s)", p[1], p[2])), collapse = " + ")
 
-# M16: + all temp
-models$M16 <- gamm(
-    butterfly_diff_sqrt ~ max_butterflies_t_1 + lag_duration_hours +
-        s(temp_min) + s(temp_max) + s(temp_at_max_count_t_1),
-    data = model_data,
-    random = random_structure,
-    correlation = ar1_cor,
-    method = "REML"
+fit_model_safe(
+    sprintf(
+        "butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline) + s(lag_duration_hours, k = k_lag) + %s + %s",
+        temp_main, temp_interactions
+    ),
+    "smooth", paste0("M", model_num), "All temp + all temp interactions (smooth)"
 )
+model_num <- model_num + 1
 
-# M17: + all temp + wind
-models$M17 <- gamm(
-    butterfly_diff_sqrt ~ max_butterflies_t_1 + lag_duration_hours +
-        s(temp_min) + s(temp_max) + s(temp_at_max_count_t_1) +
-        s(wind_max_gust),
-    data = model_data,
-    random = random_structure,
-    correlation = ar1_cor,
-    method = "REML"
+fit_model_safe(
+    sprintf(
+        "butterfly_diff_sqrt ~ max_butterflies_t_1 + lag_duration_hours + %s + %s",
+        temp_main, temp_interactions
+    ),
+    "linear", paste0("M", model_num), "All temp + all temp interactions (linear)"
 )
+model_num <- model_num + 1
 
-# M18: + all temp + wind + sun
-models$M18 <- gamm(
-    butterfly_diff_sqrt ~ max_butterflies_t_1 + lag_duration_hours +
-        s(temp_min) + s(temp_max) + s(temp_at_max_count_t_1) +
-        s(wind_max_gust) +
-        s(sum_butterflies_direct_sun),
-    data = model_data,
-    random = random_structure,
-    correlation = ar1_cor,
-    method = "REML"
+# All additive + all temp × wind interactions
+temp_wind_interactions <- paste0(sapply(temp_preds, function(t) sprintf("ti(%s, wind_max_gust)", t)), collapse = " + ")
+all_main <- paste0("s(", weather_predictors, ")", collapse = " + ")
+
+fit_model_safe(
+    sprintf(
+        "butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline) + s(lag_duration_hours, k = k_lag) + %s + %s",
+        all_main, temp_wind_interactions
+    ),
+    "smooth", paste0("M", model_num), "All additive + all temp×wind interactions (smooth)"
 )
+model_num <- model_num + 1
 
-cat("Total models fitted:", length(models), "\n")
+fit_model_safe(
+    sprintf(
+        "butterfly_diff_sqrt ~ max_butterflies_t_1 + lag_duration_hours + %s + %s",
+        all_main, temp_wind_interactions
+    ),
+    "linear", paste0("M", model_num), "All additive + all temp×wind interactions (linear)"
+)
+model_num <- model_num + 1
+
+# ============================================================================
+# PART 7: FULL MODELS (2 models)
+# All main effects + ALL two-way interactions
+# ============================================================================
+cat("\n=== FITTING FULL MODELS (all terms + all interactions) ===\n")
+
+all_interactions <- paste0(sapply(interaction_pairs, function(p) sprintf("ti(%s, %s)", p[1], p[2])), collapse = " + ")
+
+fit_model_safe(
+    sprintf(
+        "butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline) + s(lag_duration_hours, k = k_lag) + %s + %s",
+        all_main, all_interactions
+    ),
+    "smooth", paste0("M", model_num), "FULL MODEL: All terms + all interactions (smooth)"
+)
+model_num <- model_num + 1
+
+fit_model_safe(
+    sprintf(
+        "butterfly_diff_sqrt ~ max_butterflies_t_1 + lag_duration_hours + %s + %s",
+        all_main, all_interactions
+    ),
+    "linear", paste0("M", model_num), "FULL MODEL: All terms + all interactions (linear)"
+)
+model_num <- model_num + 1
+
+# ============================================================================
+# SUMMARY
+# ============================================================================
+cat("\n", "=", rep("=", 70), "\n", sep = "")
+cat("TOTAL MODELS SUCCESSFULLY FITTED:", length(models), "\n")
+cat("=", rep("=", 70), "\n\n", sep = "")
+
+# Print model summary table
+cat("Model breakdown:\n")
+cat("  - Null models: 2\n")
+cat("  - Single predictor models: 10\n")
+cat("  - Interaction-only models: 20\n")
+cat("  - Main + interaction models: 20\n")
+cat("  - Strategic additive models: 14\n")
+cat("  - Complex interaction models: 8\n")
+cat("  - Full models: 2\n")
+cat("  ----------------------------\n")
+cat("  Total: 76 models\n")
 ```
 
 ## Model Comparison
 
 ```{r model-comparison}
-# Extract AIC for all models
+# Calculate sample size for AICc correction
+n_obs <- nrow(model_data)
+
+# Extract AIC for all models with descriptions
 model_comparison <- tibble(
     model = names(models),
+    description = sapply(names(models), function(m) model_descriptions[[m]]),
     AIC = sapply(models, function(m) AIC(m$lme)),
     BIC = sapply(models, function(m) BIC(m$lme)),
     logLik = sapply(models, function(m) as.numeric(logLik(m$lme))),
     df = sapply(models, function(m) attr(logLik(m$lme), "df"))
 ) %>%
     mutate(
+        # Calculate AICc (corrected AIC for small samples)
+        AICc = AIC + (2 * df * (df + 1)) / (n_obs - df - 1),
+        # Calculate df-to-n ratio (overfitting metric)
+        df_ratio = df / n_obs,
+        # Calculate obs per parameter
+        obs_per_param = n_obs / df,
         delta_AIC = AIC - min(AIC),
-        weight = exp(-0.5 * delta_AIC) / sum(exp(-0.5 * delta_AIC))
-    ) %>%
-    arrange(AIC)
-
-# Display full comparison table
-kable(
-    model_comparison %>%
-        mutate(
-            across(c(AIC, BIC, logLik), ~ round(.x, 2)),
-            across(c(delta_AIC, weight), ~ round(.x, 4))
+        delta_AICc = AICc - min(AICc),
+        delta_BIC = BIC - min(BIC),
+        weight_AIC = exp(-0.5 * delta_AIC) / sum(exp(-0.5 * delta_AIC)),
+        weight_AICc = exp(-0.5 * delta_AICc) / sum(exp(-0.5 * delta_AICc)),
+        weight_BIC = exp(-0.5 * delta_BIC) / sum(exp(-0.5 * delta_BIC)),
+        # Categorize models for analysis
+        baseline_type = ifelse(grepl("smooth", description), "Smooth", "Linear"),
+        model_category = case_when(
+            grepl("Null", description) ~ "Null",
+            grepl("^Single:", description) ~ "Single predictor",
+            grepl("^Interaction:", description) ~ "Interaction only",
+            grepl("Additive \\+ Interaction:", description) ~ "Main + Interaction",
+            grepl("^Additive:", description) ~ "Additive",
+            grepl("FULL MODEL", description) ~ "Full model",
+            TRUE ~ "Complex"
         ),
-    caption = "Model comparison ranked by AIC"
+        # Flag potential overfitting
+        overfitting_risk = case_when(
+            df_ratio > 0.3 ~ "High",
+            df_ratio > 0.2 ~ "Moderate",
+            TRUE ~ "Low"
+        )
+    ) %>%
+    arrange(AICc) # Sort by AICc instead of AIC
+
+cat("Sample size (n):", n_obs, "\n")
+cat("Using AICc correction for small sample bias\n\n")
+
+# Display top 20 models by AICc with overfitting metrics
+cat("\n=== TOP 20 MODELS (RANKED BY AICc) ===\n\n")
+top_20 <- model_comparison %>% head(20)
+kable(
+    top_20 %>%
+        select(model, description, AICc, delta_AICc, weight_AICc, df, df_ratio, obs_per_param, overfitting_risk) %>%
+        mutate(
+            across(c(AICc, delta_AICc), ~ round(.x, 2)),
+            across(c(weight_AICc, df_ratio), ~ round(.x, 4)),
+            across(obs_per_param, ~ round(.x, 1))
+        ),
+    caption = "Top 20 models ranked by AICc (small-sample corrected)"
 )
 
-# Highlight top 5 models
-cat("\n=== TOP 5 MODELS ===\n\n")
+# Compare AIC vs AICc vs BIC rankings
+cat("\n=== COMPARING INFORMATION CRITERIA ===\n\n")
+top_5_comparison <- model_comparison %>%
+    mutate(
+        rank_AIC = rank(AIC),
+        rank_AICc = rank(AICc),
+        rank_BIC = rank(BIC)
+    ) %>%
+    filter(rank_AICc <= 5) %>%
+    select(model, description, AIC, AICc, BIC, rank_AIC, rank_AICc, rank_BIC, df, df_ratio, overfitting_risk) %>%
+    arrange(rank_AICc)
+
+kable(
+    top_5_comparison %>%
+        mutate(
+            across(c(AIC, AICc, BIC, df_ratio), ~ round(.x, 2))
+        ),
+    caption = "Top 5 by AICc: Comparison of rankings across criteria"
+)
+
+# Summary statistics by category
+cat("\n=== MODEL PERFORMANCE BY CATEGORY ===\n\n")
+category_summary <- model_comparison %>%
+    group_by(model_category) %>%
+    summarise(
+        n_models = n(),
+        best_AIC = min(AIC),
+        mean_AIC = mean(AIC),
+        best_delta_AIC = min(delta_AIC),
+        n_in_top_10 = sum(AIC <= sort(model_comparison$AIC)[10])
+    ) %>%
+    arrange(best_AIC)
+
+kable(
+    category_summary %>%
+        mutate(across(c(best_AIC, mean_AIC, best_delta_AIC), ~ round(.x, 2))),
+    caption = "Model performance by complexity category"
+)
+
+# Baseline type comparison
+cat("\n=== SMOOTH vs LINEAR BASELINE ===\n\n")
+baseline_summary <- model_comparison %>%
+    group_by(baseline_type) %>%
+    summarise(
+        n_models = n(),
+        best_AIC = min(AIC),
+        mean_AIC = mean(AIC),
+        n_in_top_10 = sum(AIC <= sort(model_comparison$AIC)[10]),
+        n_in_top_20 = sum(AIC <= sort(model_comparison$AIC)[20])
+    )
+
+kable(
+    baseline_summary %>%
+        mutate(across(c(best_AIC, mean_AIC), ~ round(.x, 2))),
+    caption = "Smooth vs Linear baseline comparison"
+)
+
+# Overfitting diagnostic summary
+cat("\n=== OVERFITTING RISK ASSESSMENT ===\n\n")
+overfitting_summary <- model_comparison %>%
+    group_by(overfitting_risk) %>%
+    summarise(
+        n_models = n(),
+        mean_df = mean(df),
+        mean_df_ratio = mean(df_ratio),
+        mean_obs_per_param = mean(obs_per_param),
+        n_in_top_10_AICc = sum(rank(AICc) <= 10),
+        n_in_top_10_BIC = sum(rank(BIC) <= 10)
+    ) %>%
+    arrange(desc(overfitting_risk))
+
+kable(
+    overfitting_summary %>%
+        mutate(across(c(mean_df_ratio, mean_obs_per_param), ~ round(.x, 2))),
+    caption = "Overfitting risk by df/n ratio"
+)
+
+cat("\nInterpretation:\n")
+cat("- Low risk: df/n ≤ 0.20 (≥5 obs per parameter)\n")
+cat("- Moderate risk: 0.20 < df/n ≤ 0.30 (3.3-5 obs per parameter)\n")
+cat("- High risk: df/n > 0.30 (<3.3 obs per parameter)\n\n")
+
+# Highlight top 5 models with full details
+cat("\n=== TOP 5 MODELS BY AICc (DETAILED) ===\n\n")
 top_5 <- model_comparison %>% head(5)
 for (i in 1:nrow(top_5)) {
     cat(sprintf(
-        "%d. %s (AIC=%.2f, ΔAIC=%.2f, weight=%.4f)\n",
-        i, top_5$model[i], top_5$AIC[i], top_5$delta_AIC[i], top_5$weight[i]
+        "%d. %s\n   %s\n   AICc=%.2f, ΔAICc=%.2f, weight=%.4f\n   df=%d (%.1f obs/param, df/n=%.3f) [%s risk]\n   AIC rank=%d, BIC rank=%d\n\n",
+        i,
+        top_5$model[i],
+        top_5$description[i],
+        top_5$AICc[i],
+        top_5$delta_AICc[i],
+        top_5$weight_AICc[i],
+        top_5$df[i],
+        top_5$obs_per_param[i],
+        top_5$df_ratio[i],
+        top_5$overfitting_risk[i],
+        rank(model_comparison$AIC)[i],
+        rank(model_comparison$BIC)[i]
     ))
 }
+
+# Save full comparison table
+write_csv(model_comparison, here("analysis", "dynamic_window_analysis", "model_comparison_comprehensive.csv"))
+cat("Full model comparison saved to: analysis/dynamic_window_analysis/model_comparison_comprehensive.csv\n")
+```
+
+## Cross-Validation: Overfitting Check
+
+To validate whether the top models are truly better or just overfitting, we perform **leave-one-deployment-out cross-validation** (LODOCV) on the top 10 models by AICc.
+
+```{r cross-validation, cache=TRUE}
+# Select top 10 models for cross-validation
+top_10_models <- model_comparison %>%
+    head(10) %>%
+    pull(model)
+
+cat("Performing LODOCV on top 10 models...\n\n")
+
+# Get unique deployments
+deployments <- unique(model_data$deployment_id)
+n_deployments <- length(deployments)
+
+# Initialize results storage
+cv_results <- tibble()
+
+# Cross-validation function
+perform_lodocv <- function(model_name) {
+    model_formula <- formula(models[[model_name]]$gam)
+
+    cv_predictions <- tibble()
+
+    for (dep in deployments) {
+        # Split data
+        train_data <- model_data %>% filter(deployment_id != dep)
+        test_data <- model_data %>% filter(deployment_id == dep)
+
+        if (nrow(test_data) == 0) next
+
+        # Refit model on training data
+        tryCatch(
+            {
+                cv_model <- gamm(
+                    model_formula,
+                    data = train_data,
+                    random = random_structure,
+                    correlation = ar1_cor,
+                    method = "REML"
+                )
+
+                # Predict on test data
+                preds <- predict(cv_model$gam, newdata = test_data, type = "response")
+
+                # Store results
+                cv_predictions <- bind_rows(
+                    cv_predictions,
+                    tibble(
+                        deployment_id = dep,
+                        observed = test_data$butterfly_diff_sqrt,
+                        predicted = preds
+                    )
+                )
+            },
+            error = function(e) {
+                # Skip if model fails
+                NULL
+            }
+        )
+    }
+
+    if (nrow(cv_predictions) == 0) {
+        return(tibble(model = model_name, rmse = NA, mae = NA, r2 = NA, n_pred = 0))
+    }
+
+    # Calculate prediction metrics
+    rmse <- sqrt(mean((cv_predictions$observed - cv_predictions$predicted)^2, na.rm = TRUE))
+    mae <- mean(abs(cv_predictions$observed - cv_predictions$predicted), na.rm = TRUE)
+
+    # Calculate R² (correlation-based for cross-validation)
+    r2 <- cor(cv_predictions$observed, cv_predictions$predicted, use = "complete.obs")^2
+
+    return(tibble(
+        model = model_name,
+        rmse = rmse,
+        mae = mae,
+        r2 = r2,
+        n_pred = nrow(cv_predictions)
+    ))
+}
+
+# Run CV for top 10 models
+for (m in top_10_models) {
+    cat(sprintf("CV for %s...", m))
+    result <- perform_lodocv(m)
+    cv_results <- bind_rows(cv_results, result)
+    cat(sprintf(" RMSE=%.3f, R²=%.3f\n", result$rmse, result$r2))
+}
+
+# Merge with model comparison
+model_comparison_cv <- model_comparison %>%
+    left_join(cv_results, by = "model") %>%
+    arrange(AICc)
+
+# Display CV results for top 10
+cat("\n=== CROSS-VALIDATION RESULTS (TOP 10 MODELS) ===\n\n")
+kable(
+    model_comparison_cv %>%
+        filter(!is.na(rmse)) %>%
+        head(10) %>%
+        select(model, description, AICc, delta_AICc, df, df_ratio, rmse, mae, r2, overfitting_risk) %>%
+        mutate(
+            across(c(AICc, delta_AICc, df_ratio, rmse, mae, r2), ~ round(.x, 3))
+        ),
+    caption = "Top 10 models: AICc vs Cross-validation performance"
+)
+
+cat("\n**Interpretation:**\n")
+cat("- Lower RMSE/MAE = better predictive accuracy\n")
+cat("- Higher R² = better explained variance\n")
+cat("- If high-df models have worse CV metrics despite better AICc, they are overfitting\n\n")
 ```
 
 ## Best Model Summary
 
 ```{r best-model-summary}
-# Extract best model
-best_model_name <- model_comparison$model[1]
+# Select best model balancing AICc and CV performance
+# Prioritize models with low overfitting risk if CV performance is similar
+best_model_name <- model_comparison_cv %>%
+    filter(overfitting_risk != "High" | is.na(overfitting_risk)) %>%
+    arrange(AICc) %>%
+    slice(1) %>%
+    pull(model)
+
 best_model <- models[[best_model_name]]
 
-cat("=== BEST MODEL:", best_model_name, "===\n\n")
+cat("=== BEST MODEL (SELECTED):", best_model_name, "===\n\n")
+cat("Selection criteria: Best AICc among models with Moderate/Low overfitting risk\n\n")
+
+# Display model details
+best_model_details <- model_comparison_cv %>% filter(model == best_model_name)
+cat("Model details:\n")
+cat(sprintf("  Description: %s\n", best_model_details$description))
+cat(sprintf("  AICc: %.2f (ΔAICc: %.2f)\n", best_model_details$AICc, best_model_details$delta_AICc))
+cat(sprintf(
+    "  df: %d (%.1f obs/param, df/n=%.3f)\n",
+    best_model_details$df,
+    best_model_details$obs_per_param,
+    best_model_details$df_ratio
+))
+cat(sprintf("  Overfitting risk: %s\n", best_model_details$overfitting_risk))
+if (!is.na(best_model_details$rmse)) {
+    cat(sprintf("  CV RMSE: %.3f, CV R²: %.3f\n", best_model_details$rmse, best_model_details$r2))
+}
+cat("\n")
 
 # Summary of GAM component
 summary(best_model$gam)
