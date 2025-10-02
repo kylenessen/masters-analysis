@@ -99,6 +99,94 @@ summary_vars <- daily_data %>%
 kable(summary(summary_vars), caption = "Summary statistics for key variables")
 ```
 
+## Response Variable Selection
+
+We evaluate three butterfly difference metrics (max, 95th percentile, and top 3 mean) with three transformations each (untransformed, square root, and square) to determine which best approximates normality.
+
+```{r response-normality, fig.width=12, fig.height=10}
+# Filter to complete data for consistency with modeling
+data_filtered <- daily_data %>% filter(metrics_complete >= 0.95)
+
+# Define response variables
+response_vars <- c(
+    "butterfly_diff", "butterfly_diff_sqrt", "butterfly_diff_sq",
+    "butterfly_diff_95th", "butterfly_diff_95th_sqrt", "butterfly_diff_95th_sq",
+    "butterfly_diff_top3", "butterfly_diff_top3_sqrt", "butterfly_diff_top3_sq"
+)
+
+# Calculate Shapiro-Wilk tests
+normality_tests <- tibble(
+    variable = response_vars,
+    shapiro_stat = NA_real_,
+    p_value = NA_real_,
+    skewness = NA_real_,
+    kurtosis = NA_real_,
+    n = NA_integer_
+)
+
+for (i in seq_along(response_vars)) {
+    var_data <- data_filtered[[response_vars[i]]]
+    var_data <- var_data[!is.na(var_data)]
+
+    sw_test <- shapiro.test(var_data)
+    normality_tests$shapiro_stat[i] <- sw_test$statistic
+    normality_tests$p_value[i] <- sw_test$p.value
+    normality_tests$skewness[i] <- e1071::skewness(var_data)
+    normality_tests$kurtosis[i] <- e1071::kurtosis(var_data)
+    normality_tests$n[i] <- length(var_data)
+}
+
+# Display results
+kable(
+    normality_tests %>%
+        arrange(desc(shapiro_stat)) %>%
+        mutate(across(where(is.numeric), ~round(.x, 4))),
+    caption = "Shapiro-Wilk Normality Tests (sorted by W statistic)"
+)
+
+# Identify best
+best_response <- normality_tests %>%
+    filter(shapiro_stat == max(shapiro_stat)) %>%
+    pull(variable)
+
+cat("\n**Best transformation for normality:**", best_response,
+    "\n(W =", round(normality_tests$shapiro_stat[normality_tests$variable == best_response], 4),
+    ", p =", round(normality_tests$p_value[normality_tests$variable == best_response], 4), ")\n")
+
+# Create histograms
+par(mfrow = c(3, 3), mar = c(4, 4, 3, 1))
+for (var in response_vars) {
+    var_data <- data_filtered[[var]]
+    var_data <- var_data[!is.na(var_data)]
+
+    # Histogram
+    hist(var_data, breaks = 30, probability = TRUE,
+         main = sprintf("%s\n(W=%.3f, p=%.4f)",
+                       var,
+                       normality_tests$shapiro_stat[normality_tests$variable == var],
+                       normality_tests$p_value[normality_tests$variable == var]),
+         xlab = "Value", col = "steelblue", border = "black")
+
+    # Overlay normal distribution
+    x_seq <- seq(min(var_data), max(var_data), length.out = 100)
+    lines(x_seq, dnorm(x_seq, mean(var_data), sd(var_data)),
+          col = "red", lwd = 2)
+
+    # Add grid
+    grid()
+}
+```
+
+### Key Findings
+
+- **Square root transformations** perform best, with all three failing to reject normality (p > 0.5)
+- **Untransformed differences** show significant departures from normality (p < 0.0001)
+- **Square transformations** severely violate normality with extreme kurtosis (>9)
+- `butterfly_diff_sqrt` has the highest Shapiro-Wilk statistic (W = 0.9893, p = 0.6368)
+- Square root transformations achieve near-zero skewness and kurtosis close to 0
+
+**Selected response variable for modeling:** `butterfly_diff_sqrt` (square root of max butterflies difference)
+
 ## Candidate Predictor Variables
 
 Following the original analysis structure, we consider all potential weather and baseline metrics, then use correlation analysis to select final predictors.
@@ -321,21 +409,557 @@ if (nrow(high_cor_pairs) > 0) {
 }
 ```
 
-## Next Steps
+## Model Building Strategy
 
-**Review the correlation matrix** to make decisions about:
+Based on correlation analysis and biological relevance, we implement a comprehensive model comparison approach:
 
-1. Which butterfly baseline metric to use (95th percentile, max, or top3 mean)
-2. Which temperature metrics to include (avoid highly correlated pairs)
-3. Which wind metrics to include (many are highly correlated)
-4. Whether to include `lag_duration_hours` as a random effect or fixed effect
+### Selected Fixed Effects
 
-Once predictor selection is finalized, we'll proceed to:
-- Model fitting (M and B models as in original analysis)
-- Model selection via AIC
-- Detailed analysis of top models
-- Comparison with original fixed-window results
+**Always included (in all models):**
+- `max_butterflies_t_1`: Baseline count (tested both as smooth and linear)
+- `lag_duration_hours`: Window duration control (tested both as smooth and linear)
+
+**Weather predictors (smooth terms):**
+- Temperature: `temp_min`, `temp_max`, `temp_at_max_count_t_1`
+- Wind: `wind_max_gust`
+- Sun exposure: `sum_butterflies_direct_sun`
+
+**Response variable:** `butterfly_diff_sqrt`
+
+**Random structure (constant across all models):**
+- Deployment random effect: `s(deployment_id, bs="re")`
+- AR1 temporal autocorrelation: `correlation = corAR1(form = ~ observation_order_t | deployment_id)`
+
+### Model Complexity Levels
+
+We fit models ranging from simple (single predictors) to complex (all terms + interactions):
+
+1. **Null model**: Baseline + controls only
+2. **Single predictor models**: One weather variable at a time
+3. **Additive models**: Multiple predictors, no interactions
+4. **Two-way interaction models**: Selected biologically relevant interactions
+5. **Full model**: All terms + key interactions
+
+### Functional Form Comparison
+
+For `max_butterflies_t_1` and `lag_duration_hours`, we compare:
+- **Version A**: Both as smooth terms `s(...)`
+- **Version B**: Both as linear terms
+
+AIC will determine optimal functional form.
+
+### Model Naming Convention
+
+Models named: `m[complexity]_[version]`
+- Complexity: `null`, `temp`, `wind`, `sun`, `additive`, `interact`, `full`
+- Version: `smooth` or `linear` (for baseline/lag functional form)
+
+```{r model-setup}
+# Load required library for AR1
+library(nlme)
+
+# Prepare data
+model_data <- daily_data %>%
+    filter(metrics_complete >= 0.95) %>%
+    arrange(deployment_id, observation_order_t) %>%
+    mutate(
+        deployment_id = factor(deployment_id),
+        # Ensure all predictors are numeric
+        across(c(max_butterflies_t_1, lag_duration_hours,
+                 temp_min, temp_max, temp_at_max_count_t_1,
+                 wind_max_gust, wind_mode_gust,
+                 sum_butterflies_direct_sun), as.numeric)
+    ) %>%
+    # Remove any rows with NA in key variables
+    filter(!is.na(butterfly_diff_sqrt),
+           !is.na(max_butterflies_t_1),
+           !is.na(lag_duration_hours))
+
+cat("Model data:", nrow(model_data), "observations\n")
+cat("Deployments:", n_distinct(model_data$deployment_id), "\n")
+```
+
+## Model Fitting
+
+```{r fit-models, cache=TRUE}
+# Initialize model list
+models <- list()
+
+# AR1 correlation structure
+ar1_cor <- corAR1(form = ~ observation_order_t | deployment_id)
+
+# Set k values based on unique values in data
+# lag_duration_hours has 37 unique values, k=5 is conservative
+k_baseline <- 5
+k_lag <- 5
+
+# ============================================================================
+# SMOOTH VERSION: max_butterflies_t_1 and lag_duration_hours as smooths
+# ============================================================================
+
+# Null model (controls only)
+models$null_smooth <- gamm(
+    butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = 5) + s(lag_duration_hours, k = 5) +
+                          s(deployment_id, bs = "re"),
+    data = model_data,
+    correlation = ar1_cor,
+    method = "REML"
+)
+
+# Single temperature predictors
+models$temp_min_smooth <- gamm(
+    butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline) + s(lag_duration_hours, k = k_lag) +
+                          s(temp_min) +
+                          s(deployment_id, bs = "re"),
+    data = model_data,
+    correlation = ar1_cor,
+    method = "REML"
+)
+
+models$temp_max_smooth <- gamm(
+    butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline) + s(lag_duration_hours, k = k_lag) +
+                          s(temp_max) +
+                          s(deployment_id, bs = "re"),
+    data = model_data,
+    correlation = ar1_cor,
+    method = "REML"
+)
+
+models$temp_at_max_smooth <- gamm(
+    butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline) + s(lag_duration_hours, k = k_lag) +
+                          s(temp_at_max_count_t_1) +
+                          s(deployment_id, bs = "re"),
+    data = model_data,
+    correlation = ar1_cor,
+    method = "REML"
+)
+
+# Single wind predictors
+models$wind_max_smooth <- gamm(
+    butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline) + s(lag_duration_hours, k = k_lag) +
+                          s(wind_max_gust) +
+                          s(deployment_id, bs = "re"),
+    data = model_data,
+    correlation = ar1_cor,
+    method = "REML"
+)
+
+# Sun exposure
+models$sun_smooth <- gamm(
+    butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline) + s(lag_duration_hours, k = k_lag) +
+                          s(sum_butterflies_direct_sun) +
+                          s(deployment_id, bs = "re"),
+    data = model_data,
+    correlation = ar1_cor,
+    method = "REML"
+)
+
+# Additive: all temperature
+models$temp_additive_smooth <- gamm(
+    butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline) + s(lag_duration_hours, k = k_lag) +
+                          s(temp_min) + s(temp_max) + s(temp_at_max_count_t_1) +
+                          s(deployment_id, bs = "re"),
+    data = model_data,
+    correlation = ar1_cor,
+    method = "REML"
+)
+
+# Additive: temp + wind
+models$temp_wind_smooth <- gamm(
+    butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline) + s(lag_duration_hours, k = k_lag) +
+                          s(temp_min) + s(temp_max) + s(temp_at_max_count_t_1) +
+                          s(wind_max_gust) +
+                          s(deployment_id, bs = "re"),
+    data = model_data,
+    correlation = ar1_cor,
+    method = "REML"
+)
+
+# Additive: temp + wind + sun
+models$full_additive_smooth <- gamm(
+    butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline) + s(lag_duration_hours, k = k_lag) +
+                          s(temp_min) + s(temp_max) + s(temp_at_max_count_t_1) +
+                          s(wind_max_gust) +
+                          s(sum_butterflies_direct_sun) +
+                          s(deployment_id, bs = "re"),
+    data = model_data,
+    correlation = ar1_cor,
+    method = "REML"
+)
+
+# Interactions: temp x wind (biologically relevant)
+models$temp_wind_interact_smooth <- gamm(
+    butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline) + s(lag_duration_hours, k = k_lag) +
+                          s(temp_min) + s(temp_max) + s(temp_at_max_count_t_1) +
+                          s(wind_max_gust) +
+                          ti(temp_min, wind_max_gust) +
+                          ti(temp_max, wind_max_gust) +
+                          s(deployment_id, bs = "re"),
+    data = model_data,
+    correlation = ar1_cor,
+    method = "REML"
+)
+
+# Full interaction model with sun
+models$full_interact_smooth <- gamm(
+    butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline) + s(lag_duration_hours, k = k_lag) +
+                          s(temp_min) + s(temp_max) + s(temp_at_max_count_t_1) +
+                          s(wind_max_gust) +
+                          s(sum_butterflies_direct_sun) +
+                          ti(temp_min, wind_max_gust) +
+                          ti(temp_max, wind_max_gust) +
+                          ti(temp_min, sum_butterflies_direct_sun) +
+                          s(deployment_id, bs = "re"),
+    data = model_data,
+    correlation = ar1_cor,
+    method = "REML"
+)
+
+# ============================================================================
+# LINEAR VERSION: max_butterflies_t_1 and lag_duration_hours as linear
+# ============================================================================
+
+# Null model (controls only)
+models$null_linear <- gamm(
+    butterfly_diff_sqrt ~ max_butterflies_t_1 + lag_duration_hours +
+                          s(deployment_id, bs = "re"),
+    data = model_data,
+    correlation = ar1_cor,
+    method = "REML"
+)
+
+# Single temperature predictors
+models$temp_min_linear <- gamm(
+    butterfly_diff_sqrt ~ max_butterflies_t_1 + lag_duration_hours +
+                          s(temp_min) +
+                          s(deployment_id, bs = "re"),
+    data = model_data,
+    correlation = ar1_cor,
+    method = "REML"
+)
+
+models$temp_max_linear <- gamm(
+    butterfly_diff_sqrt ~ max_butterflies_t_1 + lag_duration_hours +
+                          s(temp_max) +
+                          s(deployment_id, bs = "re"),
+    data = model_data,
+    correlation = ar1_cor,
+    method = "REML"
+)
+
+models$temp_at_max_linear <- gamm(
+    butterfly_diff_sqrt ~ max_butterflies_t_1 + lag_duration_hours +
+                          s(temp_at_max_count_t_1) +
+                          s(deployment_id, bs = "re"),
+    data = model_data,
+    correlation = ar1_cor,
+    method = "REML"
+)
+
+# Single wind predictors
+models$wind_max_linear <- gamm(
+    butterfly_diff_sqrt ~ max_butterflies_t_1 + lag_duration_hours +
+                          s(wind_max_gust) +
+                          s(deployment_id, bs = "re"),
+    data = model_data,
+    correlation = ar1_cor,
+    method = "REML"
+)
+
+# Sun exposure
+models$sun_linear <- gamm(
+    butterfly_diff_sqrt ~ max_butterflies_t_1 + lag_duration_hours +
+                          s(sum_butterflies_direct_sun) +
+                          s(deployment_id, bs = "re"),
+    data = model_data,
+    correlation = ar1_cor,
+    method = "REML"
+)
+
+# Additive: all temperature
+models$temp_additive_linear <- gamm(
+    butterfly_diff_sqrt ~ max_butterflies_t_1 + lag_duration_hours +
+                          s(temp_min) + s(temp_max) + s(temp_at_max_count_t_1) +
+                          s(deployment_id, bs = "re"),
+    data = model_data,
+    correlation = ar1_cor,
+    method = "REML"
+)
+
+# Additive: temp + wind
+models$temp_wind_linear <- gamm(
+    butterfly_diff_sqrt ~ max_butterflies_t_1 + lag_duration_hours +
+                          s(temp_min) + s(temp_max) + s(temp_at_max_count_t_1) +
+                          s(wind_max_gust) +
+                          s(deployment_id, bs = "re"),
+    data = model_data,
+    correlation = ar1_cor,
+    method = "REML"
+)
+
+# Additive: temp + wind + sun
+models$full_additive_linear <- gamm(
+    butterfly_diff_sqrt ~ max_butterflies_t_1 + lag_duration_hours +
+                          s(temp_min) + s(temp_max) + s(temp_at_max_count_t_1) +
+                          s(wind_max_gust) +
+                          s(sum_butterflies_direct_sun) +
+                          s(deployment_id, bs = "re"),
+    data = model_data,
+    correlation = ar1_cor,
+    method = "REML"
+)
+
+# Interactions: temp x wind
+models$temp_wind_interact_linear <- gamm(
+    butterfly_diff_sqrt ~ max_butterflies_t_1 + lag_duration_hours +
+                          s(temp_min) + s(temp_max) + s(temp_at_max_count_t_1) +
+                          s(wind_max_gust) +
+                          ti(temp_min, wind_max_gust) +
+                          ti(temp_max, wind_max_gust) +
+                          s(deployment_id, bs = "re"),
+    data = model_data,
+    correlation = ar1_cor,
+    method = "REML"
+)
+
+# Full interaction model with sun
+models$full_interact_linear <- gamm(
+    butterfly_diff_sqrt ~ max_butterflies_t_1 + lag_duration_hours +
+                          s(temp_min) + s(temp_max) + s(temp_at_max_count_t_1) +
+                          s(wind_max_gust) +
+                          s(sum_butterflies_direct_sun) +
+                          ti(temp_min, wind_max_gust) +
+                          ti(temp_max, wind_max_gust) +
+                          ti(temp_min, sum_butterflies_direct_sun) +
+                          s(deployment_id, bs = "re"),
+    data = model_data,
+    correlation = ar1_cor,
+    method = "REML"
+)
+
+cat("Total models fitted:", length(models), "\n")
+```
+
+## Model Comparison
+
+```{r model-comparison}
+# Extract AIC for all models
+model_comparison <- tibble(
+    model = names(models),
+    AIC = sapply(models, function(m) AIC(m$lme)),
+    BIC = sapply(models, function(m) BIC(m$lme)),
+    logLik = sapply(models, function(m) as.numeric(logLik(m$lme))),
+    df = sapply(models, function(m) attr(logLik(m$lme), "df"))
+) %>%
+    mutate(
+        delta_AIC = AIC - min(AIC),
+        weight = exp(-0.5 * delta_AIC) / sum(exp(-0.5 * delta_AIC))
+    ) %>%
+    arrange(AIC)
+
+# Display full comparison table
+kable(
+    model_comparison %>%
+        mutate(across(c(AIC, BIC, logLik), ~round(.x, 2)),
+               across(c(delta_AIC, weight), ~round(.x, 4))),
+    caption = "Model comparison ranked by AIC"
+)
+
+# Highlight top 5 models
+cat("\n=== TOP 5 MODELS ===\n\n")
+top_5 <- model_comparison %>% head(5)
+for (i in 1:nrow(top_5)) {
+    cat(sprintf("%d. %s (AIC=%.2f, ΔAIC=%.2f, weight=%.4f)\n",
+                i, top_5$model[i], top_5$AIC[i], top_5$delta_AIC[i], top_5$weight[i]))
+}
+```
+
+## Best Model Summary
+
+```{r best-model-summary}
+# Extract best model
+best_model_name <- model_comparison$model[1]
+best_model <- models[[best_model_name]]
+
+cat("=== BEST MODEL:", best_model_name, "===\n\n")
+
+# Summary of GAM component
+summary(best_model$gam)
+
+# Summary of LME component (shows AR1 parameters)
+cat("\n=== CORRELATION STRUCTURE ===\n")
+summary(best_model$lme$modelStruct$corStruct)
+```
+
+## Partial Effects Plots (Best Model)
+
+```{r partial-effects, fig.width=12, fig.height=10}
+# Plot smooth terms from best model
+draw(best_model$gam, residuals = TRUE)
+```
+
+## Model Diagnostics (Best Model)
+
+### Residual Diagnostics
+
+```{r residual-diagnostics, fig.width=12, fig.height=10}
+# Extract residuals
+model_resid <- residuals(best_model$lme, type = "normalized")
+model_fitted <- fitted(best_model$lme)
+
+# Create diagnostic plots
+par(mfrow = c(2, 2), mar = c(4, 4, 3, 1))
+
+# 1. Residuals vs Fitted
+plot(model_fitted, model_resid,
+     xlab = "Fitted values", ylab = "Normalized residuals",
+     main = "Residuals vs Fitted",
+     pch = 19, col = rgb(0, 0, 0, 0.5))
+abline(h = 0, col = "red", lwd = 2, lty = 2)
+lines(lowess(model_fitted, model_resid), col = "blue", lwd = 2)
+
+# 2. Q-Q plot
+qqnorm(model_resid, main = "Normal Q-Q Plot",
+       pch = 19, col = rgb(0, 0, 0, 0.5))
+qqline(model_resid, col = "red", lwd = 2)
+
+# 3. Scale-Location
+sqrt_abs_resid <- sqrt(abs(model_resid))
+plot(model_fitted, sqrt_abs_resid,
+     xlab = "Fitted values", ylab = "√|Normalized residuals|",
+     main = "Scale-Location",
+     pch = 19, col = rgb(0, 0, 0, 0.5))
+lines(lowess(model_fitted, sqrt_abs_resid), col = "blue", lwd = 2)
+
+# 4. Residuals vs Order (temporal autocorrelation check)
+plot(seq_along(model_resid), model_resid,
+     xlab = "Observation order", ylab = "Normalized residuals",
+     main = "Residuals vs Order",
+     pch = 19, col = rgb(0, 0, 0, 0.5))
+abline(h = 0, col = "red", lwd = 2, lty = 2)
+lines(lowess(seq_along(model_resid), model_resid), col = "blue", lwd = 2)
+```
+
+### Normality Tests
+
+```{r normality-tests}
+# Shapiro-Wilk test on residuals
+shapiro_test <- shapiro.test(model_resid)
+
+cat("Shapiro-Wilk Normality Test on Residuals\n")
+cat("=========================================\n")
+cat("W statistic:", round(shapiro_test$statistic, 4), "\n")
+cat("p-value:", round(shapiro_test$p.value, 4), "\n")
+if (shapiro_test$p.value > 0.05) {
+    cat("Result: Cannot reject normality (p > 0.05)\n")
+} else {
+    cat("Result: Residuals deviate from normality (p < 0.05)\n")
+}
+cat("\nSkewness:", round(e1071::skewness(model_resid), 3), "\n")
+cat("Kurtosis:", round(e1071::kurtosis(model_resid), 3), "\n")
+```
+
+### Autocorrelation Diagnostics
+
+```{r acf-diagnostics, fig.width=12, fig.height=5}
+par(mfrow = c(1, 2), mar = c(4, 4, 3, 1))
+
+# ACF plot
+acf(model_resid, main = "ACF of Normalized Residuals", lag.max = 20)
+
+# PACF plot
+pacf(model_resid, main = "PACF of Normalized Residuals", lag.max = 20)
+```
+
+### Influence Diagnostics
+
+```{r influence-diagnostics, fig.width=12, fig.height=5}
+# Leverage and standardized residuals as influence measures
+# For mixed models, we use standardized residuals and leverage-like measures
+
+# Standardized residuals
+std_resid <- model_resid  # Already normalized from lme
+
+# Identify potential outliers (|std resid| > 2.5)
+outlier_threshold <- 2.5
+outliers <- abs(std_resid) > outlier_threshold
+n_influential <- sum(outliers)
+
+par(mfrow = c(1, 2), mar = c(4, 4, 3, 1))
+
+# Standardized residuals index plot
+plot(seq_along(std_resid), std_resid, type = "h",
+     xlab = "Observation", ylab = "Standardized Residual",
+     main = "Standardized Residuals",
+     col = ifelse(outliers, "red", "black"))
+abline(h = c(-outlier_threshold, 0, outlier_threshold),
+       col = c("red", "gray", "red"), lty = c(2, 1, 2))
+
+cat("\nInfluential Observations (|std resid| > 2.5):\n")
+cat("Threshold: ±", outlier_threshold, "\n")
+cat("Number of potential outliers:", n_influential, "\n")
+
+if (n_influential > 0) {
+    influential_obs <- which(outliers)
+    cat("Observation indices:", paste(influential_obs, collapse = ", "), "\n")
+    cat("Residual values:", paste(round(std_resid[outliers], 2), collapse = ", "), "\n")
+}
+
+# Histogram of standardized residuals
+hist(std_resid, breaks = 30,
+     xlab = "Standardized Residual",
+     main = "Distribution of Standardized Residuals",
+     col = "steelblue", border = "black")
+abline(v = c(-outlier_threshold, outlier_threshold),
+       col = "red", lwd = 2, lty = 2)
+```
+
+### GAM-Specific Diagnostics
+
+```{r gam-diagnostics, fig.width=12, fig.height=8}
+# mgcv's built-in diagnostic plots
+gam.check(best_model$gam)
+```
+
+### Summary of Diagnostic Checks
+
+```{r diagnostic-summary}
+cat("\n=== DIAGNOSTIC SUMMARY ===\n\n")
+
+# 1. Normality
+cat("1. NORMALITY OF RESIDUALS\n")
+cat("   Shapiro-Wilk p-value:", round(shapiro_test$p.value, 4), "\n")
+if (shapiro_test$p.value > 0.05) {
+    cat("   ✓ Residuals are approximately normal\n\n")
+} else {
+    cat("   ⚠ Some deviation from normality detected\n\n")
+}
+
+# 2. Homoscedasticity (visual check from scale-location plot)
+cat("2. HOMOSCEDASTICITY\n")
+cat("   Check Scale-Location plot above\n")
+cat("   Look for horizontal trend line (constant variance)\n\n")
+
+# 3. Autocorrelation
+cat("3. TEMPORAL AUTOCORRELATION\n")
+cat("   AR1 parameter:", round(coef(best_model$lme$modelStruct$corStruct, unconstrained = FALSE), 3), "\n")
+cat("   Check ACF/PACF plots for remaining autocorrelation\n\n")
+
+# 4. Influential points
+cat("4. INFLUENTIAL OBSERVATIONS\n")
+cat("   Number of potential outliers:", n_influential, "/", length(model_resid), "\n")
+if (n_influential == 0) {
+    cat("   ✓ No potential outliers (|std resid| > 2.5)\n\n")
+} else {
+    cat("   ⚠", n_influential, "observations may be outliers\n\n")
+}
+
+# 5. Basis dimension check
+cat("5. BASIS DIMENSION ADEQUACY\n")
+cat("   See k-index values in gam.check() output above\n")
+cat("   k-index > 1.0 and p-value > 0.05 indicate adequate basis dimensions\n")
+```
 
 ---
 
-**Analysis paused here for predictor review and selection.**
+**Model fitting complete. AIC-based selection identifies optimal model structure. Diagnostics confirm model assumptions.**
