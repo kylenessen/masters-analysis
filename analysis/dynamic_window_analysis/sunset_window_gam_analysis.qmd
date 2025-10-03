@@ -12,6 +12,8 @@ format:
     theme: cosmo
     code-fold: true
     code-tools: false
+    keep-md: true
+    fig-path: "figures/sunset_"
 execute:
   warning: false
   message: false
