@@ -18,13 +18,11 @@ execute:
   echo: false
 ---
 
-## Introduction
+### Background
 
 This document synthesizes results from two parallel GAM analyses investigating the relationship between weather conditions and monarch butterfly roost abandonment. Both analyses address feedback from Francis regarding temporal alignment of weather predictors with butterfly responses.
 
-### Background
-
-The [original daily-level analysis](../../reports/daily_gam_results.html) used fixed 6am-6pm weather windows, which Francis identified as having a temporal logic issue:
+The [original daily-level analysis](https://kylenessen.github.io/masters-analysis/daily_gam_results.html) used fixed 6am-6pm weather windows, which Francis identified as having a temporal logic issue:
 
 > "All of the metrics for wind, temperature and light, would need to be re-calculated for 24 hour periods that begin at the time of the highest count."
 
@@ -67,9 +65,11 @@ library(here)
 
 # Load datasets
 sunset_data <- read_csv(here("data", "monarch_daily_lag_analysis_sunset_window.csv"),
-                        show_col_types = FALSE)
+    show_col_types = FALSE
+)
 hr24_data <- read_csv(here("data", "monarch_daily_lag_analysis_24hr_window.csv"),
-                      show_col_types = FALSE)
+    show_col_types = FALSE
+)
 ```
 
 We evaluated three butterfly difference metrics (max, 95th percentile, and top 3 mean) with three transformations each (untransformed, square root, and square) to determine which best approximates normality for GAM modeling.
@@ -120,14 +120,9 @@ kable(
 
 ### Selected Response Variable
 
-**`butterfly_diff_95th_sqrt`** was selected as the response variable for both analyses based on having the highest Shapiro-Wilk W statistic, indicating best approximation to normality.
+**`butterfly_diff_sqrt`** was selected as the response variable for both analyses based on having the highest Shapiro-Wilk W statistic, indicating best approximation to normality.
 
-This represents the **square root transformation** of the change in 95th percentile butterfly count from day t-1 to day t. The transformation:
-
-- Reduces right skew in the distribution
-- Stabilizes variance
-- Improves model residual diagnostics
-- Maintains interpretability (signed square root preserves direction)
+This represents the **square root transformation** of the change in maximum butterfly count from day t-1 to day t. The transformation:
 
 ![Response Variable Distributions](figures/sunset_response_normality.png){width=100%}
 
@@ -140,76 +135,77 @@ A total of **20 candidate weather predictors** were calculated within each obser
 ```{r candidate-table}
 # Create empty table template for user to fill in
 candidate_vars <- tibble(
-  Variable = c(
-    "temp_min",
-    "temp_max",
-    "temp_mean",
-    "temp_range",
-    "temp_at_max_count_t_1",
-    "wind_min",
-    "wind_max",
-    "wind_mean",
-    "wind_max_gust",
-    "wind_gust_mode",
-    "sum_butterflies_direct_sun",
-    "sum_butterflies_in_sun",
-    "sum_butterflies_partial_sun",
-    "proportion_butterflies_direct_sun",
-    "proportion_butterflies_in_sun",
-    "proportion_butterflies_partial_sun",
-    "lag_duration_hours",
-    "window_start_hour",
-    "window_end_hour",
-    "metrics_complete"
-  ),
-  Category = c(
-    "Temperature",
-    "Temperature",
-    "Temperature",
-    "Temperature",
-    "Temperature",
-    "Wind",
-    "Wind",
-    "Wind",
-    "Wind",
-    "Wind",
-    "Sun Exposure",
-    "Sun Exposure",
-    "Sun Exposure",
-    "Sun Exposure",
-    "Sun Exposure",
-    "Sun Exposure",
-    "Window Characteristics",
-    "Window Characteristics",
-    "Window Characteristics",
-    "Window Characteristics"
-  ),
-  Description = c(
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    ""
-  )
+    Variable = c(
+        "temp_min",
+        "temp_max",
+        "temp_mean",
+        "temp_range",
+        "temp_at_max_count_t_1",
+        "wind_min",
+        "wind_max",
+        "wind_mean",
+        "wind_max_gust",
+        "wind_gust_mode",
+        "sum_butterflies_direct_sun",
+        "sum_butterflies_in_sun",
+        "sum_butterflies_partial_sun",
+        "proportion_butterflies_direct_sun",
+        "proportion_butterflies_in_sun",
+        "proportion_butterflies_partial_sun",
+        "lag_duration_hours",
+        "window_start_hour",
+        "window_end_hour",
+        "metrics_complete"
+    ),
+    Category = c(
+        "Temperature",
+        "Temperature",
+        "Temperature",
+        "Temperature",
+        "Temperature",
+        "Wind",
+        "Wind",
+        "Wind",
+        "Wind",
+        "Wind",
+        "Sun Exposure",
+        "Sun Exposure",
+        "Sun Exposure",
+        "Sun Exposure",
+        "Sun Exposure",
+        "Sun Exposure",
+        "Window Characteristics",
+        "Window Characteristics",
+        "Window Characteristics",
+        "Window Characteristics"
+    ),
+    Description = c(
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+    )
 )
 
 kable(candidate_vars,
-      caption = "Candidate Predictor Variables (user to fill in descriptions)")
+    caption = "Candidate Predictor Variables (user to fill in descriptions)"
+)
 ```
 
 **Note:** Fill in the Description column with rationale for each variable category.
@@ -291,13 +287,13 @@ This systematic exploration tests:
 All models used the same core structure:
 
 ```
-butterfly_diff_95th_sqrt ~ predictors + s(deployment_id, bs="re")
+butterfly_diff_sqrt ~ predictors + s(deployment_id, bs="re")
   + correlation = corAR1(form = ~1|deployment_id)
 ```
 
 **Key components:**
 
-- **Response**: `butterfly_diff_95th_sqrt` (square root transformed change in 95th percentile count)
+- **Response**: `butterfly_diff_sqrt` (square root transformed change in maximum count)
 - **Random effects**: `s(deployment_id, bs="re")` accounts for repeated measures within deployments
 - **Autocorrelation**: `corAR1()` models temporal autocorrelation within deployments
 - **Functional form**: Smooth terms `s()` for nonlinear relationships vs. linear terms
@@ -341,21 +337,24 @@ The table below shows the top 30 models ranked by AICc for the sunset window ana
 
 ```{r sunset-model-table}
 sunset_models <- read_csv(here("analysis/dynamic_window_analysis/model_comparison_comprehensive.csv"),
-                          show_col_types = FALSE)
+    show_col_types = FALSE
+)
 
 # Show top 30 models
 kable(
-  sunset_models %>%
-    select(model, description, AICc, delta_AICc, weight_AICc, df,
-           obs_per_param, overfitting_risk) %>%
-    head(30) %>%
-    mutate(
-      AICc = round(AICc, 2),
-      delta_AICc = round(delta_AICc, 2),
-      weight_AICc = round(weight_AICc, 4),
-      obs_per_param = round(obs_per_param, 2)
-    ),
-  caption = "Top 30 Models: Sunset Window Analysis (ranked by AICc)"
+    sunset_models %>%
+        select(
+            model, description, AICc, delta_AICc, weight_AICc, df,
+            obs_per_param, overfitting_risk
+        ) %>%
+        head(30) %>%
+        mutate(
+            AICc = round(AICc, 2),
+            delta_AICc = round(delta_AICc, 2),
+            weight_AICc = round(weight_AICc, 4),
+            obs_per_param = round(obs_per_param, 2)
+        ),
+    caption = "Top 30 Models: Sunset Window Analysis (ranked by AICc)"
 )
 ```
 
@@ -385,8 +384,8 @@ This simple interaction-only model outperformed all additive and complex models,
 
 **Model equation:**
 ```
-butterfly_diff_95th_sqrt ~ te(wind_max_gust, sum_butterflies_direct_sun)
-                          + s(deployment_id, bs="re")
+butterfly_diff_sqrt ~ te(wind_max_gust, sum_butterflies_direct_sun)
+                     + s(deployment_id, bs="re")
 ```
 
 **Interpretation:**
@@ -436,21 +435,24 @@ The table below shows the top 30 models ranked by AICc for the 24-hour window an
 
 ```{r hr24-model-table}
 hr24_models <- read_csv(here("analysis/dynamic_window_analysis/model_comparison_24hr.csv"),
-                        show_col_types = FALSE)
+    show_col_types = FALSE
+)
 
 # Show top 30 models
 kable(
-  hr24_models %>%
-    select(model, description, AICc, delta_AICc, weight_AICc, df,
-           obs_per_param, overfitting_risk) %>%
-    head(30) %>%
-    mutate(
-      AICc = round(AICc, 2),
-      delta_AICc = round(delta_AICc, 2),
-      weight_AICc = round(weight_AICc, 4),
-      obs_per_param = round(obs_per_param, 2)
-    ),
-  caption = "Top 30 Models: 24-Hour Window Analysis (ranked by AICc)"
+    hr24_models %>%
+        select(
+            model, description, AICc, delta_AICc, weight_AICc, df,
+            obs_per_param, overfitting_risk
+        ) %>%
+        head(30) %>%
+        mutate(
+            AICc = round(AICc, 2),
+            delta_AICc = round(delta_AICc, 2),
+            weight_AICc = round(weight_AICc, 4),
+            obs_per_param = round(obs_per_param, 2)
+        ),
+    caption = "Top 30 Models: 24-Hour Window Analysis (ranked by AICc)"
 )
 ```
 
@@ -478,8 +480,8 @@ Remarkably, the **identical model structure** emerged as best for the 24-hour wi
 
 **Model equation:**
 ```
-butterfly_diff_95th_sqrt ~ te(wind_max_gust, sum_butterflies_direct_sun)
-                          + s(deployment_id, bs="re")
+butterfly_diff_sqrt ~ te(wind_max_gust, sum_butterflies_direct_sun)
+                     + s(deployment_id, bs="re")
 ```
 
 ### Partial Effects Plots
@@ -572,15 +574,17 @@ Both analyses filtered observations to:
 
 ```{r sunset-all-models}
 kable(
-  sunset_models %>%
-    select(model, description, AICc, delta_AICc, weight_AICc,
-           baseline_type, model_category, overfitting_risk) %>%
-    mutate(
-      AICc = round(AICc, 2),
-      delta_AICc = round(delta_AICc, 2),
-      weight_AICc = sprintf("%.2e", weight_AICc)
-    ),
-  caption = "Complete Model Comparison: Sunset Window Analysis (all 76 models)"
+    sunset_models %>%
+        select(
+            model, description, AICc, delta_AICc, weight_AICc,
+            baseline_type, model_category, overfitting_risk
+        ) %>%
+        mutate(
+            AICc = round(AICc, 2),
+            delta_AICc = round(delta_AICc, 2),
+            weight_AICc = sprintf("%.2e", weight_AICc)
+        ),
+    caption = "Complete Model Comparison: Sunset Window Analysis (all 76 models)"
 )
 ```
 
@@ -588,15 +592,17 @@ kable(
 
 ```{r hr24-all-models}
 kable(
-  hr24_models %>%
-    select(model, description, AICc, delta_AICc, weight_AICc,
-           baseline_type, model_category, overfitting_risk) %>%
-    mutate(
-      AICc = round(AICc, 2),
-      delta_AICc = round(delta_AICc, 2),
-      weight_AICc = sprintf("%.2e", weight_AICc)
-    ),
-  caption = "Complete Model Comparison: 24-Hour Window Analysis (all 76 models)"
+    hr24_models %>%
+        select(
+            model, description, AICc, delta_AICc, weight_AICc,
+            baseline_type, model_category, overfitting_risk
+        ) %>%
+        mutate(
+            AICc = round(AICc, 2),
+            delta_AICc = round(delta_AICc, 2),
+            weight_AICc = sprintf("%.2e", weight_AICc)
+        ),
+    caption = "Complete Model Comparison: 24-Hour Window Analysis (all 76 models)"
 )
 ```
 
