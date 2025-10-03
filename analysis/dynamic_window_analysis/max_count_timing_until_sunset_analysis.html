@@ -1,0 +1,421 @@
+
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Maximum Butterfly Count Timing Analysis - Hours Until Sunset (Filtered Dataset)</title>
+        <style>
+            body { font-family: Arial, sans-serif; margin: 40px; }
+            h1 { color: #333; }
+            .stats { background-color: #f5f5f5; padding: 20px; border-radius: 5px; }
+            .note { background-color: #fff3cd; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #ffc107; }
+            table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+            th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+            th { background-color: #2c5282; color: white; }
+            tr:nth-child(even) { background-color: #f2f2f2; }
+            .plot { text-align: center; margin: 30px 0; }
+        </style>
+    </head>
+    <body>
+        <h1>Maximum Daily Butterfly Count Timing Relative to Sunset</h1>
+
+        <div class="note">
+            <strong>Dataset Note:</strong> This analysis uses the filtered sunset window dataset from the GAM analysis,
+            excluding observations with metrics_complete < 0.95. Sunset is defined as the last non-night observation
+            of each day.
+        </div>
+
+        <div class="stats">
+            <h2>Summary Statistics</h2>
+            <p><strong>Total Days Analyzed:</strong> 92 (after filtering)</p>
+            <p><strong>Mean Time Before Sunset:</strong> 5.78 hours</p>
+            <p><strong>Median Time Before Sunset:</strong> 6.50 hours</p>
+            <p><strong>Standard Deviation:</strong> 3.93 hours</p>
+            <p><strong>Range:</strong> 0.00 - 17.33 hours before sunset</p>
+            <p><strong>Interquartile Range:</strong> Q1=1.88, Q3=9.00 hours</p>
+        </div>
+
+        <div class="plot">
+            <img src="max_count_timing_until_sunset_histogram.png" alt="Histogram" style="max-width: 100%; height: auto;">
+        </div>
+
+        <h2>Distribution by Hour Bins</h2>
+        <table>
+            <tr>
+                <th>Hours Until Sunset</th>
+                <th>Number of Days</th>
+                <th>Percentage</th>
+                <th>Cumulative %</th>
+            </tr>
+    
+            <tr>
+                <td>0 - 1</td>
+                <td>7</td>
+                <td>7.6%</td>
+                <td>7.6%</td>
+            </tr>
+        
+            <tr>
+                <td>1 - 2</td>
+                <td>16</td>
+                <td>17.4%</td>
+                <td>25.0%</td>
+            </tr>
+        
+            <tr>
+                <td>2 - 3</td>
+                <td>9</td>
+                <td>9.8%</td>
+                <td>34.8%</td>
+            </tr>
+        
+            <tr>
+                <td>3 - 4</td>
+                <td>4</td>
+                <td>4.3%</td>
+                <td>39.1%</td>
+            </tr>
+        
+            <tr>
+                <td>4 - 5</td>
+                <td>2</td>
+                <td>2.2%</td>
+                <td>41.3%</td>
+            </tr>
+        
+            <tr>
+                <td>5 - 6</td>
+                <td>3</td>
+                <td>3.3%</td>
+                <td>44.6%</td>
+            </tr>
+        
+            <tr>
+                <td>6 - 7</td>
+                <td>7</td>
+                <td>7.6%</td>
+                <td>52.2%</td>
+            </tr>
+        
+            <tr>
+                <td>7 - 8</td>
+                <td>6</td>
+                <td>6.5%</td>
+                <td>58.7%</td>
+            </tr>
+        
+            <tr>
+                <td>8 - 9</td>
+                <td>10</td>
+                <td>10.9%</td>
+                <td>69.6%</td>
+            </tr>
+        
+            <tr>
+                <td>9 - 10</td>
+                <td>15</td>
+                <td>16.3%</td>
+                <td>85.9%</td>
+            </tr>
+        
+            <tr>
+                <td>10 - 11</td>
+                <td>11</td>
+                <td>12.0%</td>
+                <td>97.8%</td>
+            </tr>
+        
+            <tr>
+                <td>11 - 12</td>
+                <td>0</td>
+                <td>0.0%</td>
+                <td>97.8%</td>
+            </tr>
+        
+            <tr>
+                <td>12 - 13</td>
+                <td>0</td>
+                <td>0.0%</td>
+                <td>97.8%</td>
+            </tr>
+        
+            <tr>
+                <td>13 - 14</td>
+                <td>0</td>
+                <td>0.0%</td>
+                <td>97.8%</td>
+            </tr>
+        
+            <tr>
+                <td>14 - 15</td>
+                <td>0</td>
+                <td>0.0%</td>
+                <td>97.8%</td>
+            </tr>
+        
+            <tr>
+                <td>15 - 16</td>
+                <td>0</td>
+                <td>0.0%</td>
+                <td>97.8%</td>
+            </tr>
+        
+            <tr>
+                <td>16 - 17</td>
+                <td>1</td>
+                <td>1.1%</td>
+                <td>98.9%</td>
+            </tr>
+        
+            <tr>
+                <td>17 - 18</td>
+                <td>1</td>
+                <td>1.1%</td>
+                <td>100.0%</td>
+            </tr>
+        
+        </table>
+
+        <h2>Peak Timing Patterns</h2>
+        <table>
+            <tr>
+                <th>Statistic</th>
+                <th>Hours Before Sunset</th>
+                <th>Time of Day (assuming 5:30 PM sunset)</th>
+            </tr>
+    
+            <tr>
+                <td>Closest to Sunset</td>
+                <td>0.00</td>
+                <td>~17:30</td>
+            </tr>
+        
+            <tr>
+                <td>25th Percentile</td>
+                <td>1.88</td>
+                <td>~15:37</td>
+            </tr>
+        
+            <tr>
+                <td>Median</td>
+                <td>6.50</td>
+                <td>~11:00</td>
+            </tr>
+        
+            <tr>
+                <td>Mean</td>
+                <td>5.78</td>
+                <td>~11:43</td>
+            </tr>
+        
+            <tr>
+                <td>75th Percentile</td>
+                <td>9.00</td>
+                <td>~08:30</td>
+            </tr>
+        
+            <tr>
+                <td>Furthest from Sunset</td>
+                <td>17.33</td>
+                <td>~00:10</td>
+            </tr>
+        
+        </table>
+
+        <h2>Top 10 Peaks Closest to Sunset</h2>
+        <table>
+            <tr>
+                <th>Rank</th>
+                <th>Deployment</th>
+                <th>Date</th>
+                <th>Hours Before Sunset</th>
+                <th>Max Count</th>
+            </tr>
+    
+            <tr>
+                <td>1</td>
+                <td>SC4</td>
+                <td>2023-12-11</td>
+                <td>0.00</td>
+                <td>37</td>
+            </tr>
+        
+            <tr>
+                <td>2</td>
+                <td>SC6</td>
+                <td>2023-12-25</td>
+                <td>0.00</td>
+                <td>84</td>
+            </tr>
+        
+            <tr>
+                <td>3</td>
+                <td>SC6</td>
+                <td>2024-01-01</td>
+                <td>0.00</td>
+                <td>165</td>
+            </tr>
+        
+            <tr>
+                <td>4</td>
+                <td>SC10</td>
+                <td>2024-01-09</td>
+                <td>0.50</td>
+                <td>148</td>
+            </tr>
+        
+            <tr>
+                <td>5</td>
+                <td>SC4</td>
+                <td>2023-12-16</td>
+                <td>0.50</td>
+                <td>150</td>
+            </tr>
+        
+            <tr>
+                <td>6</td>
+                <td>SC4</td>
+                <td>2023-12-24</td>
+                <td>0.50</td>
+                <td>322</td>
+            </tr>
+        
+            <tr>
+                <td>7</td>
+                <td>SC12</td>
+                <td>2024-01-29</td>
+                <td>0.83</td>
+                <td>159</td>
+            </tr>
+        
+            <tr>
+                <td>8</td>
+                <td>SC10</td>
+                <td>2024-01-17</td>
+                <td>1.00</td>
+                <td>5</td>
+            </tr>
+        
+            <tr>
+                <td>9</td>
+                <td>SC10</td>
+                <td>2024-01-23</td>
+                <td>1.00</td>
+                <td>357</td>
+            </tr>
+        
+            <tr>
+                <td>10</td>
+                <td>SC10</td>
+                <td>2024-01-24</td>
+                <td>1.00</td>
+                <td>309</td>
+            </tr>
+        
+        </table>
+
+        <h2>Top 10 Peaks Furthest from Sunset (Early Morning)</h2>
+        <table>
+            <tr>
+                <th>Rank</th>
+                <th>Deployment</th>
+                <th>Date</th>
+                <th>Hours Before Sunset</th>
+                <th>Max Count</th>
+            </tr>
+    
+            <tr>
+                <td>1</td>
+                <td>SC1</td>
+                <td>2023-11-20</td>
+                <td>17.33</td>
+                <td>5</td>
+            </tr>
+        
+            <tr>
+                <td>2</td>
+                <td>SC1</td>
+                <td>2023-11-19</td>
+                <td>16.33</td>
+                <td>21</td>
+            </tr>
+        
+            <tr>
+                <td>3</td>
+                <td>SC8</td>
+                <td>2024-01-07</td>
+                <td>10.50</td>
+                <td>243</td>
+            </tr>
+        
+            <tr>
+                <td>4</td>
+                <td>SC8</td>
+                <td>2024-01-17</td>
+                <td>10.50</td>
+                <td>293</td>
+            </tr>
+        
+            <tr>
+                <td>5</td>
+                <td>SC8</td>
+                <td>2024-01-11</td>
+                <td>10.50</td>
+                <td>245</td>
+            </tr>
+        
+            <tr>
+                <td>6</td>
+                <td>SC4</td>
+                <td>2023-12-27</td>
+                <td>10.00</td>
+                <td>118</td>
+            </tr>
+        
+            <tr>
+                <td>7</td>
+                <td>SC8</td>
+                <td>2024-01-13</td>
+                <td>10.00</td>
+                <td>227</td>
+            </tr>
+        
+            <tr>
+                <td>8</td>
+                <td>SC10</td>
+                <td>2024-01-16</td>
+                <td>10.00</td>
+                <td>79</td>
+            </tr>
+        
+            <tr>
+                <td>9</td>
+                <td>SC4</td>
+                <td>2023-12-05</td>
+                <td>10.00</td>
+                <td>193</td>
+            </tr>
+        
+            <tr>
+                <td>10</td>
+                <td>SC4</td>
+                <td>2023-12-14</td>
+                <td>10.00</td>
+                <td>5</td>
+            </tr>
+        
+        </table>
+
+        <h3>Interpretation Notes</h3>
+        <ul>
+            <li>Lower values indicate peaks occurring closer to sunset (late afternoon)</li>
+            <li>Higher values indicate peaks occurring earlier in the day (morning/midday)</li>
+            <li>A value of 0 would mean the maximum count occurred at sunset</li>
+            <li>Most peaks occur several hours before sunset, suggesting midday activity</li>
+        </ul>
+
+        <p style="margin-top: 30px; font-size: 0.9em; color: #666;">
+            Analysis generated on 2025-10-03 16:58:27
+        </p>
+    </body>
+    </html>
+    
