@@ -1,0 +1,364 @@
+
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Maximum Butterfly Count Timing Analysis (Filtered Dataset)</title>
+        <style>
+            body { font-family: Arial, sans-serif; margin: 40px; }
+            h1 { color: #333; }
+            .stats { background-color: #f5f5f5; padding: 20px; border-radius: 5px; }
+            .note { background-color: #fff3cd; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #ffc107; }
+            table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+            th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+            th { background-color: #4CAF50; color: white; }
+            tr:nth-child(even) { background-color: #f2f2f2; }
+            .plot { text-align: center; margin: 30px 0; }
+        </style>
+    </head>
+    <body>
+        <h1>Maximum Daily Butterfly Count Timing Relative to Sunrise</h1>
+
+        <div class="note">
+            <strong>Dataset Note:</strong> This analysis uses the filtered sunset window dataset from the GAM analysis,
+            excluding observations with metrics_complete < 0.95. This ensures consistency with the main analysis
+            and removes observations with incomplete weather data.
+        </div>
+
+        <div class="stats">
+            <h2>Summary Statistics</h2>
+            <p><strong>Total Days Analyzed:</strong> 92 (after filtering)</p>
+            <p><strong>Mean Time After Sunrise:</strong> 4.59 hours</p>
+            <p><strong>Median Time After Sunrise:</strong> 3.58 hours</p>
+            <p><strong>Standard Deviation:</strong> 3.63 hours</p>
+            <p><strong>Range:</strong> 0.00 - 10.17 hours</p>
+            <p><strong>Interquartile Range:</strong> Q1=1.12, Q3=8.12 hours</p>
+        </div>
+
+        <div class="plot">
+            <img src="max_count_timing_histogram_filtered.png" alt="Histogram" style="max-width: 100%; height: auto;">
+        </div>
+
+        <h2>Distribution by Hour Bins</h2>
+        <table>
+            <tr>
+                <th>Hours Since Sunrise</th>
+                <th>Number of Days</th>
+                <th>Percentage</th>
+                <th>Cumulative %</th>
+            </tr>
+    
+            <tr>
+                <td>0 - 1</td>
+                <td>20</td>
+                <td>21.7%</td>
+                <td>21.7%</td>
+            </tr>
+        
+            <tr>
+                <td>1 - 2</td>
+                <td>12</td>
+                <td>13.0%</td>
+                <td>34.8%</td>
+            </tr>
+        
+            <tr>
+                <td>2 - 3</td>
+                <td>7</td>
+                <td>7.6%</td>
+                <td>42.4%</td>
+            </tr>
+        
+            <tr>
+                <td>3 - 4</td>
+                <td>8</td>
+                <td>8.7%</td>
+                <td>51.1%</td>
+            </tr>
+        
+            <tr>
+                <td>4 - 5</td>
+                <td>4</td>
+                <td>4.3%</td>
+                <td>55.4%</td>
+            </tr>
+        
+            <tr>
+                <td>5 - 6</td>
+                <td>1</td>
+                <td>1.1%</td>
+                <td>56.5%</td>
+            </tr>
+        
+            <tr>
+                <td>6 - 7</td>
+                <td>7</td>
+                <td>7.6%</td>
+                <td>64.1%</td>
+            </tr>
+        
+            <tr>
+                <td>7 - 8</td>
+                <td>3</td>
+                <td>3.3%</td>
+                <td>67.4%</td>
+            </tr>
+        
+            <tr>
+                <td>8 - 9</td>
+                <td>13</td>
+                <td>14.1%</td>
+                <td>81.5%</td>
+            </tr>
+        
+            <tr>
+                <td>9 - 10</td>
+                <td>14</td>
+                <td>15.2%</td>
+                <td>96.7%</td>
+            </tr>
+        
+            <tr>
+                <td>10 - 11</td>
+                <td>3</td>
+                <td>3.3%</td>
+                <td>100.0%</td>
+            </tr>
+        
+        </table>
+
+        <h2>Peak Timing Patterns</h2>
+        <table>
+            <tr>
+                <th>Statistic</th>
+                <th>Hours After Sunrise</th>
+                <th>Time of Day (assuming 6:30 AM sunrise)</th>
+            </tr>
+    
+            <tr>
+                <td>Earliest Peak</td>
+                <td>0.00</td>
+                <td>~06:30</td>
+            </tr>
+        
+            <tr>
+                <td>25th Percentile</td>
+                <td>1.12</td>
+                <td>~07:37</td>
+            </tr>
+        
+            <tr>
+                <td>Median</td>
+                <td>3.58</td>
+                <td>~10:04</td>
+            </tr>
+        
+            <tr>
+                <td>Mean</td>
+                <td>4.59</td>
+                <td>~11:05</td>
+            </tr>
+        
+            <tr>
+                <td>75th Percentile</td>
+                <td>8.12</td>
+                <td>~14:37</td>
+            </tr>
+        
+            <tr>
+                <td>Latest Peak</td>
+                <td>10.17</td>
+                <td>~16:39</td>
+            </tr>
+        
+        </table>
+
+        <h2>Top 10 Earliest Peak Times</h2>
+        <table>
+            <tr>
+                <th>Rank</th>
+                <th>Deployment</th>
+                <th>Date</th>
+                <th>Hours After Sunrise</th>
+                <th>Max Count</th>
+            </tr>
+    
+            <tr>
+                <td>1</td>
+                <td>SC4</td>
+                <td>2023-12-05</td>
+                <td>0.00</td>
+                <td>193</td>
+            </tr>
+        
+            <tr>
+                <td>2</td>
+                <td>SC4</td>
+                <td>2023-12-14</td>
+                <td>0.00</td>
+                <td>5</td>
+            </tr>
+        
+            <tr>
+                <td>3</td>
+                <td>SC4</td>
+                <td>2023-12-25</td>
+                <td>0.00</td>
+                <td>234</td>
+            </tr>
+        
+            <tr>
+                <td>4</td>
+                <td>SC4</td>
+                <td>2023-12-26</td>
+                <td>0.00</td>
+                <td>166</td>
+            </tr>
+        
+            <tr>
+                <td>5</td>
+                <td>SC4</td>
+                <td>2023-12-27</td>
+                <td>0.00</td>
+                <td>118</td>
+            </tr>
+        
+            <tr>
+                <td>6</td>
+                <td>SC4</td>
+                <td>2023-12-29</td>
+                <td>0.00</td>
+                <td>1</td>
+            </tr>
+        
+            <tr>
+                <td>7</td>
+                <td>SC4</td>
+                <td>2024-01-02</td>
+                <td>0.00</td>
+                <td>6</td>
+            </tr>
+        
+            <tr>
+                <td>8</td>
+                <td>SC4</td>
+                <td>2024-01-05</td>
+                <td>0.00</td>
+                <td>127</td>
+            </tr>
+        
+            <tr>
+                <td>9</td>
+                <td>SC6</td>
+                <td>2024-01-02</td>
+                <td>0.00</td>
+                <td>144</td>
+            </tr>
+        
+            <tr>
+                <td>10</td>
+                <td>SC8</td>
+                <td>2024-01-07</td>
+                <td>0.00</td>
+                <td>243</td>
+            </tr>
+        
+        </table>
+
+        <h2>Top 10 Latest Peak Times</h2>
+        <table>
+            <tr>
+                <th>Rank</th>
+                <th>Deployment</th>
+                <th>Date</th>
+                <th>Hours After Sunrise</th>
+                <th>Max Count</th>
+            </tr>
+    
+            <tr>
+                <td>1</td>
+                <td>SC12</td>
+                <td>2024-01-29</td>
+                <td>10.17</td>
+                <td>159</td>
+            </tr>
+        
+            <tr>
+                <td>2</td>
+                <td>SC4</td>
+                <td>2023-12-11</td>
+                <td>10.00</td>
+                <td>37</td>
+            </tr>
+        
+            <tr>
+                <td>3</td>
+                <td>SC6</td>
+                <td>2024-01-01</td>
+                <td>10.00</td>
+                <td>165</td>
+            </tr>
+        
+            <tr>
+                <td>4</td>
+                <td>SC10</td>
+                <td>2024-01-09</td>
+                <td>9.50</td>
+                <td>148</td>
+            </tr>
+        
+            <tr>
+                <td>5</td>
+                <td>SC10</td>
+                <td>2024-01-17</td>
+                <td>9.50</td>
+                <td>5</td>
+            </tr>
+        
+            <tr>
+                <td>6</td>
+                <td>SC10</td>
+                <td>2024-01-23</td>
+                <td>9.50</td>
+                <td>357</td>
+            </tr>
+        
+            <tr>
+                <td>7</td>
+                <td>SC10</td>
+                <td>2024-01-24</td>
+                <td>9.50</td>
+                <td>309</td>
+            </tr>
+        
+            <tr>
+                <td>8</td>
+                <td>SC4</td>
+                <td>2023-12-07</td>
+                <td>9.50</td>
+                <td>184</td>
+            </tr>
+        
+            <tr>
+                <td>9</td>
+                <td>SC4</td>
+                <td>2023-12-16</td>
+                <td>9.50</td>
+                <td>150</td>
+            </tr>
+        
+            <tr>
+                <td>10</td>
+                <td>SC4</td>
+                <td>2023-12-24</td>
+                <td>9.50</td>
+                <td>322</td>
+            </tr>
+        
+        </table>
+
+        <p style="margin-top: 30px; font-size: 0.9em; color: #666;">
+            Analysis generated on 2025-10-03 16:42:15
+        </p>
+    </body>
+    </html>
+    
