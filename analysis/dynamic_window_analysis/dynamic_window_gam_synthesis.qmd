@@ -323,8 +323,6 @@ kable(
 
 **Model M31**: `wind_max_gust × sum_butterflies_direct_sun` (smooth interaction only)
 
-This simple interaction-only model outperformed all additive and complex models, suggesting the relationship between weather and butterfly roost abandonment is primarily driven by the **synergistic effect of wind gusts and sun exposure**.
-
 ### Model Summary
 
 ```
@@ -374,92 +372,75 @@ The ACF and PACF plots show residual autocorrelation structure after accounting 
 
 ### Model Comparison
 
-The table below shows the top 30 models ranked by AICc for the 24-hour window analysis:
+The table below shows the top 5 models ranked by AICc for the 24-hour window analysis:
 
 ```{r hr24-model-table}
 hr24_models <- read_csv(here("analysis/dynamic_window_analysis/model_comparison_24hr.csv"),
     show_col_types = FALSE
 )
 
-# Show top 30 models
+# Show top 5 models
 kable(
     hr24_models %>%
         select(
             model, description, AICc, delta_AICc, weight_AICc, df,
             obs_per_param, overfitting_risk
         ) %>%
-        head(30) %>%
+        head(5) %>%
         mutate(
             AICc = round(AICc, 2),
             delta_AICc = round(delta_AICc, 2),
             weight_AICc = round(weight_AICc, 4),
             obs_per_param = round(obs_per_param, 2)
         ),
-    caption = "Top 30 Models: 24-Hour Window Analysis (ranked by AICc)"
+    caption = "Top 5 Models: 24-Hour Window Analysis (ranked by AICc)"
 )
-```
-
-**Best model: M31** - `wind_max_gust × sum_butterflies_direct_sun` (smooth interaction)
-
-- AICc = 636.33
-- ΔAICc = 0 (best model)
-- AICc weight = 0.507 (50.7% probability of being best model)
-- df = 9, obs/param = 10.4 (Low overfitting risk)
-
-### Cross-Validation Results
-
-```{r hr24-cv-summary}
-cat("Cross-validation RMSE for top 5 models:\n\n")
-cat("See 24hr_window_gam_analysis.html for detailed cross-validation results.\n")
-cat("The best model (M31) showed stable out-of-sample performance consistent\n")
-cat("with the sunset window analysis results.\n")
 ```
 
 ### Best Model Summary
 
 **Model M31**: `wind_max_gust × sum_butterflies_direct_sun` (smooth interaction only)
 
-Remarkably, the **identical model structure** emerged as best for the 24-hour window, providing convergent evidence that the wind × sun interaction is the primary driver of roost abandonment across different window definitions.
+### Model Summary
 
-**Model equation:**
-```r
-# Fixed effects formula
-butterfly_diff_sqrt ~ max_butterflies_t_1 + lag_duration_hours +
-                      ti(wind_max_gust, sum_butterflies_direct_sun)
-
-# Random/correlation structure (in gamm() call)
-random = list(deployment_id = ~1)
-correlation = corAR1(form = ~ observation_order_t | deployment_id)
 ```
+Family: gaussian
+Link function: identity
+
+Formula:
+butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = 5) +
+    ti(wind_max_gust, sum_butterflies_direct_sun)
+
+Parametric coefficients:
+            Estimate Std. Error t value Pr(>|t|)
+(Intercept)   -1.099      1.101  -0.998    0.321
+
+Approximate significance of smooth terms:
+                                               edf Ref.df      F p-value
+s(max_butterflies_t_1)                       2.125  2.125 13.757   1e-05 ***
+ti(wind_max_gust,sum_butterflies_direct_sun) 3.537  3.537  3.594  0.0196 *
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+R-sq.(adj) =  0.232
+  Scale est. = 52.881    n = 94
+```
+
+**Note:** The 24-hour window has constant duration (24 hours for all observations), so `lag_duration_hours` is not included as a predictor.
 
 ### Partial Effects Plots
 
 ![24-Hour Window: Best Model Partial Effects](figures/24hr_partial_effects.png){width=100%}
 
-The interaction surface is qualitatively similar to the sunset window analysis, showing comparable patterns in how wind and sun combine to predict butterfly count changes.
-
 ### Model Diagnostics
 
 ![24-Hour Window: Residual Diagnostics](figures/24hr_residual_diagnostics.png){width=100%}
-
-**Diagnostic assessment:**
-
-- **Residuals vs. Fitted**: Reasonably homoscedastic with no strong patterns
-- **Q-Q Plot**: Residuals approximately normal
-- **Scale-Location**: Variance appears stable across fitted values
-- **Residuals vs. Leverage**: No problematic outliers
 
 ### Autocorrelation Diagnostics
 
 ![24-Hour Window: ACF/PACF Plots](figures/24hr_acf_diagnostics.png){width=100%}
 
-ACF and PACF plots for the 24-hour window model residuals.
-
-### GAM-Specific Diagnostics
-
-![24-Hour Window: GAM Check Plots](figures/24hr_gam_diagnostics.png){width=100%}
-
-Standard GAM diagnostics showing adequate basis dimensions and reasonable residual behavior.
+The ACF and PACF plots show residual autocorrelation structure after accounting for AR(1) correlation structure in the model.
 
 ---
 
