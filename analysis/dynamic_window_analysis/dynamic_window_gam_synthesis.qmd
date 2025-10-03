@@ -34,7 +34,7 @@ Francis's key points:
 
 ### Two-Window Comparison Approach
 
-To address this feedback while exploring biological relevance, we conducted two parallel analyses:
+To address this feedback while exploring biological relevance, I conducted two parallel analyses:
 
 **Sunset Window Analysis** (variable-length windows):
 
@@ -72,7 +72,7 @@ hr24_data <- read_csv(here("data", "monarch_daily_lag_analysis_24hr_window.csv")
 )
 ```
 
-We evaluated three butterfly difference metrics (max, 95th percentile, and top 3 mean) with three transformations each (untransformed, square root, and square) to determine which best approximates normality for GAM modeling.
+I evaluated three butterfly difference metrics (max, 95th percentile, and top 3 mean) with three transformations each (untransformed, square root, and square) to determine which best approximates normality for GAM modeling.
 
 ### Normality Testing Results
 
@@ -220,7 +220,7 @@ These patterns guided predictor selection to avoid multicollinearity issues.
 
 ### Selected Predictors Correlation Matrix
 
-Based on correlation structure, biological relevance, and variance inflation considerations, we selected **5 final predictors** representing distinct aspects of weather exposure:
+Based on correlation structure, biological relevance, and variance inflation considerations, I selected **5 final predictors** representing distinct aspects of weather exposure:
 
 ![Correlation Matrix: Selected 5 Predictors](figures/sunset_correlation_selected.png){width=100%}
 
@@ -244,7 +244,7 @@ Both analyses employed an identical systematic model-building approach to ensure
 
 ### Model Space Exploration
 
-We fit **76 models** spanning a hierarchy of complexity:
+I fit **76 models** spanning a hierarchy of complexity:
 
 1. **Null models** (2): Intercept only, with smooth vs. linear baseline
 2. **Single predictor models** (10): Each of 5 predictors, smooth vs. linear
@@ -454,19 +454,6 @@ This convergence provides strong evidence that the wind × sun interaction is ro
 
 ![Comparison of Wind × Sun Interaction Across Window Types](figures/window_comparison_interaction.png){width=100%}
 
-**Key convergent findings:**
-
-1. **Same predictor combination**: Wind gusts and sun exposure, with no main effects
-2. **Same functional form**: Smooth tensor product interaction (non-linear)
-3. **Simple model structure**: Interaction-only model beats all additive and complex alternatives
-4. **Low overfitting risk**: Both models have reasonable df/n ratios and obs/param values
-5. **Robust across windows**: Result holds for biologically-defined (sunset) and standardized (24hr) windows
-
-**Implications:**
-
-- The relationship between weather and roost abandonment is primarily **context-dependent**: neither wind nor sun alone predict abandonment, but their combination does
-- The effect is **nonlinear**: simple additive models cannot capture the interaction
-- The signal is **robust**: it emerges consistently despite differences in sample size (n=103 vs n=94) and window definition
 
 ---
 
