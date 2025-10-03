@@ -3067,9 +3067,9 @@ Basis dimension (k) checking results. Low p-value (k-index<1) may
 indicate that k is too low, especially if edf is close to k'.
 
                                                 k'   edf k-index p-value
-s(max_butterflies_t_1)                        4.00  2.18    1.04    0.62
+s(max_butterflies_t_1)                        4.00  2.18    1.04    0.58
 s(lag_duration_hours)                         4.00  1.00    1.04    0.61
-ti(wind_max_gust,sum_butterflies_direct_sun) 16.00  6.70    0.92    0.16
+ti(wind_max_gust,sum_butterflies_direct_sun) 16.00  6.70    0.92    0.15
 ```
 
 

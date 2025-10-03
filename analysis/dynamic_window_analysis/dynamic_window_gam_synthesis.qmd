@@ -254,57 +254,39 @@ We fit **76 models** spanning a hierarchy of complexity:
 6. **Complex models** (8): All temperatures, all temps + wind, etc.
 7. **Full models** (2): All predictors + all interactions, smooth vs. linear
 
-This systematic exploration tests:
-
-- **Individual predictor effects**: Which variables matter in isolation?
-- **Interaction effects**: Do predictors combine synergistically?
-- **Functional form**: Linear vs. smooth (spline) relationships?
-- **Model complexity**: What level of complexity is justified by data?
-
 ### GAM Structure
 
-All models used the same core structure:
+All models were fitted using `gamm()` (Generalized Additive Mixed Model) with the same core structure:
 
-```
-butterfly_diff_sqrt ~ predictors + s(deployment_id, bs="re")
-  + correlation = corAR1(form = ~1|deployment_id)
+```r
+gamm(
+  butterfly_diff_sqrt ~ [baseline controls] + [weather predictors],
+  data = model_data,
+  random = list(deployment_id = ~1),
+  correlation = corAR1(form = ~ observation_order_t | deployment_id),
+  method = "REML"
+)
 ```
 
 **Key components:**
 
 - **Response**: `butterfly_diff_sqrt` (square root transformed change in maximum count)
-- **Random effects**: `s(deployment_id, bs="re")` accounts for repeated measures within deployments
-- **Autocorrelation**: `corAR1()` models temporal autocorrelation within deployments
-- **Functional form**: Smooth terms `s()` for nonlinear relationships vs. linear terms
+- **Baseline controls**: `max_butterflies_t_1` (both analyses) + `lag_duration_hours` (for sunset analysis only)
+- **Random effects**: `random = list(deployment_id = ~1)` accounts for repeated measures
+- **Temporal autocorrelation**: AR(1) structure within deployments
+- **Weather predictors**: Smooth `s()` or tensor interaction `ti()` terms
 - **Family**: Gaussian with identity link (justified by normality of transformed response)
 
-### Overfitting Controls
+### Overfitting Controls & Model Selection
 
-To prevent overfitting with small sample sizes (n=94-103), we implemented:
+Earlier analyses selected full models despite df/n ≈ 0.5. To prevent overfitting with small sample sizes (n=94-103):
 
-1. **AICc (corrected AIC)**: Primary model selection criterion, penalizes parameters more heavily than AIC
-2. **Degrees of freedom ratio**: Tracked df/n ratio (flagged if >0.25)
-3. **Observations per parameter**: Monitored n/df (flagged if <5)
-4. **Cross-validation**: LOOCV to assess out-of-sample prediction error
-5. **Overfitting risk classification**: Models flagged as Low/Moderate/High risk based on df ratios
+- **Primary criterion**: AICc (corrected AIC for small samples)
+- **Overfitting flags**: df/n > 0.3 (High risk), df/n > 0.2 (Moderate risk)
+- **Cross-validation**: Leave-one-deployment-out CV on top 10 models
+- **Alternative criteria**: BIC, AIC weights, ΔAICc
 
-Models with df/n > 0.4 or obs/param < 3 were flagged as **High overfitting risk**.
-
-### Model Comparison Approach
-
-Models were compared using:
-
-1. **AICc ranking**: Lower AICc indicates better balance of fit and complexity
-2. **ΔAICc**: Difference from best model (ΔAICc > 10 indicates substantially worse fit)
-3. **AICc weights**: Relative likelihood of each model being the best
-4. **Cross-validation RMSE**: Out-of-sample prediction error
-5. **BIC**: Alternative information criterion (more conservative penalty)
-
-**Selection criteria:**
-
-- Best model: Lowest AICc
-- Competitive models: ΔAICc < 2
-- Considerably worse: ΔAICc > 10
+**Selection**: Best model = lowest AICc; competitive models ΔAICc < 2
 
 ---
 
@@ -312,47 +294,29 @@ Models were compared using:
 
 ### Model Comparison
 
-The table below shows the top 30 models ranked by AICc for the sunset window analysis:
+The table below shows the top 5 models ranked by AICc for the sunset window analysis:
 
 ```{r sunset-model-table}
 sunset_models <- read_csv(here("analysis/dynamic_window_analysis/model_comparison_comprehensive.csv"),
     show_col_types = FALSE
 )
 
-# Show top 30 models
+# Show top 5 models
 kable(
     sunset_models %>%
         select(
             model, description, AICc, delta_AICc, weight_AICc, df,
             obs_per_param, overfitting_risk
         ) %>%
-        head(30) %>%
+        head(5) %>%
         mutate(
             AICc = round(AICc, 2),
             delta_AICc = round(delta_AICc, 2),
             weight_AICc = round(weight_AICc, 4),
             obs_per_param = round(obs_per_param, 2)
         ),
-    caption = "Top 30 Models: Sunset Window Analysis (ranked by AICc)"
+    caption = "Top 5 Models: Sunset Window Analysis (ranked by AICc)"
 )
-```
-
-**Best model: M31** - `wind_max_gust × sum_butterflies_direct_sun` (smooth interaction)
-
-- AICc = 640.22
-- ΔAICc = 0 (best model)
-- AICc weight = 0.799 (79.9% probability of being best model)
-- df = 11, obs/param = 8.7 (Low overfitting risk)
-
-### Cross-Validation Results
-
-```{r sunset-cv-summary}
-# This would ideally load CV results from the analysis
-# For now, create placeholder text pointing to full analysis
-cat("Cross-validation RMSE for top 5 models:\n\n")
-cat("See sunset_window_gam_analysis.html for detailed cross-validation results.\n")
-cat("The best model (M31) showed stable out-of-sample performance with RMSE\n")
-cat("competitive with or better than more complex models, supporting its selection.\n")
 ```
 
 ### Best Model Summary
@@ -361,48 +325,48 @@ cat("competitive with or better than more complex models, supporting its selecti
 
 This simple interaction-only model outperformed all additive and complex models, suggesting the relationship between weather and butterfly roost abandonment is primarily driven by the **synergistic effect of wind gusts and sun exposure**.
 
-**Model equation:**
+### Model Summary
+
 ```
-butterfly_diff_sqrt ~ te(wind_max_gust, sum_butterflies_direct_sun)
-                     + s(deployment_id, bs="re")
+Family: gaussian
+Link function: identity
+
+Formula:
+butterfly_diff_sqrt ~ max_butterflies_t_1 + lag_duration_hours +
+    ti(wind_max_gust, sum_butterflies_direct_sun)
+
+Parametric coefficients:
+                     Estimate Std. Error t value Pr(>|t|)
+(Intercept)          9.426342   5.516001   1.709   0.0911 .
+max_butterflies_t_1 -0.029745   0.005963  -4.988 3.12e-06 ***
+lag_duration_hours  -0.190296   0.178387  -1.067   0.2891
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+Approximate significance of smooth terms:
+                                               edf Ref.df     F  p-value
+ti(wind_max_gust,sum_butterflies_direct_sun) 6.679  6.679 4.097 0.000832 ***
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+R-sq.(adj) =  0.397
+  Scale est. = 41.056    n = 96
 ```
 
-**Interpretation:**
-
-The wind × sun interaction suggests that the effect of wind on roost abandonment **depends on sun exposure**, or vice versa. This could reflect:
-
-- Butterflies more vulnerable to wind when actively foraging in sun
-- Combined thermal and mechanical stress under high sun + high wind
-- Behavioral responses differing based on environmental context
 
 ### Partial Effects Plots
 
 ![Sunset Window: Best Model Partial Effects](figures/sunset_partial_effects.png){width=100%}
 
-The interaction surface shows the predicted change in butterfly counts as a function of both wind gusts and sun exposure.
-
 ### Model Diagnostics
 
 ![Sunset Window: Residual Diagnostics](figures/sunset_residual_diagnostics.png){width=100%}
-
-**Diagnostic assessment:**
-
-- **Residuals vs. Fitted**: No strong patterns, suggesting adequate model fit
-- **Q-Q Plot**: Residuals approximately normal with some deviation in tails
-- **Scale-Location**: Homoscedasticity appears reasonable
-- **Residuals vs. Leverage**: No high-leverage outliers driving results
 
 ### Autocorrelation Diagnostics
 
 ![Sunset Window: ACF/PACF Plots](figures/sunset_acf_diagnostics.png){width=100%}
 
 The ACF and PACF plots show residual autocorrelation structure after accounting for AR(1) correlation structure in the model.
-
-### GAM-Specific Diagnostics
-
-![Sunset Window: GAM Check Plots](figures/sunset_gam_diagnostics.png){width=100%}
-
-Standard `gam.check()` diagnostics showing basis dimension adequacy and residual distribution.
 
 ---
 
@@ -458,9 +422,14 @@ cat("with the sunset window analysis results.\n")
 Remarkably, the **identical model structure** emerged as best for the 24-hour window, providing convergent evidence that the wind × sun interaction is the primary driver of roost abandonment across different window definitions.
 
 **Model equation:**
-```
-butterfly_diff_sqrt ~ te(wind_max_gust, sum_butterflies_direct_sun)
-                     + s(deployment_id, bs="re")
+```r
+# Fixed effects formula
+butterfly_diff_sqrt ~ max_butterflies_t_1 + lag_duration_hours +
+                      ti(wind_max_gust, sum_butterflies_direct_sun)
+
+# Random/correlation structure (in gamm() call)
+random = list(deployment_id = ~1)
+correlation = corAR1(form = ~ observation_order_t | deployment_id)
 ```
 
 ### Partial Effects Plots
