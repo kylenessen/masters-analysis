@@ -18,7 +18,7 @@ execute:
   echo: false
 ---
 
-### Background
+## Background
 
 This document synthesizes results from two parallel GAM analyses investigating the relationship between weather conditions and monarch butterfly roost abandonment. Both analyses address feedback from Francis regarding temporal alignment of weather predictors with butterfly responses.
 
@@ -130,34 +130,42 @@ This represents the **square root transformation** of the change in maximum butt
 
 ## Candidate Predictor Variables
 
-A total of **20 candidate weather predictors** were calculated within each observation's dynamic window. These fall into four categories:
+A total of **19 candidate predictors** (3 baseline butterfly metrics + 16 weather/window metrics) were calculated within each observation's dynamic window:
 
 ```{r candidate-table}
-# Create empty table template for user to fill in
+# Create table of actual candidate predictors from the analysis
 candidate_vars <- tibble(
     Variable = c(
+        # Baseline butterfly metrics
+        "max_butterflies_t_1",
+        "butterflies_95th_percentile_t_1",
+        "butterflies_top3_mean_t_1",
+        # Temperature metrics (24/7, includes overnight)
         "temp_min",
         "temp_max",
         "temp_mean",
-        "temp_range",
         "temp_at_max_count_t_1",
-        "wind_min",
-        "wind_max",
-        "wind_mean",
+        "hours_above_15C",
+        "degree_hours_above_15C",
+        # Wind metrics (24/7, includes overnight)
+        "wind_avg_sustained",
         "wind_max_gust",
-        "wind_gust_mode",
+        "wind_gust_sum",
+        "wind_gust_sum_above_2ms",
+        "wind_gust_hours",
+        "wind_minutes_above_2ms",
+        "wind_gust_sd",
+        "wind_mode_gust",
+        # Sun exposure (daylight only)
         "sum_butterflies_direct_sun",
-        "sum_butterflies_in_sun",
-        "sum_butterflies_partial_sun",
-        "proportion_butterflies_direct_sun",
-        "proportion_butterflies_in_sun",
-        "proportion_butterflies_partial_sun",
-        "lag_duration_hours",
-        "window_start_hour",
-        "window_end_hour",
-        "metrics_complete"
+        # Window characteristics
+        "lag_duration_hours"
     ),
     Category = c(
+        "Baseline",
+        "Baseline",
+        "Baseline",
+        "Temperature",
         "Temperature",
         "Temperature",
         "Temperature",
@@ -168,76 +176,45 @@ candidate_vars <- tibble(
         "Wind",
         "Wind",
         "Wind",
+        "Wind",
+        "Wind",
+        "Wind",
         "Sun Exposure",
-        "Sun Exposure",
-        "Sun Exposure",
-        "Sun Exposure",
-        "Sun Exposure",
-        "Sun Exposure",
-        "Window Characteristics",
-        "Window Characteristics",
-        "Window Characteristics",
-        "Window Characteristics"
+        "Window"
     ),
     Description = c(
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        ""
+        "Maximum butterfly count on previous day",
+        "95th percentile count on previous day",
+        "Mean of top 3 counts on previous day",
+        "Minimum temperature in lag window",
+        "Maximum temperature in lag window",
+        "Mean temperature in lag window",
+        "Temperature at time of maximum count on t-1",
+        "Cumulative Hours ≥15°C in lag window",
+        "Cumulative degree-hours above 15°C",
+        "Mean sustained wind speed in lag window",
+        "Maximum wind gust in lag window",
+        "Sum of all gust measurements in lag window",
+        "Sum of gusts >2 m/s (threshold-based wind exposure)",
+        "Gust-hours (integral approximation of wind exposure over time)",
+        "Minutes with wind speed ≥2 m/s",
+        "Standard deviation of gust speeds",
+        "Most frequent gust speed (modal wind conditions)",
+        "Sum of butterflies observed in direct sunlight across entire lag window",
+        "Duration of lag window in hours. Used only for sunset analysis as a control variable."
     )
 )
 
 kable(candidate_vars,
-    caption = "Candidate Predictor Variables (user to fill in descriptions)"
+    caption = "Candidate Predictor Variables: All 19 weather and baseline metrics calculated for dynamic windows"
 )
 ```
 
-**Note:** Fill in the Description column with rationale for each variable category.
-
-### Wind Gust Mode: An Excluded Variable
-
-`wind_gust_mode` was initially considered as a candidate predictor due to its **low correlation with other wind metrics** (r < 0.3 with wind_max_gust). This suggested it might capture unique aspects of wind variability not represented by mean, max, or max gust.
-
-However, `wind_gust_mode` had to be **excluded from model fitting** due to having only **5 unique values** across all observations. This extreme discretization caused:
-
-- Model convergence failures
-- Inability to estimate smooth terms
-- Numerical instability in GAM fitting
-
-While conceptually interesting, the variable's limited granularity made it unsuitable for inclusion in the statistical models.
-
----
-
-## Correlation Analysis
-
 ### Full Correlation Matrix (All Candidates)
 
-The full 20×20 correlation matrix reveals substantial multicollinearity among candidate predictors, particularly within variable categories:
+The full correlation matrix reveals substantial multicollinearity among candidate predictors, particularly within variable categories:
 
-![Full Correlation Matrix: All 20 Candidate Predictors](figures/sunset_correlation_full.png){width=100%}
-
-**Key observations:**
-
-- **Temperature metrics**: Strong intercorrelation (r > 0.8) among temp_min, temp_max, temp_mean
-- **Wind metrics**: Moderate to strong correlation (r = 0.5-0.9) among wind measures
-- **Sun exposure**: Very high correlation (r > 0.95) between proportion and sum metrics
-- **Window characteristics**: Lag duration correlates with completeness metrics
+![Full Correlation Matrix: All Candidate Predictors](figures/sunset_correlation_full.png){width=100%}
 
 These patterns guided predictor selection to avoid multicollinearity issues.
 
@@ -249,13 +226,15 @@ Based on correlation structure, biological relevance, and variance inflation con
 
 **Final predictor set:**
 
-1. **`temp_min`** - Minimum temperature (captures cold stress)
-2. **`temp_max`** - Maximum temperature (captures heat stress)
-3. **`temp_at_max_count_t_1`** - Temperature at time of peak count (initial conditions)
-4. **`wind_max_gust`** - Maximum wind gust (captures wind extremes)
-5. **`sum_butterflies_direct_sun`** - Total minutes butterflies exposed to direct sun (sun exposure)
+1. **`temp_min`** - Minimum temperature
+2. **`temp_max`** - Maximum temperature
+3. **`temp_at_max_count_t_1`** - Temperature at time of peak count
+4. **`wind_max_gust`** - Maximum wind gust, matching 30 minute analysis
+5. **`sum_butterflies_direct_sun`** - Total minutes butterflies exposed to direct sun
 
-These predictors show **moderate correlation** (r < 0.7) and represent distinct weather dimensions, minimizing multicollinearity while capturing biological hypotheses.
+#### Wind Gust Mode: An Excluded Variable
+
+`wind_gust_mode` was initially considered as a candidate predictor due to its **low correlation with other wind metrics** (r < 0.3 with wind_max_gust). However, `wind_gust_mode` had to be **excluded from model fitting** due to having only **5 unique values** across all observations. This extreme discretization caused model convergence issues.
 
 ---
 
