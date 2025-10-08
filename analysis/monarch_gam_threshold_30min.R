@@ -198,21 +198,22 @@ readable_terms <- function(formula_str) {
   # split on + and remove whitespace
   terms <- trimws(strsplit(rhs, "+", fixed = TRUE)[[1]])
   terms <- terms[terms != ""]
-  vapply(terms, function(t) {
+  term_list <- vapply(terms, function(t) {
     if (startsWith(t, "s(") && endsWith(t, ")")) {
       inner <- substr(t, 3, nchar(t) - 1)
-      paste0("\\textbullet\\ ", humanize(inner))
+      humanize(inner)
     } else if (startsWith(t, "ti(") && endsWith(t, ")")) {
       inner <- substr(t, 4, nchar(t) - 1)
       parts <- trimws(strsplit(inner, ",", fixed = TRUE)[[1]])
-      paste0("\\textbullet\\ Interaction (tensor): ", paste(humanize(parts), collapse = ", "))
+      paste0("Interaction (tensor): ", paste(humanize(parts), collapse = ", "))
     } else if (grepl("*", t, fixed = TRUE)) {
       parts <- trimws(strsplit(t, "*", fixed = TRUE)[[1]])
-      paste0("\\textbullet\\ Interaction: ", paste(humanize(parts), collapse = " x "))
+      paste0("Interaction: ", paste(humanize(parts), collapse = " x "))
     } else {
-      paste0("\\textbullet\\ ", humanize(t), " (linear)")
+      paste0(humanize(t), " (linear)")
     }
-  }, character(1)) %>% paste(collapse = "\\\\ ")
+  }, character(1))
+  paste(term_list, collapse = ", ")
 }
 
 # ----------------------------------------------------------------------------

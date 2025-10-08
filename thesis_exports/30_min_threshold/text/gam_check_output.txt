@@ -4,31 +4,10 @@ Checks based on working residuals may be misleading.
 Basis dimension (k) checking results. Low p-value (k-index<1) may
 indicate that k is too low, especially if edf is close to k'.
 
-                                                            k'
-s(total_butterflies_t_lag)                                9.00
-s(temperature_avg)                                        9.00
-s(time_within_day_t)                                      9.00
-ti(minutes_above_threshold,butterflies_direct_sun_t_lag) 16.00
-                                                           edf
-s(total_butterflies_t_lag)                                2.64
-s(temperature_avg)                                        3.73
-s(time_within_day_t)                                      4.97
-ti(minutes_above_threshold,butterflies_direct_sun_t_lag)  6.22
-                                                         k-index
-s(total_butterflies_t_lag)                                  1.01
-s(temperature_avg)                                          1.02
-s(time_within_day_t)                                        0.95
-ti(minutes_above_threshold,butterflies_direct_sun_t_lag)    0.97
-                                                         p-value
-s(total_butterflies_t_lag)                                 0.815
-s(temperature_avg)                                         0.900
-s(time_within_day_t)                                       0.025
-ti(minutes_above_threshold,butterflies_direct_sun_t_lag)   0.170
-                                                          
-s(total_butterflies_t_lag)                                
-s(temperature_avg)                                        
-s(time_within_day_t)                                     *
-ti(minutes_above_threshold,butterflies_direct_sun_t_lag)  
+                                                            k'   edf k-index p-value  
+s(total_butterflies_t_lag)                                9.00  2.64    1.01    0.75  
+s(temperature_avg)                                        9.00  3.73    1.02    0.85  
+s(time_within_day_t)                                      9.00  4.97    0.95    0.06 .
+ti(minutes_above_threshold,butterflies_direct_sun_t_lag) 16.00  6.22    0.97    0.16  
 ---
-Signif. codes:  
-0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
