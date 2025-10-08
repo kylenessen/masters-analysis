@@ -747,10 +747,23 @@ fit_model_safe(
     ),
     "linear", paste0("M", model_num), "FULL MODEL: All terms + all interactions (linear)"
 )
-model_num <- model_num + 1
-
-# ============================================================================
-# SUMMARY
+ model_num <- model_num + 1
+ 
+ # ----------------------------------------------------------------------------
+ # EXTRA: Linear interaction candidates for parity with 30-min analysis
+ # ----------------------------------------------------------------------------
+ cat("\n=== FITTING EXTRA LINEAR INTERACTION CANDIDATES ===\n")
+ fit_model_safe(
+   "butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline) + wind_max_gust + sum_butterflies_direct_sun + wind_max_gust:sum_butterflies_direct_sun",
+   "linear", "M77", "Linear interaction: wind_max_gust × sum_butterflies_direct_sun (with baseline)"
+ )
+ fit_model_safe(
+   "butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline) + temp_min + temp_max + wind_max_gust + sum_butterflies_direct_sun + wind_max_gust:sum_butterflies_direct_sun",
+   "linear", "M78", "Linear interaction + temp_min + temp_max (with baseline)"
+ )
+ 
+ # ============================================================================
+ # SUMMARY
 # ============================================================================
 cat("\n", "=", rep("=", 70), "\n", sep = "")
 cat("TOTAL MODELS SUCCESSFULLY FITTED:", length(models), "\n")

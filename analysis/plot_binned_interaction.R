@@ -39,7 +39,11 @@ create_binned_interaction_plot <- function(
     legend_key_height_cm = 0.6,
     # Distance-based mask for excluding far-away grid points
     # Default mirrors mgcv::vis.gam (0.1)
-    too_far = 0.1) {
+    too_far = 0.1,
+    # Jitter controls for raw points overlay
+    jitter_x = 0.15,
+    jitter_y = 5,
+    jitter_seed = NULL) {
   sel <- sprintf("ti(%s,%s)", x_var, y_var)
 
   # Build scale with optional limits
@@ -73,12 +77,24 @@ create_binned_interaction_plot <- function(
     too_far = too_far
   )
 
-  # Compose final plot, overlay raw data points
+  # Prepare jittered points without crossing the zero line on y
+  data_pts <- data
+  if (!is.null(jitter_seed)) set.seed(jitter_seed)
+  if (!is.null(jitter_x) && jitter_x > 0) {
+    data_pts[[x_var]] <- base::jitter(data[[x_var]], amount = jitter_x)
+  }
+  if (!is.null(jitter_y) && jitter_y > 0) {
+    yj <- base::jitter(data[[y_var]], amount = jitter_y)
+    # Prevent crossing below the zero line on y
+    data_pts[[y_var]] <- pmax(0, yj)
+  }
+
+  # Compose final plot, overlay jittered data points
   p <- p_base[[1]] +
     geom_point(
-      data = data,
+      data = data_pts,
       aes(x = .data[[x_var]], y = .data[[y_var]]),
-      color = "black", size = 0.8, alpha = 0.25, inherit.aes = FALSE
+      color = "black", size = 0.5, alpha = 0.2, inherit.aes = FALSE
     ) +
     labs(
       title = title,

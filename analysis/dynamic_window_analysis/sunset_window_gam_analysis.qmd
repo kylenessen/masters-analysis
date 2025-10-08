@@ -753,6 +753,19 @@ fit_model_safe(
 )
 model_num <- model_num + 1
 
+# ----------------------------------------------------------------------------
+# EXTRA: Linear interaction candidates for parity with 30-min analysis
+# ----------------------------------------------------------------------------
+cat("\n=== FITTING EXTRA LINEAR INTERACTION CANDIDATES ===\n")
+fit_model_safe(
+  "butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline) + s(lag_duration_hours, k = k_lag) + wind_max_gust + sum_butterflies_direct_sun + wind_max_gust:sum_butterflies_direct_sun",
+  "linear", "M77", "Linear interaction: wind_max_gust × sum_butterflies_direct_sun (with baseline + lag duration)"
+)
+fit_model_safe(
+  "butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline) + s(lag_duration_hours, k = k_lag) + temp_min + temp_max + wind_max_gust + sum_butterflies_direct_sun + wind_max_gust:sum_butterflies_direct_sun",
+  "linear", "M78", "Linear interaction + temp_min + temp_max (with baseline + lag duration)"
+)
+
 # ============================================================================
 # SUMMARY
 # ============================================================================

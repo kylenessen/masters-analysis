@@ -363,7 +363,15 @@ model_specs <- list(
     "M45" = "butterfly_difference_cbrt ~ s(max_gust) + s(temperature_avg) + s(butterflies_direct_sun_t_lag)",
     "M46" = "butterfly_difference_cbrt ~ temperature_avg + s(butterflies_direct_sun_t_lag) + s(time_within_day_t)",
     "M47" = "butterfly_difference_cbrt ~ s(temperature_avg) + s(butterflies_direct_sun_t_lag) + s(time_within_day_t)",
-    "M48" = "butterfly_difference_cbrt ~ s(max_gust) + s(temperature_avg) + s(butterflies_direct_sun_t_lag) + s(time_within_day_t)"
+    "M48" = "butterfly_difference_cbrt ~ s(max_gust) + s(temperature_avg) + s(butterflies_direct_sun_t_lag) + s(time_within_day_t)",
+
+    # NEW: Tensor-product interaction candidates (wind × sun) for parity with daily analysis
+    # With lag term and diurnal controls
+    "M49" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + ti(max_gust, butterflies_direct_sun_t_lag)",
+    "M50" = "butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + s(temperature_avg) + s(time_within_day_t) + ti(max_gust, butterflies_direct_sun_t_lag)",
+    # Without lag term (absolute change)
+    "M51" = "butterfly_difference_cbrt ~ ti(max_gust, butterflies_direct_sun_t_lag)",
+    "M52" = "butterfly_difference_cbrt ~ s(temperature_avg) + s(time_within_day_t) + ti(max_gust, butterflies_direct_sun_t_lag)"
 )
 
 cat("Total models to fit:", length(model_specs), "\n")
@@ -960,6 +968,83 @@ pub_theme <- theme_classic(base_size = 12) +
     )
 
 cat("Export directories created successfully\n")
+```
+
+### Wind × Sun Interaction (Binned, High-Res)
+
+```{r export-binned-interaction}
+# Source helper for consistent binned interaction plots
+source(here("analysis", "plot_binned_interaction.R"))
+
+# Ensure export directories exist when running this chunk standalone
+if (!exists("fig_dir")) {
+  export_dir <- here("thesis_exports")
+  fig_dir <- file.path(export_dir, "figures")
+  if (!dir.exists(export_dir)) dir.create(export_dir, recursive = TRUE)
+  if (!dir.exists(fig_dir)) dir.create(fig_dir, recursive = TRUE)
+}
+if (!exists("thesis_results_fig_dir")) {
+  thesis_results_fig_dir <- here("..", "masters-thesis", "figures", "results")
+}
+if (!dir.exists(thesis_results_fig_dir)) {
+  dir.create(thesis_results_fig_dir, recursive = TRUE)
+}
+
+# Check if the best model includes the wind × sun tensor product
+has_wind_sun_ti <- tryCatch({
+  any(grepl(
+    "ti\\(max_gust,butterflies_direct_sun_t_lag\\)",
+    rownames(summary(best_model$gam)$s.table)
+  ))
+}, error = function(e) FALSE)
+
+if (isTRUE(has_wind_sun_ti)) {
+  # Create the binned, high-resolution interaction surface plot
+  p_inter_binned <- create_binned_interaction_plot(
+    gam_model = best_model$gam,
+    x_var = "max_gust",
+    y_var = "butterflies_direct_sun_t_lag",
+    data = model_data,
+    title = "Wind × Sun Interaction",
+    subtitle = paste0(
+      "Binned visualization | Best model ", best_model_name,
+      " | AIC = ", sprintf("%.1f", AIC(best_model$lme))
+    ),
+    xlab = "Maximum wind speed (m/s)",
+    ylab = "Butterflies in direct sun",
+    n = 400,
+    # More categories with fine resolution near zero
+    limits = c(-6, 6),
+    nbreaks = 17,
+    breaks = c(-6, -5, -4, -3, -2, -1, -0.5, 0, 0.5, 1, 2, 3, 4, 5, 6),
+    labels = c("-6", "-5", "-4", "-3", "-2", "-1", "-0.5", "0", "+0.5", "+1", "+2", "+3", "+4", "+5", "+6"),
+    barheight = 34,
+    barwidth = 1.0,
+    legend_text_size = 8,
+    legend_key_height_cm = 0.9,
+    too_far = 0.04
+  )
+
+  # Add threshold reference line at 2 m/s
+  p_inter_binned <- p_inter_binned +
+    geom_vline(xintercept = 2, color = "red", linetype = "dashed", size = 0.8, alpha = 0.8)
+
+  print(p_inter_binned)
+
+  # Save high-resolution copies
+  out_file <- file.path(fig_dir, "interaction_wind_x_sun_binned.png")
+  ggsave(out_file, p_inter_binned, width = 7, height = 6, dpi = 300, bg = "white")
+  cat("Binned interaction plot saved to:", out_file, "\n")
+
+  # Also save to thesis repo if path exists
+  if (exists("thesis_results_fig_dir") && dir.exists(thesis_results_fig_dir)) {
+    out_file_thesis <- file.path(thesis_results_fig_dir, "interaction_wind_x_sun_binned.png")
+    ggsave(out_file_thesis, p_inter_binned, width = 7, height = 6, dpi = 300, bg = "white")
+    cat("Also saved to:", out_file_thesis, "\n")
+  }
+} else {
+  cat("Best model does not include ti(max_gust, butterflies_direct_sun_t_lag); skipping interaction surface plot.\n")
+}
 ```
 
 ### Model Selection Table Export
