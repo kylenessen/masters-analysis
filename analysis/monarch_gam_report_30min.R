@@ -19,9 +19,9 @@ suppressPackageStartupMessages({
 # Paths
 # ----------------------------------------------------------------------------
 export_dir <- here("thesis_exports", "30_min")
-fig_dir   <- file.path(export_dir, "figures")
-tab_dir   <- file.path(export_dir, "tables")
-text_dir  <- file.path(export_dir, "text")
+fig_dir <- file.path(export_dir, "figures")
+tab_dir <- file.path(export_dir, "tables")
+text_dir <- file.path(export_dir, "text")
 for (d in c(export_dir, fig_dir, tab_dir, text_dir)) if (!dir.exists(d)) dir.create(d, recursive = TRUE)
 
 # ----------------------------------------------------------------------------
@@ -45,9 +45,9 @@ model_data <- dat %>%
     !is.na(Observer)
   )
 
-n_obs   <- nrow(model_data)
+n_obs <- nrow(model_data)
 n_periods <- dplyr::n_distinct(model_data$deployment_day)
-n_sites   <- if ("grove" %in% names(model_data)) dplyr::n_distinct(model_data$grove) else dplyr::n_distinct(model_data$deployment_id)
+n_sites <- if ("grove" %in% names(model_data)) dplyr::n_distinct(model_data$grove) else dplyr::n_distinct(model_data$deployment_id)
 
 # ----------------------------------------------------------------------------
 # Model set (48 candidates, M1-M48)
@@ -132,17 +132,22 @@ model_specs <- c(model_specs, list(
 ))
 
 fit_model <- function(formula_str, data) {
-  tryCatch({
-    gamm(as.formula(formula_str), data = data,
-         random = random_structure,
-         correlation = correlation_structure,
-         method = "REML")
-  }, error = function(e) NULL)
+  tryCatch(
+    {
+      gamm(as.formula(formula_str),
+        data = data,
+        random = random_structure,
+        correlation = correlation_structure,
+        method = "REML"
+      )
+    },
+    error = function(e) NULL
+  )
 }
 
 cat(sprintf("Fitting %d candidate models...\n", length(model_specs)))
 fits <- lapply(model_specs, fit_model, data = model_data)
-ok   <- !vapply(fits, is.null, logical(1))
+ok <- !vapply(fits, is.null, logical(1))
 fits <- fits[ok]
 specs_ok <- model_specs[names(fits)]
 have_lme <- vapply(fits, function(x) !is.null(x$lme), logical(1))
@@ -158,13 +163,21 @@ cat(sprintf("%d models fitted successfully.\n", length(fits)))
 # ----------------------------------------------------------------------------
 aic_tbl <- purrr::map_dfr(names(fits), function(nm) {
   m <- fits[[nm]]
-  if (is.null(m$lme)) return(NULL)
+  if (is.null(m$lme)) {
+    return(NULL)
+  }
   aic_val <- tryCatch(AIC(m$lme), error = function(e) NA_real_)
-  if (is.na(aic_val)) return(NULL)
+  if (is.na(aic_val)) {
+    return(NULL)
+  }
   loglik_val <- tryCatch(as.numeric(logLik(m$lme)), error = function(e) NA_real_)
-  if (is.na(loglik_val)) return(NULL)
+  if (is.na(loglik_val)) {
+    return(NULL)
+  }
   df_val <- tryCatch(attr(logLik(m$lme), "df"), error = function(e) NA_real_)
-  if (is.na(df_val)) return(NULL)
+  if (is.na(df_val)) {
+    return(NULL)
+  }
   tibble(
     Model = nm,
     Formula = specs_ok[[nm]],
@@ -172,22 +185,24 @@ aic_tbl <- purrr::map_dfr(names(fits), function(nm) {
     LogLik = loglik_val,
     df = df_val
   )
-}) %>% arrange(.data$AIC) %>% mutate(
-  Delta_AIC = .data$AIC - min(.data$AIC),
-  Weight = exp(-0.5 * .data$Delta_AIC) / sum(exp(-0.5 * .data$Delta_AIC))
-)
+}) %>%
+  arrange(.data$AIC) %>%
+  mutate(
+    Delta_AIC = .data$AIC - min(.data$AIC),
+    Weight = exp(-0.5 * .data$Delta_AIC) / sum(exp(-0.5 * .data$Delta_AIC))
+  )
 
 best_id <- aic_tbl$Model[1]
-best    <- fits[[best_id]]
+best <- fits[[best_id]]
 
 # Helper to get a nice, human-readable term list from a formula
 humanize <- function(x) {
   dplyr::case_when(
-    x == "total_butterflies_t_lag"     ~ "Previous butterfly count",
-    x == "max_gust"                    ~ "Maximum wind speed",
-    x == "temperature_avg"             ~ "Temperature",
-    x == "butterflies_direct_sun_t_lag"~ "Butterflies in direct sun",
-    x == "time_within_day_t"           ~ "Time since sunrise",
+    x == "total_butterflies_t_lag" ~ "Previous butterfly count",
+    x == "max_gust" ~ "Maximum wind speed",
+    x == "temperature_avg" ~ "Temperature",
+    x == "butterflies_direct_sun_t_lag" ~ "Butterflies in direct sun",
+    x == "time_within_day_t" ~ "Time since sunrise",
     TRUE ~ x
   )
 }
@@ -218,10 +233,12 @@ readable_terms <- function(formula_str) {
 # ----------------------------------------------------------------------------
 # Request 2: Top 5 table (LaTeX)
 # ----------------------------------------------------------------------------
-top5 <- aic_tbl %>% slice(1:5) %>% mutate(
-  Terms = purrr::map_chr(Formula, readable_terms),
-  AIC = round(AIC, 3), Delta_AIC = round(Delta_AIC, 3), Weight = round(Weight, 4)
-)
+top5 <- aic_tbl %>%
+  slice(1:5) %>%
+  mutate(
+    Terms = purrr::map_chr(Formula, readable_terms),
+    AIC = round(AIC, 3), Delta_AIC = round(Delta_AIC, 3), Weight = round(Weight, 4)
+  )
 
 # Extract p-value for wind if present (linear or smooth)
 get_wind_p <- function(gamm_fit) {
@@ -233,7 +250,11 @@ get_wind_p <- function(gamm_fit) {
   # smooth term
   sm <- st$s.table
   r <- grep("max_gust", rownames(sm))
-  if (length(r)) return(sm[r[1], "p-value"]) else return(NA_real_)
+  if (length(r)) {
+    return(sm[r[1], "p-value"])
+  } else {
+    return(NA_real_)
+  }
 }
 
 top5$Wind_p <- purrr::map_dbl(top5$Model, ~ get_wind_p(fits[[.x]]))
@@ -242,8 +263,10 @@ top5$Wind_p <- ifelse(is.na(top5$Wind_p), NA, signif(top5$Wind_p, 3))
 top5_out <- top5 %>%
   select(Model, Terms, AIC, Delta_AIC, Weight, Wind_p)
 
-top5_tex <- kable(top5_out, format = "latex", booktabs = TRUE, escape = FALSE,
-                  caption = "Top 5 models ranked by AIC (30-minute analysis)")
+top5_tex <- kable(top5_out,
+  format = "latex", booktabs = TRUE, escape = FALSE,
+  caption = "Top 5 models ranked by AIC (30-minute analysis)"
+)
 writeLines(top5_tex, file.path(tab_dir, "top5_models.tex"))
 readr::write_csv(top5_out, file.path(tab_dir, "top5_models.csv"))
 
@@ -283,7 +306,7 @@ plain_terms <- vapply(best_terms, label_smooth, character(1))
 term_sentence <- paste(plain_terms, collapse = ", ")
 
 best_weight <- aic_tbl$Weight[1]
-delta_next  <- round(next_best$Delta_AIC, 1)
+delta_next <- round(next_best$Delta_AIC, 1)
 
 wind_models_top <- top_models %>% filter(grepl("max_gust", Formula, fixed = TRUE))
 wind_in_top5 <- nrow(wind_models_top)
@@ -350,7 +373,7 @@ custom_theme <- theme_minimal(base_size = 12) + theme(
   panel.grid.minor = element_line(color = "gray95", linewidth = 0.3),
   axis.text = element_text(color = "black"),
   axis.title = element_text(color = "black", face = "bold"),
-  plot.title = element_blank()  # No titles
+  plot.title = element_blank() # No titles
 )
 lighten_color <- function(hex, amount = 0.12) {
   rgbv <- col2rgb(hex)
@@ -359,12 +382,12 @@ lighten_color <- function(hex, amount = 0.12) {
 }
 
 # Colors inspired by the example
-col_prev  <- "#9673c5"
-col_time  <- "#79a44c"
-col_temp  <- "#b86e7e"
-col_prev_l  <- lighten_color(col_prev)
-col_time_l  <- lighten_color(col_time)
-col_temp_l  <- lighten_color(col_temp)
+col_prev <- "#9673c5"
+col_time <- "#79a44c"
+col_temp <- "#b86e7e"
+col_prev_l <- lighten_color(col_prev)
+col_time_l <- lighten_color(col_time)
+col_temp_l <- lighten_color(col_temp)
 
 have_prev <- any(grepl("s\\(total_butterflies_t_lag\\)", rownames(sm)))
 have_time <- any(grepl("s\\(time_within_day_t\\)", rownames(sm)))
@@ -374,15 +397,15 @@ have_temp <- any(grepl("s\\(temperature_avg\\)", rownames(sm)))
 temp_plots <- list()
 if (have_prev) {
   p_prev <- draw(best$gam, select = "s(total_butterflies_t_lag)", rug = FALSE, residuals = FALSE)
-  temp_plots[[length(temp_plots)+1]] <- p_prev
+  temp_plots[[length(temp_plots) + 1]] <- p_prev
 }
 if (have_time) {
   p_time <- draw(best$gam, select = "s(time_within_day_t)", rug = FALSE, residuals = FALSE)
-  temp_plots[[length(temp_plots)+1]] <- p_time
+  temp_plots[[length(temp_plots) + 1]] <- p_time
 }
 if (have_temp) {
   p_temp <- draw(best$gam, select = "s(temperature_avg)", rug = FALSE, residuals = FALSE)
-  temp_plots[[length(temp_plots)+1]] <- p_temp
+  temp_plots[[length(temp_plots) + 1]] <- p_temp
 }
 
 # Calculate common y-axis limits
@@ -409,9 +432,9 @@ total_plots <- sum(have_prev, have_time, have_temp)
 if (have_prev) {
   plot_index <- plot_index + 1
   # Only the first plot gets the y-axis label
-  y_label <- if(plot_index == 1) "Partial effect" else ""
+  y_label <- if (plot_index == 1) "Partial effect" else ""
   # Only the last plot gets the caption
-  caption_text <- if(plot_index == total_plots) "Basis: TPRS" else NULL
+  caption_text <- if (plot_index == total_plots) "Basis: TPRS" else NULL
 
   p_prev <- draw(best$gam, select = "s(total_butterflies_t_lag)", rug = FALSE, residuals = FALSE) +
     labs(x = "Previous butterfly count", y = y_label, caption = caption_text) +
@@ -421,17 +444,17 @@ if (have_prev) {
   # Color the confidence bands and lines
   for (i in seq_along(p_prev$layers)) {
     if ("colour" %in% names(p_prev$layers[[i]]$aes_params)) p_prev$layers[[i]]$aes_params$colour <- col_prev
-    if ("fill"   %in% names(p_prev$layers[[i]]$aes_params)) p_prev$layers[[i]]$aes_params$fill   <- col_prev_l
+    if ("fill" %in% names(p_prev$layers[[i]]$aes_params)) p_prev$layers[[i]]$aes_params$fill <- col_prev_l
   }
-  plots[[length(plots)+1]] <- p_prev
+  plots[[length(plots) + 1]] <- p_prev
 }
 
 if (have_time) {
   plot_index <- plot_index + 1
   # Only the first plot gets the y-axis label
-  y_label <- if(plot_index == 1) "Partial effect" else ""
+  y_label <- if (plot_index == 1) "Partial effect" else ""
   # Only the last plot gets the caption
-  caption_text <- if(plot_index == total_plots) "Basis: TPRS" else NULL
+  caption_text <- if (plot_index == total_plots) "Basis: TPRS" else NULL
 
   p_time <- draw(best$gam, select = "s(time_within_day_t)", rug = FALSE, residuals = FALSE) +
     labs(x = "Time since sunrise (minutes)", y = y_label, caption = caption_text) +
@@ -440,17 +463,17 @@ if (have_time) {
 
   for (i in seq_along(p_time$layers)) {
     if ("colour" %in% names(p_time$layers[[i]]$aes_params)) p_time$layers[[i]]$aes_params$colour <- col_time
-    if ("fill"   %in% names(p_time$layers[[i]]$aes_params)) p_time$layers[[i]]$aes_params$fill   <- col_time_l
+    if ("fill" %in% names(p_time$layers[[i]]$aes_params)) p_time$layers[[i]]$aes_params$fill <- col_time_l
   }
-  plots[[length(plots)+1]] <- p_time
+  plots[[length(plots) + 1]] <- p_time
 }
 
 if (have_temp) {
   plot_index <- plot_index + 1
   # Only the first plot gets the y-axis label
-  y_label <- if(plot_index == 1) "Partial effect" else ""
+  y_label <- if (plot_index == 1) "Partial effect" else ""
   # Only the last plot gets the caption
-  caption_text <- if(plot_index == total_plots) "Basis: TPRS" else NULL
+  caption_text <- if (plot_index == total_plots) "Basis: TPRS" else NULL
 
   p_temp <- draw(best$gam, select = "s(temperature_avg)", rug = FALSE, residuals = FALSE) +
     labs(x = "Temperature (deg C)", y = y_label, caption = caption_text) +
@@ -459,26 +482,32 @@ if (have_temp) {
 
   for (i in seq_along(p_temp$layers)) {
     if ("colour" %in% names(p_temp$layers[[i]]$aes_params)) p_temp$layers[[i]]$aes_params$colour <- col_temp
-    if ("fill"   %in% names(p_temp$layers[[i]]$aes_params)) p_temp$layers[[i]]$aes_params$fill   <- col_temp_l
+    if ("fill" %in% names(p_temp$layers[[i]]$aes_params)) p_temp$layers[[i]]$aes_params$fill <- col_temp_l
   }
 
   # Add blue flight threshold band (12.7-16 deg C)
   fade_width <- 0.5
   p_temp <- p_temp +
-    annotate("rect", xmin = 12.7 + fade_width, xmax = 16 - fade_width,
-             ymin = -Inf, ymax = Inf, fill = "#ADD8E6", alpha = 0.35)
+    annotate("rect",
+      xmin = 12.7 + fade_width, xmax = 16 - fade_width,
+      ymin = -Inf, ymax = Inf, fill = "#ADD8E6", alpha = 0.35
+    )
   for (i in 1:5) {
     alpha_val <- 0.35 * (5 - i + 1) / 5
     fade_off <- fade_width * i / 5
     p_temp <- p_temp +
-      annotate("rect", xmin = 12.7 + fade_width - fade_off,
-               xmax = 12.7 + fade_width - fade_off + fade_width/5,
-               ymin = -Inf, ymax = Inf, fill = "#ADD8E6", alpha = alpha_val) +
-      annotate("rect", xmin = 16 - fade_width + fade_off - fade_width/5,
-               xmax = 16 - fade_width + fade_off,
-               ymin = -Inf, ymax = Inf, fill = "#ADD8E6", alpha = alpha_val)
+      annotate("rect",
+        xmin = 12.7 + fade_width - fade_off,
+        xmax = 12.7 + fade_width - fade_off + fade_width / 5,
+        ymin = -Inf, ymax = Inf, fill = "#ADD8E6", alpha = alpha_val
+      ) +
+      annotate("rect",
+        xmin = 16 - fade_width + fade_off - fade_width / 5,
+        xmax = 16 - fade_width + fade_off,
+        ymin = -Inf, ymax = Inf, fill = "#ADD8E6", alpha = alpha_val
+      )
   }
-  plots[[length(plots)+1]] <- p_temp
+  plots[[length(plots) + 1]] <- p_temp
 }
 
 if (length(plots) > 0) {
@@ -495,7 +524,6 @@ if (exists("create_binned_interaction_plot")) {
     x_var = "max_gust",
     y_var = "butterflies_direct_sun_t_lag",
     data = model_data,
-    title = "Wind x Sun Interaction",
     xlab = "Maximum wind speed (m/s)",
     ylab = "Butterflies in direct sun",
     n = 400,
@@ -546,17 +574,21 @@ if ("minutes_above_threshold" %in% names(model_data)) {
   fit_gust <- fit_model(paste("butterfly_difference_cbrt ~", rhs_gust), model_data)
   fit_mins <- fit_model(paste("butterfly_difference_cbrt ~", rhs_mins), model_data)
   if (!is.null(fit_gust) && !is.null(fit_mins) &&
-      !is.null(fit_gust$lme) && !is.null(fit_mins$lme)) {
+    !is.null(fit_gust$lme) && !is.null(fit_mins$lme)) {
     aic_gust <- tryCatch(AIC(fit_gust$lme), error = function(e) NA_real_)
     aic_mins <- tryCatch(AIC(fit_mins$lme), error = function(e) NA_real_)
     if (is.finite(aic_gust) && is.finite(aic_mins)) {
       sens <- tibble(
         Model = c("Best+max_gust", "Best+minutes_above_2ms"),
         AIC = c(aic_gust, aic_mins)
-      ) %>% arrange(AIC) %>% mutate(Delta_AIC = round(AIC - min(AIC), 3))
+      ) %>%
+        arrange(AIC) %>%
+        mutate(Delta_AIC = round(AIC - min(AIC), 3))
 
-      sens_tex <- kable(sens, format = "latex", booktabs = TRUE,
-                        caption = "Sensitivity: wind metric (max gust vs minutes > 2 m/s)")
+      sens_tex <- kable(sens,
+        format = "latex", booktabs = TRUE,
+        caption = "Sensitivity: wind metric (max gust vs minutes > 2 m/s)"
+      )
       writeLines(sens_tex, file.path(tab_dir, "sensitivity_wind_metric.tex"))
       readr::write_csv(sens, file.path(tab_dir, "sensitivity_wind_metric.csv"))
     }
