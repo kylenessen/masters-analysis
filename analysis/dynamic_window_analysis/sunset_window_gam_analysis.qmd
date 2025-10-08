@@ -524,7 +524,7 @@ cat("\n=== FITTING NULL MODELS ===\n")
 
 # Smooth baseline
 fit_model_safe(
-    "butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline) + s(lag_duration_hours, k = k_lag)",
+    "butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline, bs = \"ts\") + s(lag_duration_hours, k = k_lag, bs = \"ts\")",
     "smooth", "M1", "Null (smooth baseline)"
 )
 
@@ -543,7 +543,7 @@ model_num <- 3
 for (pred in weather_predictors) {
     # Smooth baseline
     fit_model_safe(
-        sprintf("butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline) + s(lag_duration_hours, k = k_lag) + s(%s)", pred),
+        sprintf("butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline, bs = \\\"ts\\\") + s(lag_duration_hours, k = k_lag, bs = \\\"ts\\\") + s(%s)", pred),
         "smooth", paste0("M", model_num), sprintf("Single: %s (smooth)", pred)
     )
     model_num <- model_num + 1
@@ -571,7 +571,7 @@ for (pair in interaction_pairs) {
 
     # Smooth baseline
     fit_model_safe(
-        sprintf("butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline) + s(lag_duration_hours, k = k_lag) + ti(%s, %s)", pred1, pred2),
+        sprintf("butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline, bs = \\\"ts\\\") + s(lag_duration_hours, k = k_lag, bs = \\\"ts\\\") + ti(%s, %s)", pred1, pred2),
         "smooth", paste0("M", model_num), sprintf("Interaction: %s × %s (smooth)", pred1, pred2)
     )
     model_num <- model_num + 1
@@ -597,7 +597,7 @@ for (pair in interaction_pairs) {
     # Smooth baseline
     fit_model_safe(
         sprintf(
-            "butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline) + s(lag_duration_hours, k = k_lag) + s(%s) + s(%s) + ti(%s, %s)",
+            "butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline, bs = \\\"ts\\\") + s(lag_duration_hours, k = k_lag, bs = \\\"ts\\\") + s(%s) + s(%s) + ti(%s, %s)",
             pred1, pred2, pred1, pred2
         ),
         "smooth", paste0("M", model_num), sprintf("Additive + Interaction: %s + %s + %s×%s (smooth)", pred1, pred2, pred1, pred2)
@@ -658,7 +658,7 @@ for (combo in additive_combos) {
     # Smooth baseline
     fit_model_safe(
         sprintf(
-            "butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline) + s(lag_duration_hours, k = k_lag) + %s",
+            "butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline, bs = \\\"ts\\\") + s(lag_duration_hours, k = k_lag, bs = \\\"ts\\\") + %s",
             preds_str
         ),
         "smooth", paste0("M", model_num), sprintf("Additive: %s (smooth)", combo$desc)
@@ -689,7 +689,7 @@ temp_interactions <- paste0(sapply(temp_pairs, function(p) sprintf("ti(%s, %s)",
 
 fit_model_safe(
     sprintf(
-        "butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline) + s(lag_duration_hours, k = k_lag) + %s + %s",
+        "butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline, bs = \"ts\") + s(lag_duration_hours, k = k_lag, bs = \"ts\") + %s + %s",
         temp_main, temp_interactions
     ),
     "smooth", paste0("M", model_num), "All temp + all temp interactions (smooth)"
@@ -711,7 +711,7 @@ all_main <- paste0("s(", weather_predictors, ")", collapse = " + ")
 
 fit_model_safe(
     sprintf(
-        "butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline) + s(lag_duration_hours, k = k_lag) + %s + %s",
+        "butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline, bs = \"ts\") + s(lag_duration_hours, k = k_lag, bs = \"ts\") + %s + %s",
         all_main, temp_wind_interactions
     ),
     "smooth", paste0("M", model_num), "All additive + all temp×wind interactions (smooth)"
@@ -737,7 +737,7 @@ all_interactions <- paste0(sapply(interaction_pairs, function(p) sprintf("ti(%s,
 
 fit_model_safe(
     sprintf(
-        "butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline) + s(lag_duration_hours, k = k_lag) + %s + %s",
+        "butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline, bs = \"ts\") + s(lag_duration_hours, k = k_lag, bs = \"ts\") + %s + %s",
         all_main, all_interactions
     ),
     "smooth", paste0("M", model_num), "FULL MODEL: All terms + all interactions (smooth)"
@@ -758,11 +758,11 @@ model_num <- model_num + 1
 # ----------------------------------------------------------------------------
 cat("\n=== FITTING EXTRA LINEAR INTERACTION CANDIDATES ===\n")
 fit_model_safe(
-  "butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline) + s(lag_duration_hours, k = k_lag) + wind_max_gust + sum_butterflies_direct_sun + wind_max_gust:sum_butterflies_direct_sun",
+  "butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline, bs = \"ts\") + s(lag_duration_hours, k = k_lag, bs = \"ts\") + wind_max_gust + sum_butterflies_direct_sun + wind_max_gust:sum_butterflies_direct_sun",
   "linear", "M77", "Linear interaction: wind_max_gust × sum_butterflies_direct_sun (with baseline + lag duration)"
 )
 fit_model_safe(
-  "butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline) + s(lag_duration_hours, k = k_lag) + temp_min + temp_max + wind_max_gust + sum_butterflies_direct_sun + wind_max_gust:sum_butterflies_direct_sun",
+  "butterfly_diff_sqrt ~ s(max_butterflies_t_1, k = k_baseline, bs = \"ts\") + s(lag_duration_hours, k = k_lag, bs = \"ts\") + temp_min + temp_max + wind_max_gust + sum_butterflies_direct_sun + wind_max_gust:sum_butterflies_direct_sun",
   "linear", "M78", "Linear interaction + temp_min + temp_max (with baseline + lag duration)"
 )
 
