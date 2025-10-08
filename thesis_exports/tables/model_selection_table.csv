@@ -1,20 +1,6 @@
 Model ID,Model Terms,AIC,ΔAIC,AIC Weight,df,Wind p-value
-M23,"• Previous butterfly count
-• Temperature
-• Butterflies in direct sun
-• Time since sunrise",8081.848,0,0.8803,14,NA
-M22,"• Previous butterfly count
-• Temperature (linear)
-• Butterflies in direct sun
-• Time since sunrise",8086.644,4.796,0.08,13,NA
-M24,"• Previous butterfly count
-• Maximum wind speed
-• Temperature
-• Butterflies in direct sun
-• Time since sunrise",8088.049,6.2,0.0397,16,0.218
-M47,"• Temperature
-• Butterflies in direct sun
-• Time since sunrise",8101.296,19.448,1e-4,12,NA
-M17,"• Previous butterfly count
-• Temperature
-• Butterflies in direct sun",8105.876,24.028,0,12,NA
+M50,"\textbullet\ Previous butterfly count\\ \textbullet\ Temperature\\ \textbullet\ Time since sunrise\\ \textbullet\ ti(Maximum wind speed, Butterflies in direct sun)",8078.029,0,0.8559,15,5.55e-05
+M23,\textbullet\ Previous butterfly count\\ \textbullet\ Temperature\\ \textbullet\ Butterflies in direct sun\\ \textbullet\ Time since sunrise,8081.848,3.82,0.1268,14,NA
+M22,\textbullet\ Previous butterfly count\\ \textbullet\ Temperature (linear)\\ \textbullet\ Butterflies in direct sun\\ \textbullet\ Time since sunrise,8086.644,8.615,0.0115,13,NA
+M24,\textbullet\ Previous butterfly count\\ \textbullet\ Maximum wind speed\\ \textbullet\ Temperature\\ \textbullet\ Butterflies in direct sun\\ \textbullet\ Time since sunrise,8088.049,10.02,0.0057,16,0.218
+M52,"\textbullet\ Temperature\\ \textbullet\ Time since sunrise\\ \textbullet\ ti(Maximum wind speed, Butterflies in direct sun)",8096.722,18.693,1e-4,13,1.13e-05

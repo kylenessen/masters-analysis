@@ -1,6 +1,6 @@
 # Monarch GAM Analysis - Thesis Exports
 
-Export completed on: 2025-09-06 20:46:05.501215
+Export completed on: 2025-10-07 20:49:23.373013
 
 ## Files Created:
 
@@ -21,9 +21,9 @@ Export completed on: 2025-09-06 20:46:05.501215
 - wind_hypothesis_scatter.png: Wind speed vs butterfly change scatter plot
 
 ## Key Results for Thesis:
-- Best model: M23
-- Best model AIC: 8081.848
-- Model R²: 0.0568
+- Best model: M50
+- Best model AIC: 8078.029
+- Model R<U+00B2>: 0.0636
 - Wind hypothesis: NOT SUPPORTED (wind not in best model)
 
 All files are publication-ready with 300 DPI resolution and clean formatting.

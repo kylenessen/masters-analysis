@@ -40,6 +40,8 @@ library(patchwork)  # For combining ggplot2 plots
 monarch_data <- read_csv(here("data", "monarch_analysis_lag30min.csv"))
 ```
 
+ 
+
 ## Exploratory Data Analysis
 
 The response variable is the difference in monarch counts between time t and t-1 at 30-minute intervals. I applied a cube root transformation to achieve a more normal distribution. Because the lagged comparisons create overlapping pairs of observations, I include an AR1 autocorrelation structure to account for temporal dependence.
@@ -453,6 +455,17 @@ cat("Formula:", aic_results$Formula[1], "\n\n")
 
 # Model summary
 summary(best_model$gam)
+
+# Record available smooth terms and whether expected smooths are present
+available_smooths <- rownames(summary(best_model$gam)$s.table)
+expected_smooths <- c(
+  "s(total_butterflies_t_lag)",
+  "s(temperature_avg)",
+  "s(butterflies_direct_sun_t_lag)",
+  "s(time_within_day_t)"
+)
+has_expected <- all(expected_smooths %in% available_smooths)
+cat("Has expected smooths:", has_expected, "\n")
 ```
 
 ## Effect Plots (ggplot2 with Consistent Scaling and Colors)
@@ -485,31 +498,42 @@ add_zero_line <- function(plot) {
 library(gratia)
 library(patchwork)
 
-# First, create all individual plots to extract their y-axis ranges
-temp_plots <- list(
-  draw(best_model$gam, select = "s(total_butterflies_t_lag)", rug = FALSE),
-  draw(best_model$gam, select = "s(temperature_avg)", rug = FALSE),
-  draw(best_model$gam, select = "s(butterflies_direct_sun_t_lag)", rug = FALSE),
-  draw(best_model$gam, select = "s(time_within_day_t)", rug = FALSE)
-)
+if (isTRUE(has_expected)) {
+  # First, create all individual plots to extract their y-axis ranges
+  temp_plots <- list(
+    draw(best_model$gam, select = "s(total_butterflies_t_lag)", rug = FALSE),
+    draw(best_model$gam, select = "s(temperature_avg)", rug = FALSE),
+    draw(best_model$gam, select = "s(butterflies_direct_sun_t_lag)", rug = FALSE),
+    draw(best_model$gam, select = "s(time_within_day_t)", rug = FALSE)
+  )
 
-# Extract y-axis ranges from the temporary plots
-y_ranges <- sapply(temp_plots, function(p) {
-  built_plot <- ggplot_build(p)
-  built_plot$layout$panel_scales_y[[1]]$range$range
-})
+  # Extract y-axis ranges from the temporary plots
+  y_ranges <- sapply(temp_plots, function(p) {
+    built_plot <- ggplot_build(p)
+    built_plot$layout$panel_scales_y[[1]]$range$range
+  })
 
-# Use calculated min and clipped max with increments of 1
-y_min <- floor(min(y_ranges))
-y_max <- 1.5  # Clip top to remove empty space
-y_limits <- c(y_min, y_max)
-y_breaks <- seq(y_min, y_max, by = 1)
+  # Use calculated min and clipped max with increments of 1
+  y_min <- floor(min(y_ranges))
+  y_max <- 1.5  # Clip top to remove empty space
+  y_limits <- c(y_min, y_max)
+  y_breaks <- seq(y_min, y_max, by = 1)
 
-cat("Calculated y-axis limits:", y_limits, "\n")
-cat("Y-axis breaks:", y_breaks, "\n")
+  cat("Calculated y-axis limits:", y_limits, "\n")
+  cat("Y-axis breaks:", y_breaks, "\n")
+} else {
+  # Fallback axis settings when expected smooths are not present
+  y_limits <- c(-2, 1.5)
+  y_breaks <- seq(-2, 1.5, by = 1)
+  cat("Calculated y-axis limits (default):", y_limits, "\n")
+}
 ```
 
 ```{r create-individual-plots}
+# Skip detailed effect plots if expected smooths are missing
+if (!isTRUE(has_expected)) {
+  cat("Skipping detailed effect plots: expected smooths not present in best model\n")
+} else {
 # Define custom colors for each variable (from your color palette)
 # Order: Butterflies in Direct Sun, Previous Butterfly Count, Time Since Sunrise, Temperature
 plot_colors <- c(
@@ -748,6 +772,7 @@ print(p1)
 print(p2)
 print(p3)
 print(p4)
+}
 ```
 
 ### 1x4 Grid Layout (Wide Aspect Ratio)
@@ -756,7 +781,7 @@ print(p4)
 #| fig-width: 16
 #| fig-height: 5
 # Check that all plots exist before combining
-if (exists("p1") && exists("p2") && exists("p3") && exists("p4")) {
+if (isTRUE(has_expected) && exists("p1") && exists("p2") && exists("p3") && exists("p4")) {
   # Create 1x4 combined plot with explicit layout
   combined_1x4 <- wrap_plots(p1, p2, p3, p4, nrow = 1, ncol = 4) +
     plot_annotation(
@@ -771,7 +796,7 @@ if (exists("p1") && exists("p2") && exists("p3") && exists("p4")) {
   )
   cat("1x4 display plot saved to:", file.path(export_dir, "figures", "partial_effects_1x4_display.png"), "\n")
 } else {
-  cat("Error: Not all individual plots were created successfully\n")
+  cat("Skipping combined 1x4 plot: effects unavailable\n")
 }
 ```
 
@@ -809,117 +834,7 @@ hist(residuals_df$residuals, main = "Distribution of Residuals", xlab = "Residua
 ```
 
 
-## Power Analysis for Wind Effect
-A common concern with non-significant results is whether the study had enough statistical power to detect an effect if one truly existed. A low R-squared value (like the 5.6% in our best model) is common in ecological studies with high natural variability and doesn't invalidate the model, but it does make power a relevant question.
-
-To address this, we can perform a simulation-based power analysis. This is a modern approach, especially for complex models like GAMs. The process is as follows:
-
-1.  **Simulate Data from the Null Hypothesis:** We take our best-fitting model (which does *not* include wind) and use it to generate hundreds of new, simulated datasets. These datasets have the same characteristics as our real data, but we know for a fact that there is no wind effect in them.
-2.  **Add a Known Wind Effect:** To each simulated dataset, we artificially add a wind effect of a specific size. We'll test several sizes, from small to medium, to see what our model is sensitive to.
-3.  **Re-run the Analysis:** We fit a GAM that *does* include a wind term to each of these new datasets.
-4.  **Calculate Power:** We calculate the percentage of these simulations in which we correctly detect the artificial wind effect as statistically significant (p < 0.05). This percentage is our statistical power.
-
-If we have high power to detect a small or medium-sized effect, it strengthens our conclusion that the true effect of wind is likely negligible or non-existent. If we only have power to detect a very large effect, our conclusions are weaker.
-
-```{r}
-#| label: power-analysis
-#| cache: true
-#| warning: false
-#| message: false
-
-cat("Starting power analysis for wind effect...\n")
-
-# Define effect sizes. These are defined in terms of the standard deviation of the response variable.
-# An effect size of 0.1 means we are testing if we can detect a scenario where a 1 standard deviation
-# increase in wind speed causes a 0.1 standard deviation change in the response.
-sd_response <- sd(model_data$butterfly_difference_cbrt, na.rm = TRUE)
-effect_sizes_to_test <- c(0.05, 0.1, 0.15, 0.2)
-
-# Simulation parameters
-n_sims <- 200 # For final results.
-alpha <- 0.05
-
-# Get predictions and residual SD from the best model (which does not include wind)
-# This will serve as the basis for our simulations.
-base_predictions <- predict(best_model$gam, newdata = model_data)
-residual_sd <- summary(best_model$gam)$scale
-
-# Store results
-power_results <- list()
-
-# Main simulation loop
-for (effect_size_coef in effect_sizes_to_test) {
-    
-    # This is the actual effect size we're adding to the model
-    current_effect_size <- effect_size_coef * sd_response
-    
-    cat("Testing effect size:", round(effect_size_coef, 2), " (SD units): ")
-    
-    p_values <- numeric(n_sims) # initialize vector
-
-    # Replicate the simulation `n_sims` times
-    for (i in 1:n_sims) {
-        if (i %% 10 == 0) cat(i, "/", n_sims, "... ")
-
-        # Simulate a new response variable based on the best model's predictions and residuals
-        simulated_response <- rnorm(nrow(model_data), mean = base_predictions, sd = residual_sd)
-
-        # Add the artificial wind effect. We scale max_gust so the effect size is standardized.
-        wind_effect <- current_effect_size * scale(model_data$max_gust)
-        response_with_effect <- simulated_response + as.vector(wind_effect)
-
-        # Create a temporary dataset for fitting
-        sim_data <- model_data
-        sim_data$sim_response <- response_with_effect
-
-        # Fit the GAM model that includes the wind term
-        # This uses the same GAM structure with smooth terms
-        power_model_formula <- as.formula(
-            "sim_response ~ s(total_butterflies_t_lag) + s(max_gust) + s(temperature_avg) + s(butterflies_direct_sun_t_lag) + s(time_within_day_t)"
-        )
-        
-        # Use tryCatch to handle potential model fitting errors in simulations
-        fit <- tryCatch({
-            gamm(
-                power_model_formula,
-                data = sim_data,
-                random = random_structure,
-                correlation = correlation_structure,
-                method = "REML"
-            )
-        }, error = function(e) NULL)
-
-        # Extract the p-value for the wind term if the model converged
-        if (!is.null(fit)) {
-            p_values[i] <- summary(fit$gam)$s.table["s(max_gust)", "p-value"]
-        } else {
-            p_values[i] <- NA # Return NA if model failed
-        }
-    }
-    cat("Done.\n")
-
-    # Calculate power: the proportion of simulations where the effect was detected (p < alpha)
-    # We remove any NA p-values from failed model fits
-    power <- mean(p_values < alpha, na.rm = TRUE)
-    power_results[[as.character(effect_size_coef)]] <- power
-}
-
-cat("Power analysis complete.\n")
-
-# Format and display the results
-power_df <- data.frame(
-    EffectSize_SD_units = as.numeric(names(power_results)),
-    Power = unlist(power_results)
-) %>%
-    mutate(
-        Power_Percent = paste0(round(Power * 100, 1), "%" )
-    )
-
-kable(power_df, 
-      caption = "Estimated power to detect a given effect size for the `max_gust` term. Effect size is measured in standard deviations of the response variable.",
-      col.names = c("Effect Size (in SD units)", "Power (Proportion)", "Power (%)"))
-
-```
+<!-- Power analysis moved to analysis/monarch_gam_power_analysis.R to keep renders fast -->
 
 ## Results Summary
 
@@ -942,12 +857,14 @@ export_dir <- here("thesis_exports")
 fig_dir <- file.path(export_dir, "figures")
 tab_dir <- file.path(export_dir, "tables")
 thesis_results_fig_dir <- here("..", "masters-thesis", "figures", "results")
+thesis_results_tab_dir <- here("..", "masters-thesis", "supplemental", "results", "thesis_exports", "tables")
 
 # Create directories if they don't exist
 if (!dir.exists(export_dir)) dir.create(export_dir, recursive = TRUE)
 if (!dir.exists(fig_dir)) dir.create(fig_dir, recursive = TRUE)
 if (!dir.exists(tab_dir)) dir.create(tab_dir, recursive = TRUE)
 if (!dir.exists(thesis_results_fig_dir)) dir.create(thesis_results_fig_dir, recursive = TRUE)
+if (!dir.exists(thesis_results_tab_dir)) dir.create(thesis_results_tab_dir, recursive = TRUE)
 
 # Load additional packages for publication-ready plots
 library(ggthemes)
@@ -1073,54 +990,61 @@ get_max_gust_pvalue <- function(model_name) {
 
 # Function to create readable model terms
 create_readable_terms <- function(formula_str) {
-    # Store original formula for checking linear vs smooth terms
-    original_formula <- formula_str
-
     # Remove response variable
-    formula_clean <- gsub("butterfly_difference_cbrt ~ ", "", formula_str)
+    formula_clean <- gsub("butterfly_difference_cbrt ~ ", "", formula_str, fixed = TRUE)
 
-    # Split into terms first before any substitutions
-    original_terms <- trimws(strsplit(formula_clean, "\+")[[1]])
+    # Split into terms on literal '+'
+    original_terms <- trimws(strsplit(formula_clean, "+", fixed = TRUE)[[1]])
     original_terms <- original_terms[original_terms != ""]
 
     # Process each term individually
-    formatted_terms <- sapply(original_terms, function(term) {
+    formatted_terms <- vapply(original_terms, function(term) {
         term <- trimws(term)
 
-        # Check if it's a smooth term
-        is_smooth <- grepl("^s\(", term)
+        # Detect smooths by prefix 's(' and tensor interactions 'ti('
+        is_smooth <- startsWith(term, "s(") || startsWith(term, "ti(") || startsWith(term, "te(")
 
-        if (is_smooth) {
-            # Extract variable name from s(variable_name)
-            var_name <- gsub("s\(([^)]+)\)", "\1", term)
-        } else {
-            # It's a linear term
-            var_name <- term
+        # Helper to humanize variable names
+        humanize <- function(x) {
+            dplyr::case_when(
+                x == "total_butterflies_t_lag" ~ "Previous butterfly count",
+                x == "max_gust" ~ "Maximum wind speed",
+                x == "temperature_avg" ~ "Temperature",
+                x == "butterflies_direct_sun_t_lag" ~ "Butterflies in direct sun",
+                x == "time_within_day_t" ~ "Time since sunrise",
+                TRUE ~ x
+            )
         }
+
+        if (startsWith(term, "s(") && endsWith(term, ")")) {
+            inner <- substring(term, 3, nchar(term) - 1)
+            readable_name <- humanize(inner)
+            return(paste0("\\textbullet\\ ", readable_name))
+        }
+        if ((startsWith(term, "ti(") || startsWith(term, "te(")) && endsWith(term, ")")) {
+            inner <- substring(term, 4, nchar(term) - 1)
+            parts <- trimws(strsplit(inner, ",", fixed = TRUE)[[1]])
+            parts_human <- vapply(parts, humanize, character(1))
+            inter_name <- paste0(substr(term, 1, 2), "(", paste(parts_human, collapse = ", "), ")")
+            return(paste0("\\textbullet\\ ", inter_name))
+        }
+
+        # Fallback: treat as linear term
+        var_name <- term
 
         # Replace with readable names
-        readable_name <- case_when(
-            var_name == "total_butterflies_t_lag" ~ "Previous butterfly count",
-            var_name == "max_gust" ~ "Maximum wind speed",
-            var_name == "temperature_avg" ~ "Temperature",
-            var_name == "butterflies_direct_sun_t_lag" ~ "Butterflies in direct sun",
-            var_name == "time_within_day_t" ~ "Time since sunrise",
-            TRUE ~ var_name
-        )
+        readable_name <- humanize(var_name)
 
         # Format with bullet and linear notation if needed
-        if (is_smooth) {
-            return(paste0("• ", readable_name))
-        } else {
-            return(paste0("• ", readable_name, " (linear)"))
-        }
-    })
+        paste0("\\textbullet\\ ", readable_name, " (linear)")
+    }, character(1))
 
     if (length(formatted_terms) == 0) {
         return("• intercept only")
     }
 
-    return(paste(formatted_terms, collapse = "\n"))
+    # Join with LaTeX line breaks and do not escape in kable
+    paste(formatted_terms, collapse = "\\\\ ")
 }
 
 # Create comprehensive model selection table (top 5 models)
@@ -1151,12 +1075,21 @@ write_csv(model_selection_table, file.path(tab_dir, "model_selection_table.csv")
 kable_output <- kable(model_selection_table,
     format = "latex",
     booktabs = TRUE,
+    escape = FALSE,
     caption = "Top 5 candidate models ranked by AIC for monarch butterfly abundance change analysis. All terms are smooth unless marked as (linear). Wind p-value shows significance of max_gust term when present in model."
 )
 
 writeLines(kable_output, file.path(tab_dir, "model_selection_table.tex"))
 
 cat("Model selection table exported to:", file.path(tab_dir, "model_selection_table.csv"), "\n")
+
+# Also copy to thesis repository tables directory
+try({
+  file.copy(file.path(tab_dir, "model_selection_table.csv"),
+            file.path(thesis_results_tab_dir, "model_selection_table.csv"), overwrite = TRUE)
+  file.copy(file.path(tab_dir, "model_selection_table.tex"),
+            file.path(thesis_results_tab_dir, "model_selection_table.tex"), overwrite = TRUE)
+})
 ```
 
 ### Smooth Terms Summary Table Export
@@ -1198,11 +1131,23 @@ smooth_kable <- kable(smooth_terms_df,
 writeLines(smooth_kable, file.path(tab_dir, "smooth_terms_summary.tex"))
 
 cat("Smooth terms summary exported to:", file.path(tab_dir, "smooth_terms_summary.csv"), "\n")
+
+# Also copy to thesis repository tables directory
+try({
+  file.copy(file.path(tab_dir, "smooth_terms_summary.csv"),
+            file.path(thesis_results_tab_dir, "smooth_terms_summary.csv"), overwrite = TRUE)
+  file.copy(file.path(tab_dir, "smooth_terms_summary.tex"),
+            file.path(thesis_results_tab_dir, "smooth_terms_summary.tex"), overwrite = TRUE)
+})
 ```
 
 ### Publication-Ready Partial Effect Plots (Updated)
 
 ```{r export-partial-effects-updated}
+# Skip if expected smooths are missing in best model
+if (!isTRUE(has_expected)) {
+  cat("Skipping partial effect plot exports: expected smooths not present in best model\n")
+} else {
 # Define publication theme with grid lines and darker zero line
 pub_theme_grid <- theme_classic(base_size = 12) +
     theme(
@@ -1529,6 +1474,23 @@ tryCatch({
   cat("Error creating 1x4 combined plot:", e$message, "\n")
 })
 
+# Mirror key figures to thesis repo figures directory
+try({
+  if (!dir.exists(thesis_results_fig_dir)) dir.create(thesis_results_fig_dir, recursive = TRUE)
+  fig_files <- c(
+    "effect_previous_butterfly_count_final.png",
+    "effect_temperature_final.png",
+    "effect_butterflies_direct_sun_final.png",
+    "diurnal_patterns_final.png",
+    "combined_partial_effects_2x2_final.png",
+    "combined_partial_effects_1x4_final.png"
+  )
+  for (f in fig_files) {
+    src <- file.path(fig_dir, f)
+    if (file.exists(src)) file.copy(src, file.path(thesis_results_fig_dir, f), overwrite = TRUE)
+  }
+})
+
 # Export standalone partial effect for maximum wind speed from model M24
 if ("M24" %in% names(successful_models)) {
   model_m24 <- successful_models[["M24"]]
@@ -1602,7 +1564,96 @@ cat("\nAll plots feature:\n")
 cat("- Custom hex color palette\n")
 cat("- 10% lighter confidence intervals\n")
 cat("- Darker zero reference line (gray50)\n")
-cat("- Clean 1x4 layout with single y-axis label\n")
+  cat("- Clean 1x4 layout with single y-axis label\n")
+}
+```
+
+### Publication-Ready Partial Effects (Smart 1x3 without Sun)
+
+```{r export-partial-effects-smart}
+# Build partial effects for the smooths present in best model (exclude direct sun)
+library(gratia)
+library(patchwork)
+
+# Identify smooth labels present
+available_smooths <- rownames(summary(best_model$gam)$s.table)
+lab_prev <- available_smooths[grepl("^s\\(total_butterflies_t_lag\\)", available_smooths)]
+lab_temp <- available_smooths[grepl("^s\\(temperature_avg\\)", available_smooths)]
+lab_time <- available_smooths[grepl("^s\\(time_within_day_t\\)", available_smooths)]
+
+# Colors
+col_prev <- "#9673c5"  # purple
+col_time <- "#79a44c"  # green
+col_temp <- "#b86e7e"  # mauve/pink
+lighten <- function(hex, amount = 0.1) {
+  rgb_vals <- col2rgb(hex)
+  lightened <- rgb_vals + (255 - rgb_vals) * amount
+  rgb(lightened[1]/255, lightened[2]/255, lightened[3]/255)
+}
+
+# Helper to recolor gratia::draw plot
+recolor <- function(p, col_line, col_fill) {
+  # Add the neutral zero line first
+  p$layers <- c(list(geom_hline(yintercept = 0, color = "gray70", size = 0.8)), p$layers)
+  for (i in seq_along(p$layers)) {
+    if (!is.null(p$layers[[i]]$geom) && inherits(p$layers[[i]]$geom, "GeomHline")) next
+    if ("colour" %in% names(p$layers[[i]]$aes_params)) p$layers[[i]]$aes_params$colour <- col_line
+    if ("fill" %in% names(p$layers[[i]]$aes_params)) p$layers[[i]]$aes_params$fill <- col_fill
+    if (!is.null(p$layers[[i]]$geom)) {
+      if (inherits(p$layers[[i]]$geom, "GeomLine")) p$layers[[i]]$aes_params$colour <- col_line
+      if (inherits(p$layers[[i]]$geom, c("GeomRibbon", "GeomPolygon"))) p$layers[[i]]$aes_params$fill <- col_fill
+    }
+  }
+  p
+}
+
+plots <- list()
+ymins <- c(); ymaxs <- c()
+
+if (length(lab_prev) == 1) {
+  p_prev <- draw(best_model$gam, select = lab_prev, rug = FALSE, residuals = FALSE) +
+    labs(title = "Previous Butterfly Count", x = "Previous butterfly count", y = "Partial effect") +
+    theme_classic(base_size = 12) + theme(plot.caption = element_blank())
+  plots$prev <- recolor(p_prev, col_prev, lighten(col_prev))
+  rr <- ggplot_build(plots$prev)$layout$panel_scales_y[[1]]$range$range
+  ymins <- c(ymins, rr[1]); ymaxs <- c(ymaxs, rr[2])
+}
+if (length(lab_time) == 1) {
+  p_time <- draw(best_model$gam, select = lab_time, rug = FALSE, residuals = FALSE) +
+    labs(title = "Time Since Sunrise", x = "Time since sunrise (minutes)", y = "Partial effect") +
+    theme_classic(base_size = 12) + theme(plot.caption = element_blank())
+  plots$time <- recolor(p_time, col_time, lighten(col_time))
+  rr <- ggplot_build(plots$time)$layout$panel_scales_y[[1]]$range$range
+  ymins <- c(ymins, rr[1]); ymaxs <- c(ymaxs, rr[2])
+}
+if (length(lab_temp) == 1) {
+  p_temp <- draw(best_model$gam, select = lab_temp, rug = FALSE, residuals = FALSE) +
+    labs(title = "Temperature", x = "Temperature (°C)", y = "Partial effect") +
+    theme_classic(base_size = 12) + theme(plot.caption = element_blank())
+  plots$temp <- recolor(p_temp, col_temp, lighten(col_temp))
+  rr <- ggplot_build(plots$temp)$layout$panel_scales_y[[1]]$range$range
+  ymins <- c(ymins, rr[1]); ymaxs <- c(ymaxs, rr[2])
+}
+
+if (length(plots) > 0) {
+  y_min <- floor(min(ymins)); y_max <- 1.5
+  fix_y <- function(p) p + scale_y_continuous(limits = c(y_min, y_max), breaks = seq(y_min, y_max, by = 1))
+  plots <- lapply(plots, fix_y)
+
+  # Compose 1x3 layout in preferred order: previous, time, temperature
+  combo <- wrap_plots(plots$prev, plots$time, plots$temp, nrow = 1, ncol = length(plots))
+  out1x3 <- file.path(fig_dir, "combined_partial_effects_1x3_final.png")
+  ggsave(out1x3, combo, width = max(12, 4 * length(plots)), height = 5, dpi = 300, bg = "white")
+  cat("1x3 partial effects exported to:", out1x3, "\n")
+
+  # Mirror to thesis repo
+  try({
+    if (!dir.exists(thesis_results_fig_dir)) dir.create(thesis_results_fig_dir, recursive = TRUE)
+    file.copy(out1x3, file.path(thesis_results_fig_dir, basename(out1x3)), overwrite = TRUE)
+  })
+} else {
+  cat("No partial effects to export for current best model.\n")
+}
 ```
 
 ### Model Diagnostics Plots Export
@@ -1651,6 +1702,16 @@ ggsave(file.path(fig_dir, "combined_diagnostics.png"), combined_diagnostics,
 )
 
 cat("Diagnostic plots exported to:", fig_dir, "\n")
+
+# Mirror diagnostics to thesis repo
+try({
+  if (!dir.exists(thesis_results_fig_dir)) dir.create(thesis_results_fig_dir, recursive = TRUE)
+  diag_files <- c("residuals_vs_fitted.png", "qq_plot.png", "combined_diagnostics.png")
+  for (f in diag_files) {
+    src <- file.path(fig_dir, f)
+    if (file.exists(src)) file.copy(src, file.path(thesis_results_fig_dir, f), overwrite = TRUE)
+  }
+})
 ```
 
 ### Wind Hypothesis Evaluation Plot
@@ -1678,6 +1739,13 @@ ggsave(file.path(fig_dir, "wind_hypothesis_scatter.png"), p_wind,
 
 cat("Wind hypothesis scatter plot exported to:", fig_dir, "\n")
 p_wind
+
+# Mirror to thesis repo
+try({
+  if (!dir.exists(thesis_results_fig_dir)) dir.create(thesis_results_fig_dir, recursive = TRUE)
+  src <- file.path(fig_dir, "wind_hypothesis_scatter.png")
+  if (file.exists(src)) file.copy(src, file.path(thesis_results_fig_dir, "wind_hypothesis_scatter.png"), overwrite = TRUE)
+})
 ```
 
 ### Data Summary Export
@@ -1727,29 +1795,7 @@ writeLines(summary_kable, file.path(tab_dir, "data_summary.tex"))
 cat("Data summary exported to:", file.path(tab_dir, "data_summary.csv"), "\n")
 ```
 
-### Power Analysis Table Export
-
-```{r export-power-analysis-table}
-# Export the power analysis table
-power_table_for_export <- power_df %>%
-    rename(
-        "Effect Size (SD units)" = EffectSize_SD_units,
-        "Power (Proportion)" = Power,
-        "Power (%)" = Power_Percent
-    )
-
-write_csv(power_table_for_export, file.path(tab_dir, "power_analysis_table.csv"))
-
-power_kable_output <- kable(power_table_for_export,
-    format = "latex",
-    booktabs = TRUE,
-    caption = "Estimated power to detect a given effect size for the `max_gust` term. Effect size is measured in standard deviations of the response variable."
-)
-
-writeLines(power_kable_output, file.path(tab_dir, "power_analysis_table.tex"))
-
-cat("Power analysis table exported to:", file.path(tab_dir, "power_analysis_table.csv"), "\n")
-```
+<!-- Power analysis table export moved to analysis/monarch_gam_power_analysis.R -->
 
 ### Export Summary Report
 
@@ -1782,6 +1828,42 @@ export_summary <- paste0(
 )
 
 writeLines(export_summary, file.path(export_dir, "export_summary.txt"))
+
+## Mirror exports to thesis repository (figures + tables)
+try({
+  # Ensure dirs exist
+  if (!dir.exists(thesis_results_fig_dir)) dir.create(thesis_results_fig_dir, recursive = TRUE)
+  if (!dir.exists(thesis_results_tab_dir)) dir.create(thesis_results_tab_dir, recursive = TRUE)
+
+  # Figures to mirror
+  fig_list <- c(
+    "combined_partial_effects_2x2_final.png",
+    "combined_partial_effects_1x4_final.png",
+    "effect_previous_butterfly_count_final.png",
+    "effect_temperature_final.png",
+    "effect_butterflies_direct_sun_final.png",
+    "diurnal_patterns_final.png",
+    "combined_diagnostics.png",
+    "wind_hypothesis_scatter.png",
+    "m24_wind_partial_effect.png",
+    "interaction_wind_x_sun_binned.png"
+  )
+  for (f in fig_list) {
+    src <- file.path(fig_dir, f)
+    if (file.exists(src)) file.copy(src, file.path(thesis_results_fig_dir, f), overwrite = TRUE)
+  }
+
+  # Tables to mirror
+  tab_list <- c(
+    "model_selection_table.csv", "model_selection_table.tex",
+    "smooth_terms_summary.csv", "smooth_terms_summary.tex",
+    "data_summary.csv", "data_summary.tex"
+  )
+  for (t in tab_list) {
+    src <- file.path(tab_dir, t)
+    if (file.exists(src)) file.copy(src, file.path(thesis_results_tab_dir, t), overwrite = TRUE)
+  }
+})
 
 cat("\n=== EXPORT COMPLETE ===\n")
 cat("All publication-ready files exported to:", export_dir, "\n")
