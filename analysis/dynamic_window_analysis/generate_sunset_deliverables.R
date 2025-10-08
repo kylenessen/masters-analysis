@@ -161,6 +161,38 @@ if (has_tensor) {
 
   if (exists("create_binned_interaction_plot")) {
     cat("Creating interaction plot (wind x sun)...\n")
+
+    # Calculate actual range of the interaction effect
+    wind_range <- range(model_data$wind_max_gust, na.rm = TRUE)
+    sun_range <- range(model_data$sum_butterflies_direct_sun, na.rm = TRUE)
+
+    pred_grid <- expand.grid(
+      wind_max_gust = seq(wind_range[1], wind_range[2], length.out = 100),
+      sum_butterflies_direct_sun = seq(sun_range[1], sun_range[2], length.out = 100)
+    )
+    # Add other required variables at their means
+    pred_grid$max_butterflies_t_1 <- mean(model_data$max_butterflies_t_1, na.rm = TRUE)
+    pred_grid$lag_duration_hours <- mean(model_data$lag_duration_hours, na.rm = TRUE)
+
+    pred_vals <- predict(best_model$gam, newdata = pred_grid, type = "terms", se.fit = FALSE)
+    ti_col <- grep("ti\\(wind_max_gust,sum_butterflies_direct_sun\\)", colnames(pred_vals), value = TRUE)
+    actual_range <- range(pred_vals[, ti_col], na.rm = TRUE)
+
+    # Use -16 to 16 range with oob (out of bounds) handling for values > 16
+    color_limits <- c(-16, 16)
+
+    cat("Actual interaction effect range:", round(actual_range[1], 2), "to", round(actual_range[2], 2), "\n")
+    cat("Using color limits:", color_limits[1], "to", color_limits[2], "\n")
+    cat("Note: Values beyond ±16 will be capped at limit colors\n\n")
+
+    # Create breaks every 2
+    break_seq <- seq(-16, 16, by = 2)
+    break_labels <- as.character(break_seq)
+    break_labels[break_seq > 0] <- paste0("+", break_labels[break_seq > 0])
+    # Add indicator for out-of-bounds
+    break_labels[1] <- paste0(break_labels[1], "−")  # Use minus sign
+    break_labels[length(break_labels)] <- paste0(break_labels[length(break_labels)], "+")
+
     p_inter_binned <- create_binned_interaction_plot(
       gam_model = best_model$gam,
       x_var = "wind_max_gust",
@@ -169,10 +201,10 @@ if (has_tensor) {
       xlab = "Maximum wind speed (m/s)",
       ylab = "Butterflies in direct sun",
       n = 400,
-      limits = c(-6, 6),
-      nbreaks = 17,
-      breaks = c(-6, -5, -4, -3, -2, -1, -0.5, 0, 0.5, 1, 2, 3, 4, 5, 6),
-      labels = c("-6", "-5", "-4", "-3", "-2", "-1", "-0.5", "0", "+0.5", "+1", "+2", "+3", "+4", "+5", "+6"),
+      limits = color_limits,
+      nbreaks = length(break_seq),
+      breaks = break_seq,
+      labels = break_labels,
       too_far = 0.04,
       barheight = 34,
       barwidth = 1.0,
