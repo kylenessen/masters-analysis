@@ -94,7 +94,7 @@ create_binned_interaction_plot <- function(
     geom_point(
       data = data_pts,
       aes(x = .data[[x_var]], y = .data[[y_var]]),
-      color = "black", size = 0.5, alpha = 0.2, inherit.aes = FALSE
+      color = "black", size = 0.3, alpha = 0.1, inherit.aes = FALSE
     ) +
     labs(
       title = title,

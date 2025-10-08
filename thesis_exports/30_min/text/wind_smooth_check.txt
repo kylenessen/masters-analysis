@@ -1,5 +1,5 @@
 Any top-5 model with s(max_gust)? Yes
-# A tibble: 5 x 2
+# A tibble: 5 × 2
   Model Includes_s_max_gust
   <chr> <lgl>              
 1 M50   FALSE              

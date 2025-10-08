@@ -481,44 +481,35 @@ if (have_temp) {
 }
 
 if (length(plots) > 0) {
-  # Prefer 1x3, also export 3x1
   p13 <- wrap_plots(plots, nrow = 1, ncol = length(plots))
-  p31 <- wrap_plots(plots, nrow = length(plots), ncol = 1)
   ggsave(file.path(fig_dir, "partial_effects_best_1x3.png"), p13, width = 14, height = 4.6, dpi = 300, bg = "white")
-  ggsave(file.path(fig_dir, "partial_effects_best_3x1.png"), p31, width = 6, height = 12, dpi = 300, bg = "white")
 }
 
-# If best model contains the wind x sun tensor, also export a binned high-res surface
-has_ti <- tryCatch({
-  any(grepl("ti\\(max_gust,? ?butterflies_direct_sun_t_lag\\)", rownames(summary(best$gam)$s.table)))
-}, error = function(e) FALSE)
-if (has_ti) {
-  src_file <- here("analysis", "plot_binned_interaction.R")
-  if (file.exists(src_file)) source(src_file)
-  if (exists("create_binned_interaction_plot")) {
-    p_inter_binned <- create_binned_interaction_plot(
-      gam_model = best$gam,
-      x_var = "max_gust",
-      y_var = "butterflies_direct_sun_t_lag",
-      data = model_data,
-      title = "Wind x Sun Interaction",
-      subtitle = paste0("Best model ", best_id, " | AIC = ", sprintf("%.1f", aic_tbl$AIC[1])),
-      xlab = "Maximum wind speed (m/s)",
-      ylab = "Butterflies in direct sun",
-      n = 400,
-      limits = c(-6, 6),
-      nbreaks = 17,
-      breaks = c(-6, -5, -4, -3, -2, -1, -0.5, 0, 0.5, 1, 2, 3, 4, 5, 6),
-      labels = c("-6", "-5", "-4", "-3", "-2", "-1", "-0.5", "0", "+0.5", "+1", "+2", "+3", "+4", "+5", "+6"),
-      too_far = 0.04,
-      barheight = 34,
-      barwidth = 1.0,
-      legend_text_size = 8,
-      legend_key_height_cm = 0.9
-    ) +
-      geom_vline(xintercept = 2, color = "red", linetype = "dashed", linewidth = 0.7)
-    ggsave(file.path(fig_dir, "interaction_wind_x_sun_binned.png"), p_inter_binned, width = 7, height = 6, dpi = 300, bg = "white")
-  }
+# Export a binned high-res surface for wind x sun interaction
+src_file <- here("analysis", "plot_binned_interaction.R")
+if (file.exists(src_file)) source(src_file)
+if (exists("create_binned_interaction_plot")) {
+  p_inter_binned <- create_binned_interaction_plot(
+    gam_model = best$gam,
+    x_var = "max_gust",
+    y_var = "butterflies_direct_sun_t_lag",
+    data = model_data,
+    title = "Wind x Sun Interaction",
+    xlab = "Maximum wind speed (m/s)",
+    ylab = "Butterflies in direct sun",
+    n = 400,
+    limits = c(-6, 6),
+    nbreaks = 17,
+    breaks = c(-6, -5, -4, -3, -2, -1, -0.5, 0, 0.5, 1, 2, 3, 4, 5, 6),
+    labels = c("-6", "-5", "-4", "-3", "-2", "-1", "-0.5", "0", "+0.5", "+1", "+2", "+3", "+4", "+5", "+6"),
+    too_far = 0.04,
+    barheight = 34,
+    barwidth = 1.0,
+    legend_text_size = 8,
+    legend_key_height_cm = 1.4
+  ) +
+    geom_vline(xintercept = 2, color = "red", linetype = "dashed", linewidth = 0.7)
+  ggsave(file.path(fig_dir, "interaction_wind_x_sun_binned.png"), p_inter_binned, width = 7, height = 6, dpi = 300, bg = "white")
 }
 
 # ----------------------------------------------------------------------------
@@ -580,14 +571,6 @@ res_df <- tibble(
 )
 
 # Base plots saved via png() to avoid device issues
-png(file.path(fig_dir, "diag_residuals_vs_fitted.png"), width = 900, height = 600)
-plot(best$lme, main = "Residuals vs Fitted")
-dev.off()
-
-png(file.path(fig_dir, "diag_qq_plot.png"), width = 900, height = 600)
-qqnorm(res_df$resid, main = "Normal Q-Q Plot of Residuals"); qqline(res_df$resid)
-dev.off()
-
 png(file.path(fig_dir, "diag_acf.png"), width = 900, height = 600)
 acf(res_df$resid, main = "ACF of normalized residuals")
 dev.off()
@@ -596,15 +579,22 @@ png(file.path(fig_dir, "diag_pacf.png"), width = 900, height = 600)
 pacf(res_df$resid, main = "PACF of normalized residuals")
 dev.off()
 
-# Combined quick ggplot diagnostic panel (optional)
+# Combined 1x2 diagnostic panel: Q-Q plot and Residuals vs Fitted
 diag_scatter <- ggplot(res_df, aes(fitted, resid)) +
   geom_point(alpha = 0.25, size = 0.8, color = "#4d4d4d") +
   geom_smooth(se = FALSE, color = "#2c7fb8", linewidth = 0.8, method = "loess", span = 0.8) +
   geom_hline(yintercept = 0, color = "gray65") +
-  labs(x = "Fitted values", y = "Standardized residuals", title = "Residuals vs Fitted") +
+  labs(x = "Fitted values", y = "Standardized residuals") +
   theme_minimal()
 
-ggsave(file.path(fig_dir, "diag_residuals_vs_fitted_gg.png"), diag_scatter, width = 7, height = 5, dpi = 300, bg = "white")
+diag_qq <- ggplot(res_df, aes(sample = resid)) +
+  stat_qq(alpha = 0.25, size = 0.8, color = "#4d4d4d") +
+  stat_qq_line(color = "#2c7fb8", linewidth = 0.8) +
+  labs(x = "Theoretical quantiles", y = "Sample quantiles") +
+  theme_minimal()
+
+diag_1x2 <- wrap_plots(diag_qq, diag_scatter, nrow = 1, ncol = 2)
+ggsave(file.path(fig_dir, "diag_qq_and_residuals_1x2.png"), diag_1x2, width = 12, height = 5, dpi = 300, bg = "white")
 
 # ----------------------------------------------------------------------------
 # Minimal console summary & pointers
