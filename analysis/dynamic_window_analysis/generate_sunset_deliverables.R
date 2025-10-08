@@ -224,6 +224,54 @@ if (has_tensor) {
 }
 
 # ----------------------------------------------------------------------------
+# GAM basis dimension check (gam.check)
+# ----------------------------------------------------------------------------
+cat("Running gam.check...\n")
+check_output <- capture.output(gam.check(best_model$gam, rep = 500))
+writeLines(check_output, file.path(text_dir, "gam_check_output.txt"))
+cat("Saved: gam_check_output.txt\n\n")
+
+# ----------------------------------------------------------------------------
+# Model diagnostics with autocorrelation plots
+# ----------------------------------------------------------------------------
+cat("Creating diagnostic plots...\n")
+
+res_df <- tibble(
+  fitted = fitted(best_model$lme),
+  resid  = residuals(best_model$lme, type = "normalized")
+)
+
+# ACF plot
+png(file.path(fig_dir, "diag_acf.png"), width = 900, height = 600)
+acf(res_df$resid, main = "ACF of normalized residuals")
+dev.off()
+cat("Saved: diag_acf.png\n")
+
+# PACF plot
+png(file.path(fig_dir, "diag_pacf.png"), width = 900, height = 600)
+pacf(res_df$resid, main = "PACF of normalized residuals")
+dev.off()
+cat("Saved: diag_pacf.png\n")
+
+# Combined 1x2 diagnostic panel: Q-Q plot and Residuals vs Fitted
+diag_scatter <- ggplot(res_df, aes(fitted, resid)) +
+  geom_point(alpha = 0.25, size = 0.8, color = "#4d4d4d") +
+  geom_smooth(se = FALSE, color = "#2c7fb8", linewidth = 0.8, method = "loess", span = 0.8) +
+  geom_hline(yintercept = 0, color = "gray65") +
+  labs(x = "Fitted values", y = "Standardized residuals") +
+  theme_minimal()
+
+diag_qq <- ggplot(res_df, aes(sample = resid)) +
+  stat_qq(alpha = 0.25, size = 0.8, color = "#4d4d4d") +
+  stat_qq_line(color = "#2c7fb8", linewidth = 0.8) +
+  labs(x = "Theoretical quantiles", y = "Sample quantiles") +
+  theme_minimal()
+
+diag_1x2 <- wrap_plots(diag_qq, diag_scatter, nrow = 1, ncol = 2)
+ggsave(file.path(fig_dir, "diag_qq_and_residuals_1x2.png"), diag_1x2, width = 12, height = 5, dpi = 300, bg = "white")
+cat("Saved: diag_qq_and_residuals_1x2.png\n")
+
+# ----------------------------------------------------------------------------
 # Summary
 # ----------------------------------------------------------------------------
 cat("\n")

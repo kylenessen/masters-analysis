@@ -1,0 +1,8 @@
+
+'gamm' based fit - care required with interpretation.
+Checks based on working residuals may be misleading.
+Basis dimension (k) checking results. Low p-value (k-index<1) may
+indicate that k is too low, especially if edf is close to k'.
+
+                                               k'  edf k-index p-value
+ti(wind_max_gust,sum_butterflies_direct_sun) 16.0  5.8    1.06    0.72
