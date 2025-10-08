@@ -1,0 +1,6 @@
+Model,Terms,AIC,Delta_AIC,Weight,Wind_p
+M50,"\textbullet\ Previous butterfly count\\ \textbullet\ Temperature\\ \textbullet\ Time since sunrise\\ \textbullet\ Interaction (tensor): Maximum wind speed, Butterflies in direct sun",8074.029,0,0.8579,5.55e-5
+M23,\textbullet\ Previous butterfly count\\ \textbullet\ Temperature\\ \textbullet\ Butterflies in direct sun\\ \textbullet\ Time since sunrise,8077.862,3.834,0.1262,NA
+M22,\textbullet\ Previous butterfly count\\ \textbullet\ Temperature (linear)\\ \textbullet\ Butterflies in direct sun\\ \textbullet\ Time since sunrise,8082.898,8.869,0.0102,NA
+M24,\textbullet\ Previous butterfly count\\ \textbullet\ Maximum wind speed\\ \textbullet\ Temperature\\ \textbullet\ Butterflies in direct sun\\ \textbullet\ Time since sunrise,8084.049,10.02,0.0057,0.218
+M52,"\textbullet\ Temperature\\ \textbullet\ Time since sunrise\\ \textbullet\ Interaction (tensor): Maximum wind speed, Butterflies in direct sun",8092.722,18.693,1e-4,1.13e-5

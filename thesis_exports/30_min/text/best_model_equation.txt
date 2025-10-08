@@ -1,0 +1,1 @@
+butterfly_difference_cbrt ~ butterfly_difference_cbrt ~ s(total_butterflies_t_lag) + s(temperature_avg) + s(time_within_day_t) + ti(max_gust, butterflies_direct_sun_t_lag) + random(deployment_id, Observer, deployment_day) + AR1(within deployment_day)
