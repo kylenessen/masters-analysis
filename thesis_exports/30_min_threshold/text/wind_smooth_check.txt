@@ -1,0 +1,9 @@
+Any top-5 model with s(minutes_above_threshold)? Yes
+# A tibble: 5 × 2
+  Model Includes_s_minutes_above_threshold
+  <chr> <lgl>                             
+1 T50   FALSE                             
+2 T23   FALSE                             
+3 T22   FALSE                             
+4 T24   TRUE                              
+5 T47   FALSE                             

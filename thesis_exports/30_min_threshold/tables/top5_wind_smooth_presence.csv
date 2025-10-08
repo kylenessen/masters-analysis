@@ -1,0 +1,6 @@
+Model,Includes_s_minutes_above_threshold
+T50,FALSE
+T23,FALSE
+T22,FALSE
+T24,TRUE
+T47,FALSE
