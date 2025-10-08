@@ -496,7 +496,6 @@ if (exists("create_binned_interaction_plot")) {
     x_var = "minutes_above_threshold",
     y_var = "butterflies_direct_sun_t_lag",
     data = model_data,
-    title = "Wind x Sun Interaction",
     xlab = "Minutes above 2 m/s",
     ylab = "Butterflies in direct sun",
     n = 400,

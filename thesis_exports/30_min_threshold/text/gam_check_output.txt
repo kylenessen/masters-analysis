@@ -6,8 +6,8 @@ indicate that k is too low, especially if edf is close to k'.
 
                                                             k'   edf k-index p-value  
 s(total_butterflies_t_lag)                                9.00  2.64    1.01    0.75  
-s(temperature_avg)                                        9.00  3.73    1.02    0.85  
-s(time_within_day_t)                                      9.00  4.97    0.95    0.06 .
-ti(minutes_above_threshold,butterflies_direct_sun_t_lag) 16.00  6.22    0.97    0.16  
+s(temperature_avg)                                        9.00  3.73    1.02    0.90  
+s(time_within_day_t)                                      9.00  4.97    0.95    0.03 *
+ti(minutes_above_threshold,butterflies_direct_sun_t_lag) 16.00  6.22    0.97    0.17  
 ---
 Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
