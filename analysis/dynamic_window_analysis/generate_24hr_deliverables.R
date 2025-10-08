@@ -1,0 +1,321 @@
+#!/usr/bin/env Rscript
+
+# Export script for 24-hour window GAM analysis
+# Produces styled figures matching the 30-minute analysis aesthetics
+# Outputs to thesis_exports/24hr/{figures,tables,text}
+
+suppressPackageStartupMessages({
+  library(tidyverse)
+  library(mgcv)
+  library(nlme)
+  library(gratia)
+  library(patchwork)
+  library(here)
+})
+
+# ----------------------------------------------------------------------------
+# Paths
+# ----------------------------------------------------------------------------
+export_dir <- here("thesis_exports", "24hr")
+fig_dir <- file.path(export_dir, "figures")
+tab_dir <- file.path(export_dir, "tables")
+text_dir <- file.path(export_dir, "text")
+for (d in c(export_dir, fig_dir, tab_dir, text_dir)) {
+  if (!dir.exists(d)) dir.create(d, recursive = TRUE)
+}
+
+# ----------------------------------------------------------------------------
+# Data
+# ----------------------------------------------------------------------------
+data_file <- here("data", "monarch_daily_lag_analysis_24hr_window.csv")
+stopifnot(file.exists(data_file))
+daily_data <- readr::read_csv(data_file, show_col_types = FALSE)
+
+# Create sqrt transformed response
+daily_data <- daily_data %>%
+  mutate(
+    butterfly_diff_sqrt = ifelse(butterfly_diff >= 0,
+      sqrt(butterfly_diff),
+      -sqrt(-butterfly_diff)
+    )
+  )
+
+# Filter to quality data
+model_data <- daily_data %>%
+  filter(metrics_complete >= 0.95) %>%
+  arrange(deployment_id, observation_order_t) %>%
+  mutate(
+    deployment_id = factor(deployment_id),
+    across(c(
+      max_butterflies_t_1,
+      temp_min, temp_max, temp_at_max_count_t_1,
+      wind_max_gust, sum_butterflies_direct_sun
+    ), as.numeric)
+  ) %>%
+  filter(
+    !is.na(butterfly_diff_sqrt),
+    !is.na(max_butterflies_t_1)
+  )
+
+cat("Model data:", nrow(model_data), "observations\n")
+cat("Deployments:", n_distinct(model_data$deployment_id), "\n")
+
+# ----------------------------------------------------------------------------
+# Load best model from comparison results
+# ----------------------------------------------------------------------------
+comparison_file <- here("analysis", "dynamic_window_analysis", "model_comparison_24hr.csv")
+if (!file.exists(comparison_file)) {
+  stop("Model comparison file not found. Run 24hr_window_gam_analysis.qmd first.")
+}
+
+model_comparison <- readr::read_csv(comparison_file, show_col_types = FALSE)
+best_model_name <- model_comparison %>%
+  arrange(AICc) %>%
+  slice(1) %>%
+  pull(model)
+
+cat("\nBest model:", best_model_name, "\n")
+cat("Description:", model_comparison$description[1], "\n\n")
+
+# ----------------------------------------------------------------------------
+# Export model comparison table
+# ----------------------------------------------------------------------------
+cat("Exporting model comparison table...\n")
+readr::write_csv(model_comparison, file.path(tab_dir, "model_comparison_24hr.csv"))
+cat("Saved: model_comparison_24hr.csv\n\n")
+
+# ----------------------------------------------------------------------------
+# Refit best model
+# ----------------------------------------------------------------------------
+random_structure <- list(deployment_id = ~1)
+ar1_cor <- corAR1(form = ~ observation_order_t | deployment_id)
+
+# Get formula from comparison table
+best_formula_str <- model_comparison %>%
+  filter(model == best_model_name) %>%
+  pull(description) %>%
+  gsub(".*: ", "", .) # Extract formula part after description
+
+# Reconstruct formula based on model name
+# M31: wind_max_gust × sum_butterflies_direct_sun interaction (tensor product)
+best_formula <- as.formula(
+  "butterfly_diff_sqrt ~ max_butterflies_t_1 + ti(wind_max_gust, sum_butterflies_direct_sun)"
+)
+
+cat("Fitting best model...\n")
+best_model <- gamm(
+  best_formula,
+  data = model_data,
+  random = random_structure,
+  correlation = ar1_cor,
+  method = "REML"
+)
+
+cat("Model fitted successfully.\n")
+cat("Model formula:", deparse(formula(best_model$gam)), "\n")
+cat("Smooth terms:\n")
+print(summary(best_model$gam)$s.table)
+cat("\n")
+
+# Save model summary to text file
+cat("Saving model summary...\n")
+model_summary <- capture.output({
+  cat("Best Model:", best_model_name, "\n")
+  cat("Description:", best_formula_str, "\n\n")
+  cat("Formula:", deparse(formula(best_model$gam)), "\n\n")
+  cat("GAM Summary:\n")
+  cat("============\n\n")
+  print(summary(best_model$gam))
+  cat("\n\nLME Summary:\n")
+  cat("============\n\n")
+  print(summary(best_model$lme))
+})
+writeLines(model_summary, file.path(text_dir, "model_summary.txt"))
+cat("Saved: model_summary.txt\n\n")
+
+# ----------------------------------------------------------------------------
+# Styling helpers (matching 30-min analysis)
+# ----------------------------------------------------------------------------
+custom_theme <- theme_minimal(base_size = 12) + theme(
+  panel.grid.major = element_line(color = "gray90", linewidth = 0.5),
+  panel.grid.minor = element_line(color = "gray95", linewidth = 0.3),
+  axis.text = element_text(color = "black"),
+  axis.title = element_text(color = "black", face = "bold"),
+  plot.title = element_blank()
+)
+
+lighten_color <- function(hex, amount = 0.12) {
+  rgbv <- col2rgb(hex)
+  out <- rgbv + (255 - rgbv) * amount
+  rgb(out[1], out[2], out[3], maxColorValue = 255)
+}
+
+# Colors
+col_prev <- "#9673c5"
+col_lag <- "#79a44c"
+col_prev_l <- lighten_color(col_prev)
+col_lag_l <- lighten_color(col_lag)
+
+# ----------------------------------------------------------------------------
+# Partial effects plots
+# ----------------------------------------------------------------------------
+smooth_terms <- rownames(summary(best_model$gam)$s.table)
+if (length(smooth_terms) > 0) {
+  cat("Creating partial effects plots...\n")
+
+  for (term in smooth_terms) {
+    # Skip tensor interactions (will handle separately)
+    if (grepl("^ti\\(", term)) next
+
+    # Extract variable name
+    var_name <- gsub("s\\(|\\)", "", term)
+
+    # Create plot
+    p <- draw(best_model$gam, select = term) + custom_theme
+
+    # Save
+    filename <- paste0("partial_effect_", var_name, ".png")
+    ggsave(file.path(fig_dir, filename), p, width = 6, height = 5, dpi = 300, bg = "white")
+    cat("Saved:", filename, "\n")
+  }
+} else {
+  cat("Note: Model has no smooth terms to plot.\n")
+}
+
+# ----------------------------------------------------------------------------
+# Interaction plot (wind x sun) if present
+# ----------------------------------------------------------------------------
+has_tensor <- any(grepl("ti\\(.*wind_max_gust.*sum_butterflies_direct_sun", smooth_terms))
+has_linear_interaction <- grepl("wind_max_gust:sum_butterflies_direct_sun", deparse(best_formula))
+
+cat("\nChecking for interactions...\n")
+cat("Has wind × sun tensor:", has_tensor, "\n")
+cat("Has wind × sun linear interaction:", has_linear_interaction, "\n\n")
+
+if (has_tensor) {
+  src_file <- here("analysis", "plot_binned_interaction.R")
+  if (file.exists(src_file)) {
+    source(src_file)
+  }
+
+  if (exists("create_binned_interaction_plot")) {
+    cat("Creating interaction plot (wind x sun)...\n")
+
+    # Calculate actual range of the interaction effect
+    wind_range <- range(model_data$wind_max_gust, na.rm = TRUE)
+    sun_range <- range(model_data$sum_butterflies_direct_sun, na.rm = TRUE)
+
+    pred_grid <- expand.grid(
+      wind_max_gust = seq(wind_range[1], wind_range[2], length.out = 100),
+      sum_butterflies_direct_sun = seq(sun_range[1], sun_range[2], length.out = 100)
+    )
+    # Add other required variables at their means
+    pred_grid$max_butterflies_t_1 <- mean(model_data$max_butterflies_t_1, na.rm = TRUE)
+
+    pred_vals <- predict(best_model$gam, newdata = pred_grid, type = "terms", se.fit = FALSE)
+    ti_col <- grep("ti\\(wind_max_gust,sum_butterflies_direct_sun\\)", colnames(pred_vals), value = TRUE)
+    actual_range <- range(pred_vals[, ti_col], na.rm = TRUE)
+
+    # Use -16 to 16 range with oob handling
+    color_limits <- c(-16, 16)
+
+    cat("Actual interaction effect range:", round(actual_range[1], 2), "to", round(actual_range[2], 2), "\n")
+    cat("Using color limits:", color_limits[1], "to", color_limits[2], "\n")
+    cat("Note: Values beyond ±16 will be capped at limit colors\n\n")
+
+    # Create breaks every 2
+    break_seq <- seq(-16, 16, by = 2)
+    break_labels <- as.character(break_seq)
+    break_labels[break_seq > 0] <- paste0("+", break_labels[break_seq > 0])
+    # Add indicator for out-of-bounds
+    break_labels[1] <- paste0(break_labels[1], "−")
+    break_labels[length(break_labels)] <- paste0(break_labels[length(break_labels)], "+")
+
+    p_inter_binned <- create_binned_interaction_plot(
+      gam_model = best_model$gam,
+      x_var = "wind_max_gust",
+      y_var = "sum_butterflies_direct_sun",
+      data = model_data,
+      xlab = "Maximum wind speed (m/s)",
+      ylab = "Butterflies in direct sun",
+      n = 400,
+      limits = color_limits,
+      nbreaks = length(break_seq),
+      breaks = break_seq,
+      labels = break_labels,
+      too_far = 0.04,
+      barheight = 34,
+      barwidth = 1.0,
+      legend_text_size = 8,
+      legend_key_height_cm = 1.4
+    )
+
+    ggsave(file.path(fig_dir, "interaction_wind_x_sun_binned.png"), p_inter_binned, width = 7, height = 6, dpi = 300, bg = "white")
+    cat("Saved: interaction_wind_x_sun_binned.png\n")
+  } else {
+    warning("create_binned_interaction_plot function not found. Skipping interaction plot.")
+  }
+} else if (has_linear_interaction) {
+  cat("Note: Best model has linear interaction (not tensor product).\n")
+  cat("Linear interaction plots require manual prediction grids.\n")
+  cat("Skipping interaction surface plot.\n")
+} else {
+  cat("Note: Best model has no wind × sun interaction.\n")
+}
+
+# ----------------------------------------------------------------------------
+# GAM basis dimension check (gam.check)
+# ----------------------------------------------------------------------------
+cat("\nRunning gam.check...\n")
+check_output <- capture.output(gam.check(best_model$gam, rep = 500))
+writeLines(check_output, file.path(text_dir, "gam_check_output.txt"))
+cat("Saved: gam_check_output.txt\n\n")
+
+# ----------------------------------------------------------------------------
+# Model diagnostics with autocorrelation plots
+# ----------------------------------------------------------------------------
+cat("Creating diagnostic plots...\n")
+
+res_df <- tibble(
+  fitted = fitted(best_model$lme),
+  resid  = residuals(best_model$lme, type = "normalized")
+)
+
+# ACF plot
+png(file.path(fig_dir, "diag_acf.png"), width = 900, height = 600)
+acf(res_df$resid, main = "ACF of normalized residuals")
+dev.off()
+cat("Saved: diag_acf.png\n")
+
+# PACF plot
+png(file.path(fig_dir, "diag_pacf.png"), width = 900, height = 600)
+pacf(res_df$resid, main = "PACF of normalized residuals")
+dev.off()
+cat("Saved: diag_pacf.png\n")
+
+# Combined 1x2 diagnostic panel: Q-Q plot and Residuals vs Fitted
+diag_scatter <- ggplot(res_df, aes(fitted, resid)) +
+  geom_point(alpha = 0.25, size = 0.8, color = "#4d4d4d") +
+  geom_smooth(se = FALSE, color = "#2c7fb8", linewidth = 0.8, method = "loess", span = 0.8) +
+  geom_hline(yintercept = 0, color = "gray65") +
+  labs(x = "Fitted values", y = "Standardized residuals") +
+  theme_minimal()
+
+diag_qq <- ggplot(res_df, aes(sample = resid)) +
+  stat_qq(alpha = 0.25, size = 0.8, color = "#4d4d4d") +
+  stat_qq_line(color = "#2c7fb8", linewidth = 0.8) +
+  labs(x = "Theoretical quantiles", y = "Sample quantiles") +
+  theme_minimal()
+
+diag_1x2 <- wrap_plots(diag_qq, diag_scatter, nrow = 1, ncol = 2)
+ggsave(file.path(fig_dir, "diag_qq_and_residuals_1x2.png"), diag_1x2, width = 12, height = 5, dpi = 300, bg = "white")
+cat("Saved: diag_qq_and_residuals_1x2.png\n")
+
+# ----------------------------------------------------------------------------
+# Summary
+# ----------------------------------------------------------------------------
+cat("\n")
+cat("Export complete. Outputs in:", export_dir, "\n")
+cat("- Figures:", fig_dir, "\n")
+cat("- Tables:", tab_dir, "\n")
+cat("- Text:", text_dir, "\n")

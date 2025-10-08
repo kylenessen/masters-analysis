@@ -1,0 +1,80 @@
+Best Model: M31 
+Description: wind_max_gust <U+00D7> sum_butterflies_direct_sun (smooth) 
+
+Formula: butterfly_diff_sqrt ~ max_butterflies_t_1 + ti(wind_max_gust,      sum_butterflies_direct_sun) 
+
+GAM Summary:
+============
+
+
+Family: gaussian 
+Link function: identity 
+
+Formula:
+butterfly_diff_sqrt ~ max_butterflies_t_1 + ti(wind_max_gust, 
+    sum_butterflies_direct_sun)
+
+Parametric coefficients:
+                     Estimate Std. Error t value Pr(>|t|)    
+(Intercept)          3.519065   1.370785   2.567   0.0119 *  
+max_butterflies_t_1 -0.032283   0.006562  -4.920 3.98e-06 ***
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+Approximate significance of smooth terms:
+                                               edf Ref.df     F p-value  
+ti(wind_max_gust,sum_butterflies_direct_sun) 3.624  3.624 3.242  0.0228 *
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+R-sq.(adj) =  0.235   
+  Scale est. = 52.751    n = 94
+
+
+LME Summary:
+============
+
+Linear mixed-effects model fit by REML
+  Data: strip.offset(mf) 
+       AIC      BIC    logLik
+  642.6358 662.7226 -313.3179
+
+Random effects:
+ Formula: ~Xr - 1 | g
+ Structure: pdTens
+             Xr1      Xr2      Xr3     Xr4      Xr5      Xr6      Xr7     Xr8
+StdDev: 286.7783 286.0622 285.9462 285.938 56.09029 23.14608 21.93767 52.3058
+             Xr9     Xr10     Xr11     Xr12     Xr13     Xr14     Xr15
+StdDev: 11.20344 8.428368 51.66815 51.62227 7.695325 2.176788 7.381031
+
+ Formula: ~1 | deployment_id %in% g
+         (Intercept) Residual
+StdDev: 0.0008364436 7.262956
+
+Correlation Structure: ARMA(1,0)
+ Formula: ~observation_order_t | g/deployment_id 
+ Parameter estimate(s):
+     Phi1 
+0.3681228 
+Fixed effects:  y ~ X - 1 
+                                                    Value Std.Error DF
+X(Intercept)                                      3.51907   1.37078 86
+Xmax_butterflies_t_1                             -0.03228   0.00656 86
+Xti(wind_max_gust,sum_butterflies_direct_sun)Fx1 67.29290  51.22887 86
+                                                   t-value p-value
+X(Intercept)                                      2.567191  0.0120
+Xmax_butterflies_t_1                             -4.919918  0.0000
+Xti(wind_max_gust,sum_butterflies_direct_sun)Fx1  1.313574  0.1925
+ Correlation: 
+                                                 X(Int) Xm___1
+Xmax_butterflies_t_1                             -0.633       
+Xti(wind_max_gust,sum_butterflies_direct_sun)Fx1 -0.120  0.271
+
+Standardized Within-Group Residuals:
+        Min          Q1         Med          Q3         Max 
+-1.50980310 -0.73918411 -0.09992611  0.65292677  3.40241646 
+
+Number of Observations: 94
+Number of Groups: 
+                   g deployment_id %in% g 
+                   1                    6 
