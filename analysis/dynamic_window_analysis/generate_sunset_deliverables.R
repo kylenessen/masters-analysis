@@ -232,6 +232,38 @@ writeLines(check_output, file.path(text_dir, "gam_check_output.txt"))
 cat("Saved: gam_check_output.txt\n\n")
 
 # ----------------------------------------------------------------------------
+# Bivariate plot: Wind speed vs butterfly change
+# ----------------------------------------------------------------------------
+cat("Creating bivariate plot: wind speed vs butterfly change...\n")
+
+# Calculate correlation
+wind_corr <- cor(model_data$wind_max_gust, model_data$butterfly_diff_95th_sqrt,
+                 use = "complete.obs")
+
+# Fit linear model for trend line
+lm_wind <- lm(butterfly_diff_95th_sqrt ~ wind_max_gust, data = model_data)
+r_squared <- summary(lm_wind)$r.squared
+
+cat(sprintf("Wind vs change correlation: r = %.2f, R² = %.4f\n", wind_corr, r_squared))
+
+p_wind_bivariate <- ggplot(model_data, aes(x = wind_max_gust, y = butterfly_diff_95th_sqrt)) +
+  geom_point(alpha = 0.5, size = 2, color = "#4d4d4d") +
+  geom_vline(xintercept = 2, color = "red", linetype = "dashed", linewidth = 0.6) +
+  geom_hline(yintercept = 0, color = "gray65", linewidth = 0.5) +
+  scale_x_continuous(limits = c(0, NA), expand = expansion(mult = c(0, 0.05))) +
+  labs(
+    x = "Maximum wind speed (m/s)",
+    y = "Butterfly abundance change (cube root transformed)",
+    title = sprintf("Maximum Wind Speed vs Butterfly Abundance Change\nCorrelation: r = %.2f", wind_corr)
+  ) +
+  custom_theme +
+  theme(plot.title = element_text(size = 14, hjust = 0, face = "plain"))
+
+ggsave(file.path(fig_dir, "wind_vs_change_bivariate.png"), p_wind_bivariate,
+       width = 7, height = 6, dpi = 300, bg = "white")
+cat("Saved: wind_vs_change_bivariate.png\n\n")
+
+# ----------------------------------------------------------------------------
 # Model diagnostics with autocorrelation plots
 # ----------------------------------------------------------------------------
 cat("Creating diagnostic plots...\n")

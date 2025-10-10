@@ -364,10 +364,52 @@ writeLines(check_output, file.path(text_dir, "gam_check_output.txt"))
 sm <- summary(best$gam)$s.table
 
 # ----------------------------------------------------------------------------
+# Bivariate plot: Wind speed vs butterfly change
+# ----------------------------------------------------------------------------
+cat("Creating bivariate plot: wind speed vs butterfly change...\n")
+
+# Calculate correlation
+wind_corr <- cor(model_data$max_gust, model_data$butterfly_difference_cbrt,
+                 use = "complete.obs")
+
+# Fit linear model for trend line
+lm_wind <- lm(butterfly_difference_cbrt ~ max_gust, data = model_data)
+r_squared <- summary(lm_wind)$r.squared
+
+cat(sprintf("Wind vs change correlation: r = %.2f, R² = %.4f\n", wind_corr, r_squared))
+
+# Define custom_theme early for bivariate plot
+custom_theme <- theme_minimal(base_size = 12) + theme(
+  panel.grid.major = element_line(color = "gray90", linewidth = 0.5),
+  panel.grid.minor = element_line(color = "gray95", linewidth = 0.3),
+  axis.text = element_text(color = "black"),
+  axis.title = element_text(color = "black", face = "bold"),
+  plot.title = element_blank()
+)
+
+p_wind_bivariate <- ggplot(model_data, aes(x = max_gust, y = butterfly_difference_cbrt)) +
+  geom_jitter(alpha = 0.5, size = 2, color = "#4d4d4d", width = 0.1, height = 0) +
+  geom_vline(xintercept = 2, color = "red", linetype = "dashed", linewidth = 0.6) +
+  geom_hline(yintercept = 0, color = "gray65", linewidth = 0.5) +
+  scale_x_continuous(limits = c(0, NA), expand = expansion(mult = c(0, 0.05))) +
+  labs(
+    x = "Maximum wind speed (m/s)",
+    y = "Butterfly abundance change (cube root transformed)",
+    title = sprintf("Maximum Wind Speed vs Butterfly Abundance Change\nCorrelation: r = %.2f", wind_corr)
+  ) +
+  custom_theme +
+  theme(plot.title = element_text(size = 14, hjust = 0, face = "plain"))
+
+ggsave(file.path(fig_dir, "wind_vs_change_bivariate.png"), p_wind_bivariate,
+       width = 7, height = 6, dpi = 300, bg = "white")
+cat("Saved: wind_vs_change_bivariate.png\n\n")
+
+# ----------------------------------------------------------------------------
 # Request 5: Combined partial effects for best model (1x3)
 # ----------------------------------------------------------------------------
 
 # Styling helpers: subtle grid, no titles
+# (custom_theme already defined above for bivariate plot)
 custom_theme <- theme_minimal(base_size = 12) + theme(
   panel.grid.major = element_line(color = "gray90", linewidth = 0.5),
   panel.grid.minor = element_line(color = "gray95", linewidth = 0.3),
