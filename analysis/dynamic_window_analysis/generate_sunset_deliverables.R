@@ -263,6 +263,29 @@ ggsave(file.path(fig_dir, "wind_vs_change_bivariate.png"), p_wind_bivariate,
        width = 7, height = 6, dpi = 300, bg = "white")
 cat("Saved: wind_vs_change_bivariate.png\n\n")
 
+# Untransformed version
+wind_corr_raw <- cor(model_data$wind_max_gust, model_data$butterfly_diff_95th,
+                     use = "complete.obs")
+
+cat(sprintf("Wind vs change correlation (untransformed): r = %.2f\n", wind_corr_raw))
+
+p_wind_bivariate_raw <- ggplot(model_data, aes(x = wind_max_gust, y = butterfly_diff_95th)) +
+  geom_point(alpha = 0.5, size = 2, color = "#4d4d4d") +
+  geom_vline(xintercept = 2, color = "red", linetype = "dashed", linewidth = 0.6) +
+  geom_hline(yintercept = 0, color = "gray65", linewidth = 0.5) +
+  scale_x_continuous(limits = c(0, NA), expand = expansion(mult = c(0, 0.05))) +
+  labs(
+    x = "Maximum wind speed (m/s)",
+    y = "Butterfly abundance change (untransformed)",
+    title = sprintf("Maximum Wind Speed vs Butterfly Abundance Change\nCorrelation: r = %.2f", wind_corr_raw)
+  ) +
+  custom_theme +
+  theme(plot.title = element_text(size = 14, hjust = 0, face = "plain"))
+
+ggsave(file.path(fig_dir, "wind_vs_change_bivariate_untransformed.png"), p_wind_bivariate_raw,
+       width = 7, height = 6, dpi = 300, bg = "white")
+cat("Saved: wind_vs_change_bivariate_untransformed.png\n\n")
+
 # ----------------------------------------------------------------------------
 # Model diagnostics with autocorrelation plots
 # ----------------------------------------------------------------------------
