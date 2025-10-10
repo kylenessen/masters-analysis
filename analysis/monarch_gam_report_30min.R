@@ -417,8 +417,8 @@ p_wind_bivariate_raw <- ggplot(model_data, aes(x = max_gust, y = butterfly_diffe
   scale_x_continuous(limits = c(0, NA), expand = expansion(mult = c(0, 0.05))) +
   labs(
     x = "Maximum wind speed (m/s)",
-    y = "Butterfly abundance change (untransformed)",
-    title = sprintf("Maximum Wind Speed vs Butterfly Abundance Change\nCorrelation: r = %.2f", wind_corr_raw)
+    y = "Butterfly abundance change",
+    title = sprintf("Wind Disruption (30 minute interval)\nr = %.2f", wind_corr_raw)
   ) +
   custom_theme +
   theme(plot.title = element_text(size = 14, hjust = 0, face = "plain"))
