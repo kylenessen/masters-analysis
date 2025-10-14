@@ -267,17 +267,22 @@ cat("Saved: wind_vs_change_bivariate.png\n\n")
 wind_corr_raw <- cor(model_data$wind_max_gust, model_data$butterfly_diff_95th,
                      use = "complete.obs")
 
-cat(sprintf("Wind vs change correlation (untransformed): r = %.2f\n", wind_corr_raw))
+# Fit linear model for untransformed data
+lm_wind_raw <- lm(butterfly_diff_95th ~ wind_max_gust, data = model_data)
+p_value_raw <- summary(lm_wind_raw)$p.value[2]  # p-value for the slope
+
+cat(sprintf("Wind vs change correlation (untransformed): r = %.2f, p = %.4f\n", wind_corr_raw, p_value_raw))
 
 p_wind_bivariate_raw <- ggplot(model_data, aes(x = wind_max_gust, y = butterfly_diff_95th)) +
   geom_point(alpha = 0.5, size = 2, color = "#4d4d4d") +
+  geom_smooth(method = "lm", se = TRUE, color = "steelblue", fill = "steelblue", alpha = 0.25, linewidth = 1) +
   geom_vline(xintercept = 2, color = "red", linetype = "dashed", linewidth = 0.6) +
   geom_hline(yintercept = 0, color = "gray65", linewidth = 0.5) +
   scale_x_continuous(limits = c(0, NA), expand = expansion(mult = c(0, 0.05))) +
   labs(
     x = "Maximum wind speed (m/s)",
     y = "Butterfly abundance change",
-    title = sprintf("Site Fidelity (Maximum cluster count to next day's sunset)\nr = %.2f", wind_corr_raw)
+    title = sprintf("Site Fidelity (Maximum cluster count to next day's sunset)\nr = %.2f, p = %.4f", wind_corr_raw, p_value_raw)
   ) +
   custom_theme +
   theme(plot.title = element_text(size = 14, hjust = 0, face = "plain"))
