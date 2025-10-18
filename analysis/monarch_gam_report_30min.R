@@ -414,22 +414,55 @@ p_value_raw <- summary(lm_wind_raw)$p.value[2]  # p-value for the slope
 
 cat(sprintf("Wind vs change correlation (untransformed): r = %.2f, p = %.4f\n", wind_corr_raw, p_value_raw))
 
-p_wind_bivariate_raw <- ggplot(model_data, aes(x = max_gust, y = butterfly_difference)) +
+# Create main scatter plot
+p_main <- ggplot(model_data, aes(x = max_gust, y = butterfly_difference)) +
   geom_jitter(alpha = 0.5, size = 2, color = "#4d4d4d", width = 0.1, height = 0) +
-  geom_smooth(method = "lm", se = TRUE, color = "steelblue", fill = "steelblue", alpha = 0.25, linewidth = 1) +
-  geom_vline(xintercept = 2, color = "red", linetype = "dashed", linewidth = 0.6) +
+  geom_smooth(method = "lm", se = TRUE, color = "steelblue", fill = "steelblue",
+              alpha = 0.25, linewidth = 1) +
+  geom_vline(xintercept = 2, color = "red", linetype = "dashed", linewidth = 0.8) +
   geom_hline(yintercept = 0, color = "gray65", linewidth = 0.5) +
-  scale_x_continuous(limits = c(0, NA), expand = expansion(mult = c(0, 0.05))) +
+  geom_rug(alpha = 0.3, length = unit(0.02, "npc")) +
+  scale_x_continuous(limits = c(0, max(model_data$max_gust, na.rm = TRUE) * 1.05),
+                     expand = c(0, 0)) +
+  scale_y_continuous(limits = c(min(model_data$butterfly_difference, na.rm = TRUE) * 1.05,
+                                max(model_data$butterfly_difference, na.rm = TRUE) * 1.05),
+                     expand = c(0, 0)) +
   labs(
     x = "Maximum wind speed (m/s)",
     y = "Butterfly abundance change",
-    title = sprintf("Wind Disruption (30 minute interval)\nr = %.2f, p = %.4f", wind_corr_raw, p_value_raw)
+    title = sprintf("Wind Disruption (30 minute interval)\nr = %.2f, p = %.4f",
+                   wind_corr_raw, p_value_raw)
   ) +
   custom_theme +
-  theme(plot.title = element_text(size = 14, hjust = 0, face = "plain"))
+  theme(plot.title = element_text(size = 14, hjust = 0.5, face = "plain"),
+        plot.margin = margin(5, 5, 5, 5))
 
-ggsave(file.path(fig_dir, "wind_vs_change_bivariate_untransformed.png"), p_wind_bivariate_raw,
-       width = 7, height = 6, dpi = 300, bg = "white")
+# Top marginal density plot for x-axis
+dens_x <- ggplot(model_data, aes(x = max_gust)) +
+  geom_density(fill = "#4d4d4d", alpha = 0.4, color = "#4d4d4d", linewidth = 0.5) +
+  scale_x_continuous(limits = c(0, max(model_data$max_gust, na.rm = TRUE) * 1.05),
+                     expand = c(0, 0)) +
+  theme_void() +
+  theme(plot.margin = margin(0, 5, 0, 5))
+
+# Right marginal density plot for y-axis
+dens_y <- ggplot(model_data, aes(x = butterfly_difference)) +
+  geom_density(fill = "#4d4d4d", alpha = 0.4, color = "#4d4d4d", linewidth = 0.5) +
+  scale_x_continuous(limits = c(min(model_data$butterfly_difference, na.rm = TRUE) * 1.05,
+                                max(model_data$butterfly_difference, na.rm = TRUE) * 1.05),
+                     expand = c(0, 0)) +
+  theme_void() +
+  theme(plot.margin = margin(5, 0, 5, 0)) +
+  coord_flip()
+
+# Combine plots using patchwork
+p_wind_bivariate_raw <- dens_x + plot_spacer() + p_main + dens_y +
+  plot_layout(ncol = 2, nrow = 2, widths = c(4, 1), heights = c(1, 4))
+
+# Save combined plot
+ggsave(file.path(fig_dir, "wind_vs_change_bivariate_untransformed.png"),
+       p_wind_bivariate_raw,
+       width = 8, height = 7, dpi = 300, bg = "white")
 cat("Saved: wind_vs_change_bivariate_untransformed.png\n\n")
 
 # ----------------------------------------------------------------------------
