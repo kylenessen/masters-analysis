@@ -644,6 +644,112 @@ if (exists("create_binned_interaction_plot")) {
   ggsave(file.path(fig_dir, "interaction_wind_x_sun_binned.png"), p_inter_binned, width = 7, height = 6, dpi = 300, bg = "white")
 }
 
+# Create 3D surface plots for wind x sun interaction
+src_file_3d <- here("analysis", "dynamic_window_analysis", "create_3d_interaction_plot.R")
+if (file.exists(src_file_3d)) {
+  source(src_file_3d)
+  cat("\n=== Creating 3D visualizations ===\n")
+
+  # Create static 3D surface plot
+  png(file.path(fig_dir, "interaction_3d_surface.png"), width = 1000, height = 800)
+  surf_result <- create_3d_interaction_surface(
+    gam_model = best$gam,
+    x_var = "max_gust",
+    y_var = "butterflies_direct_sun_t_lag",
+    data = model_data,
+    n_grid = 60,
+    theta = 35,
+    phi = 25,
+    xlab = "Wind speed (m/s)",
+    ylab = "Butterflies in sun",
+    zlab = "Interaction effect",
+    main = "Wind × Sun Interaction Surface",
+    color_scheme = "coolwarm",
+    shade = 0.3
+  )
+  dev.off()
+  cat("Created: interaction_3d_surface.png\n")
+
+  # Create contour + 3D side-by-side plot
+  png(file.path(fig_dir, "interaction_contour_and_3d.png"), width = 1400, height = 700)
+  create_3d_surface_with_contour(
+    gam_model = best$gam,
+    x_var = "max_gust",
+    y_var = "butterflies_direct_sun_t_lag",
+    data = model_data,
+    n_grid = 60,
+    xlab = "Wind speed (m/s)",
+    ylab = "Butterflies in sun",
+    main = "Wind × Sun Tensor Product Interaction"
+  )
+  dev.off()
+  cat("Created: interaction_contour_and_3d.png\n")
+
+  # Create interactive HTML versions if plotly is available
+  if (requireNamespace("plotly", quietly = TRUE) && requireNamespace("htmlwidgets", quietly = TRUE)) {
+    # Static interactive version
+    p_3d_interactive <- create_3d_interaction_plotly(
+      gam_model = best$gam,
+      x_var = "max_gust",
+      y_var = "butterflies_direct_sun_t_lag",
+      data = model_data,
+      n_grid = 60,
+      xlab = "Wind speed (m/s)",
+      ylab = "Butterflies in sun",
+      zlab = "Interaction effect",
+      title = "Interactive GAM Interaction Surface",
+      use_diverging = TRUE,
+      clip_symmetric = TRUE
+    )
+    htmlwidgets::saveWidget(p_3d_interactive,
+                            file.path(fig_dir, "interaction_3d_interactive.html"),
+                            selfcontained = TRUE)
+    cat("Created: interaction_3d_interactive.html\n")
+
+    # Animated interactive version
+    p_3d_animated <- create_3d_interaction_plotly_animated(
+      gam_model = best$gam,
+      x_var = "max_gust",
+      y_var = "butterflies_direct_sun_t_lag",
+      data = model_data,
+      n_grid = 60,
+      xlab = "Wind speed (m/s)",
+      ylab = "Butterflies in sun",
+      zlab = "Interaction effect",
+      title = "GAM Interaction Surface - 30min Analysis",
+      use_diverging = TRUE,
+      clip_symmetric = TRUE,
+      rotation_duration = 10000
+    )
+    htmlwidgets::saveWidget(p_3d_animated,
+                            file.path(fig_dir, "interaction_3d_animated.html"),
+                            selfcontained = TRUE)
+    cat("Created: interaction_3d_animated.html\n")
+  }
+
+  # Create rotating GIF if magick package is available
+  if (requireNamespace("magick", quietly = TRUE)) {
+    create_3d_rotation_gif_magick(
+      gam_model = best$gam,
+      x_var = "max_gust",
+      y_var = "butterflies_direct_sun_t_lag",
+      data = model_data,
+      n_grid = 60,
+      xlab = "Wind speed (m/s)",
+      ylab = "Butterflies in sun",
+      main = "Wind × Sun Interaction Effect",
+      output_file = file.path(fig_dir, "interaction_3d_rotation.gif"),
+      n_frames = 36,
+      fps = 10,
+      width = 800,
+      height = 600
+    )
+    cat("Created: interaction_3d_rotation.gif\n")
+  }
+
+  cat("=== 3D visualizations complete ===\n\n")
+}
+
 # ----------------------------------------------------------------------------
 # Request 6: Check if any of the top models include a smooth for wind alone
 # ----------------------------------------------------------------------------

@@ -217,6 +217,118 @@ if (has_tensor) {
   } else {
     warning("create_binned_interaction_plot function not found. Skipping interaction plot.")
   }
+
+  # Create 3D surface plot
+  src_file_3d <- here("analysis", "dynamic_window_analysis", "create_3d_interaction_plot.R")
+  if (file.exists(src_file_3d)) {
+    source(src_file_3d)
+    cat("\nCreating 3D surface plot...\n")
+
+    # Create static 3D surface plot with persp
+    png(file.path(fig_dir, "interaction_3d_surface.png"), width = 1000, height = 800)
+    surf_result <- create_3d_interaction_surface(
+      gam_model = best_model$gam,
+      x_var = "wind_max_gust",
+      y_var = "sum_butterflies_direct_sun",
+      data = model_data,
+      n_grid = 60,
+      theta = 35,
+      phi = 25,
+      xlab = "Wind speed (m/s)",
+      ylab = "Butterflies in sun",
+      zlab = "Interaction effect",
+      main = "Wind × Sun Interaction Surface",
+      color_scheme = "coolwarm",
+      shade = 0.3
+    )
+    dev.off()
+    cat("Saved: interaction_3d_surface.png\n")
+
+    # Print the effect range
+    cat(sprintf("3D surface effect range: %.2f to %.2f\n",
+                surf_result$z_range[1], surf_result$z_range[2]))
+
+    # Create contour + 3D side-by-side plot
+    png(file.path(fig_dir, "interaction_contour_and_3d.png"), width = 1400, height = 700)
+    create_3d_surface_with_contour(
+      gam_model = best_model$gam,
+      x_var = "wind_max_gust",
+      y_var = "sum_butterflies_direct_sun",
+      data = model_data,
+      n_grid = 60,
+      xlab = "Wind speed (m/s)",
+      ylab = "Butterflies in sun",
+      main = "Wind × Sun Tensor Product Interaction"
+    )
+    dev.off()
+    cat("Saved: interaction_contour_and_3d.png\n")
+
+    # If you want an interactive HTML version
+    if (requireNamespace("plotly", quietly = TRUE) && requireNamespace("htmlwidgets", quietly = TRUE)) {
+      cat("\nCreating interactive 3D plot...\n")
+      p_3d_interactive <- create_3d_interaction_plotly(
+        gam_model = best_model$gam,
+        x_var = "wind_max_gust",
+        y_var = "sum_butterflies_direct_sun",
+        data = model_data,
+        n_grid = 60,
+        xlab = "Wind speed (m/s)",
+        ylab = "Butterflies in sun",
+        zlab = "Interaction effect",
+        title = "Interactive GAM Interaction Surface",
+        use_diverging = TRUE,
+        clip_symmetric = TRUE
+      )
+      htmlwidgets::saveWidget(p_3d_interactive,
+                              file.path(fig_dir, "interaction_3d_interactive.html"),
+                              selfcontained = TRUE)
+      cat("Saved: interaction_3d_interactive.html (interactive)\n")
+
+      # Create animated version
+      cat("\nCreating animated interactive 3D plot...\n")
+      p_3d_animated <- create_3d_interaction_plotly_animated(
+        gam_model = best_model$gam,
+        x_var = "wind_max_gust",
+        y_var = "sum_butterflies_direct_sun",
+        data = model_data,
+        n_grid = 60,
+        xlab = "Wind speed (m/s)",
+        ylab = "Butterflies in sun",
+        zlab = "Interaction effect",
+        title = "GAM Interaction Surface - Animated",
+        use_diverging = TRUE,
+        clip_symmetric = TRUE,
+        rotation_duration = 10000  # 10 seconds for full rotation
+      )
+      htmlwidgets::saveWidget(p_3d_animated,
+                              file.path(fig_dir, "interaction_3d_animated.html"),
+                              selfcontained = TRUE)
+      cat("Saved: interaction_3d_animated.html (animated interactive)\n")
+    }
+
+    # Create rotating GIF if magick package is available
+    if (requireNamespace("magick", quietly = TRUE)) {
+      cat("\nCreating rotating 3D animation...\n")
+      create_3d_rotation_gif_magick(
+        gam_model = best_model$gam,
+        x_var = "wind_max_gust",
+        y_var = "sum_butterflies_direct_sun",
+        data = model_data,
+        n_grid = 60,
+        xlab = "Wind speed (m/s)",
+        ylab = "Butterflies in sun",
+        main = "Wind × Sun Interaction Effect",
+        output_file = file.path(fig_dir, "interaction_3d_rotation.gif"),
+        n_frames = 36,
+        fps = 10,
+        width = 800,
+        height = 600
+      )
+      cat("Saved: interaction_3d_rotation.gif\n")
+    } else {
+      cat("Note: Install 'magick' package to generate rotating GIF animation\n")
+    }
+  }
 } else {
   cat("Note: Best model has linear interaction only (not tensor product).\n")
   cat("Linear interaction plots require manual prediction grids.\n")
