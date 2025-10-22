@@ -1,0 +1,7 @@
+To create the 3D printable STL file, run:
+
+uv run --with numpy-stl python analysis/dynamic_window_analysis/create_stl_from_csv.py \
+  thesis_exports/sunset_filtered/csv/sunset_filtered_surface.csv \
+  thesis_exports/sunset_filtered/sunset_filtered.stl \
+  --width 100 --depth 100 --height 45 --base 5
+
