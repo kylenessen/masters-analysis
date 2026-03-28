@@ -4,12 +4,14 @@
 # Generates all manuscript figures with Francis's requested formatting changes.
 # Run this script to regenerate all figures in one go.
 #
-# Francis's requests (from manuscript comments):
-#   - Increase font sizes for axis labels and values (half-page publication)
-#   - Change y-axis to "Change in Monarch Butterfly Abundance" on scatter plots
-#   - Remove 2 m/s threshold dashed lines from figures
-#   - Clarify "partial effect on CiBAI" in legends
-#   - Increase overall font sizes for all figures
+# Formatting per MDPI/Insects spec + Francis's requests:
+#   - 600 dpi PNG output for journal submission
+#   - Increased font sizes for half-page (~8.5 cm) reproduction
+#   - Y-axis: "Change in Butterfly Index (ΔBI)" on scatter plots
+#   - Partial effect labels: "Partial effect on ΔBI"
+#   - Terminology: BAI→BI, CiBAI→ΔBI, sunset window→Next Day Window
+#   - 2 m/s threshold dashed lines removed (configurable)
+#   - File naming: fig##_description.png matching manuscript figure order
 # ============================================================================
 
 suppressPackageStartupMessages({
@@ -47,7 +49,7 @@ cfg <- list(
 
   # DPI
 
-  dpi = 300,
+  dpi = 600,
 
   # Colors
   col_prev = "#9673c5",
@@ -79,6 +81,8 @@ pub_theme <- theme_minimal(base_size = cfg$base_size) +
     axis.text = element_text(color = "black", size = cfg$axis_text),
     axis.title = element_text(color = "black", size = cfg$axis_title),
     plot.title = element_blank(),
+    plot.subtitle = element_blank(),
+    plot.caption = element_blank(),
     legend.title = element_text(size = cfg$legend_title),
     legend.text = element_text(size = cfg$legend_text),
     strip.text = element_text(size = cfg$strip_text)
@@ -210,7 +214,7 @@ p_main <- ggplot(model_data, aes(x = max_gust, y = butterfly_difference)) +
               alpha = 0.25, linewidth = 1) +
   geom_hline(yintercept = 0, color = "gray65", linewidth = 0.5) +
   labs(x = "Maximum wind speed (m/s)",
-       y = "Change in Monarch Butterfly Abundance") +
+       y = expression(paste("Change in Butterfly Index (", Delta, "BI)"))) +
   pub_theme
 
 if (cfg$show_threshold_line) {
@@ -218,20 +222,7 @@ if (cfg$show_threshold_line) {
     geom_vline(xintercept = 2, color = "red", linetype = "dashed", linewidth = 0.7)
 }
 
-# Add marginal densities
-dens_x <- ggplot(model_data, aes(x = max_gust)) +
-  geom_density(fill = "#4d4d4d", alpha = 0.4, color = "#4d4d4d", linewidth = 0.5) +
-  theme_void() + theme(plot.margin = margin(0, 5, 0, 5))
-
-dens_y <- ggplot(model_data, aes(x = butterfly_difference)) +
-  geom_density(fill = "#4d4d4d", alpha = 0.4, color = "#4d4d4d", linewidth = 0.5) +
-  theme_void() + theme(plot.margin = margin(5, 0, 5, 0)) +
-  coord_flip()
-
-fig1 <- dens_x + plot_spacer() + p_main + dens_y +
-  plot_layout(ncol = 2, nrow = 2, widths = c(4, 1), heights = c(1, 4))
-
-save_fig("fig_wind_vs_cibai_30min.png", fig1, 8, 7)
+save_fig("fig02_wind_vs_dbi_30min.png", p_main, cfg$scatter_w, cfg$scatter_h)
 
 # ============================================================================
 # FIGURE 2: Wind vs CiBAI scatter (sunset, untransformed — using MAX diff)
@@ -249,7 +240,7 @@ p_sunset_scatter <- ggplot(sunset_lm_data, aes(x = wind_max_gust, y = butterfly_
               alpha = 0.25, linewidth = 1) +
   geom_hline(yintercept = 0, color = "gray65", linewidth = 0.5) +
   labs(x = "Maximum wind speed (m/s)",
-       y = "Change in Monarch Butterfly Abundance") +
+       y = expression(paste("Change in Butterfly Index (", Delta, "BI)"))) +
   pub_theme
 
 if (cfg$show_threshold_line) {
@@ -257,7 +248,7 @@ if (cfg$show_threshold_line) {
     geom_vline(xintercept = 2, color = "red", linetype = "dashed", linewidth = 0.7)
 }
 
-save_fig("fig_wind_vs_cibai_sunset.png", p_sunset_scatter,
+save_fig("fig03_wind_vs_dbi_nextday.png", p_sunset_scatter,
          cfg$scatter_w, cfg$scatter_h)
 
 # ============================================================================
@@ -293,7 +284,7 @@ style_partial <- function(p, xlab, ylab, col, col_light) {
 }
 
 p_prev <- style_partial(p_prev_raw, "Previous butterfly count",
-                         "Partial effect on CiBAI",
+                         expression(paste("Partial effect on ", Delta, "BI")),
                          cfg$col_prev, lighten_color(cfg$col_prev))
 p_time <- style_partial(p_time_raw, "Time since sunrise (minutes)",
                          "",
@@ -322,7 +313,7 @@ for (i in 1:5) {
 }
 
 fig3 <- wrap_plots(p_prev, p_time, p_temp, nrow = 1)
-save_fig("fig_partial_effects_30min.png", fig3, cfg$partial_w, cfg$partial_h)
+save_fig("fig04_partial_effects_30min.png", fig3, cfg$partial_w, cfg$partial_h)
 
 # ============================================================================
 # FIGURE 4: Interaction heatmap (30-min M50, wind × sun)
@@ -341,9 +332,9 @@ fig4 <- create_binned_interaction_plot(
   breaks = cfg$interaction_breaks,
   labels = cfg$interaction_labels,
   too_far = cfg$interaction_too_far,
-  barheight = 34, barwidth = 1.0,
+  barheight = 40, barwidth = 1.0,
   legend_text_size = cfg$legend_text,
-  legend_key_height_cm = 1.4
+  legend_key_height_cm = 2.0
 ) +
   theme(axis.title = element_text(size = cfg$axis_title),
         axis.text = element_text(size = cfg$axis_text))
@@ -353,7 +344,7 @@ if (cfg$show_threshold_line) {
     geom_vline(xintercept = 2, color = "red", linetype = "dashed", linewidth = 0.7)
 }
 
-save_fig("fig_interaction_30min.png", fig4, cfg$interaction_w, cfg$interaction_h)
+save_fig("fig05_interaction_wind_sun_30min.png", fig4, cfg$interaction_w, cfg$interaction_h)
 
 # ============================================================================
 # FIGURE 5: Diagnostics — Q-Q + Residuals (30-min M50)
@@ -377,17 +368,17 @@ diag_resid <- ggplot(res_30, aes(fitted, resid)) +
   pub_theme
 
 fig5 <- wrap_plots(diag_qq, diag_resid, nrow = 1)
-save_fig("fig_diagnostics_30min.png", fig5, cfg$diagnostic_w, cfg$diagnostic_h)
+save_fig("fig06_diagnostics_30min.png", fig5, cfg$diagnostic_w, cfg$diagnostic_h)
 
 # ============================================================================
 # FIGURE 6: ACF (30-min M50)
 # ============================================================================
-png(file.path(cfg$out_dir, "fig_acf_30min.png"),
+png(file.path(cfg$out_dir, "fig07_acf_30min.png"),
     width = cfg$acf_w, height = cfg$acf_h, units = "in", res = cfg$dpi)
 par(cex.lab = 1.3, cex.axis = 1.2, cex.main = 1.4, mar = c(5, 5, 2, 2))
 acf(res_30$resid, main = "", xlab = "Lag", ylab = "Autocorrelation")
 dev.off()
-cat("  Saved: fig_acf_30min.png\n")
+cat("  Saved: fig07_acf_30min.png\n")
 
 # ============================================================================
 # FIGURE 7: Interaction heatmap (30-min threshold T50)
@@ -404,14 +395,14 @@ fig7 <- create_binned_interaction_plot(
   breaks = cfg$interaction_breaks,
   labels = cfg$interaction_labels,
   too_far = cfg$interaction_too_far,
-  barheight = 34, barwidth = 1.0,
+  barheight = 40, barwidth = 1.0,
   legend_text_size = cfg$legend_text,
-  legend_key_height_cm = 1.4
+  legend_key_height_cm = 2.0
 ) +
   theme(axis.title = element_text(size = cfg$axis_title),
         axis.text = element_text(size = cfg$axis_text))
 
-save_fig("fig_interaction_30min_threshold.png", fig7,
+save_fig("fig08_threshold_interaction.png", fig7,
          cfg$interaction_w, cfg$interaction_h)
 
 # ============================================================================
@@ -422,7 +413,7 @@ p_sunset_prev <- ggplot(sunset_data, aes(x = max_butterflies_t_1,
   geom_point(alpha = 0.4, size = 1.5, color = "#4d4d4d") +
   geom_smooth(method = "lm", se = TRUE, color = cfg$col_prev, fill = lighten_color(cfg$col_prev)) +
   labs(x = "Previous day maximum butterfly count",
-       y = "Partial effect on CiBAI") +
+       y = expression(paste("Partial effect on ", Delta, "BI"))) +
   pub_theme
 
 # For window duration, use the model's linear coefficient
@@ -435,7 +426,7 @@ p_sunset_dur <- ggplot(sunset_data, aes(x = lag_duration_hours,
   pub_theme
 
 fig8 <- wrap_plots(p_sunset_prev, p_sunset_dur, nrow = 1)
-save_fig("fig_partial_effects_sunset.png", fig8, 12, 5)
+save_fig("fig09_partial_effects_nextday.png", fig8, 12, 5)
 
 # ============================================================================
 # FIGURE 9: Interaction heatmap (sunset M32, wind × sun)
@@ -445,21 +436,22 @@ fig9 <- create_binned_interaction_plot(
   x_var = "wind_max_gust",
   y_var = "sum_butterflies_direct_sun",
   data = sunset_data,
-  xlab = "Maximum wind gust (m/s)",
-  ylab = "Cumulative butterflies in direct sun",
+  xlab = "Maximum wind speed (m/s)",
+  ylab = "Butterflies in direct sun",
   n = cfg$interaction_n,
-  limits = cfg$interaction_limits,
-  breaks = cfg$interaction_breaks,
-  labels = cfg$interaction_labels,
+  limits = c(-16, 16),
+  breaks = seq(-16, 16, by = 2),
+  labels = c("-16...", "-14", "-12", "-10", "-8", "-6", "-4", "-2",
+             "0", "+2", "+4", "+6", "+8", "+10", "+12", "+14", "+16+"),
   too_far = cfg$interaction_too_far,
-  barheight = 34, barwidth = 1.0,
+  barheight = 40, barwidth = 1.0,
   legend_text_size = cfg$legend_text,
-  legend_key_height_cm = 1.4
+  legend_key_height_cm = 2.0
 ) +
   theme(axis.title = element_text(size = cfg$axis_title),
         axis.text = element_text(size = cfg$axis_text))
 
-save_fig("fig_interaction_sunset.png", fig9, cfg$interaction_w, cfg$interaction_h)
+save_fig("fig10_interaction_wind_sun_nextday.png", fig9, cfg$interaction_w, cfg$interaction_h)
 
 # ============================================================================
 # FIGURE 10: Diagnostics — Q-Q + Residuals (sunset M32)
@@ -481,17 +473,17 @@ fig10 <- wrap_plots(
     labs(x = "Fitted values", y = "Standardized residuals") + pub_theme,
   nrow = 1
 )
-save_fig("fig_diagnostics_sunset.png", fig10, cfg$diagnostic_w, cfg$diagnostic_h)
+save_fig("fig11_diagnostics_nextday.png", fig10, cfg$diagnostic_w, cfg$diagnostic_h)
 
 # ============================================================================
 # FIGURE 11: ACF (sunset M32)
 # ============================================================================
-png(file.path(cfg$out_dir, "fig_acf_sunset.png"),
+png(file.path(cfg$out_dir, "fig12_acf_nextday.png"),
     width = cfg$acf_w, height = cfg$acf_h, units = "in", res = cfg$dpi)
 par(cex.lab = 1.3, cex.axis = 1.2, cex.main = 1.4, mar = c(5, 5, 2, 2))
 acf(res_sunset$resid, main = "", xlab = "Lag", ylab = "Autocorrelation")
 dev.off()
-cat("  Saved: fig_acf_sunset.png\n")
+cat("  Saved: fig12_acf_nextday.png\n")
 
 # ============================================================================
 # FIGURE 12: Interaction heatmap (24-hour M31, wind × sun)
@@ -501,36 +493,37 @@ fig12 <- create_binned_interaction_plot(
   x_var = "wind_max_gust",
   y_var = "sum_butterflies_direct_sun",
   data = hr24_data,
-  xlab = "Maximum wind gust (m/s)",
-  ylab = "Cumulative butterflies in direct sun",
+  xlab = "Maximum wind speed (m/s)",
+  ylab = "Butterflies in direct sun",
   n = cfg$interaction_n,
-  limits = cfg$interaction_limits,
-  breaks = cfg$interaction_breaks,
-  labels = cfg$interaction_labels,
+  limits = c(-16, 16),
+  breaks = seq(-16, 16, by = 2),
+  labels = c("-16...", "-14", "-12", "-10", "-8", "-6", "-4", "-2",
+             "0", "+2", "+4", "+6", "+8", "+10", "+12", "+14", "+16+"),
   too_far = cfg$interaction_too_far,
-  barheight = 34, barwidth = 1.0,
+  barheight = 40, barwidth = 1.0,
   legend_text_size = cfg$legend_text,
-  legend_key_height_cm = 1.4
+  legend_key_height_cm = 2.0
 ) +
   theme(axis.title = element_text(size = cfg$axis_title),
         axis.text = element_text(size = cfg$axis_text))
 
-save_fig("fig_interaction_24hr.png", fig12, cfg$interaction_w, cfg$interaction_h)
+save_fig("fig13_interaction_wind_sun_24hr.png", fig12, cfg$interaction_w, cfg$interaction_h)
 
 # ============================================================================
 # DONE
 # ============================================================================
 cat(sprintf("\nAll figures saved to: %s\n", cfg$out_dir))
 cat("Figures generated:\n")
-cat("  fig_wind_vs_cibai_30min.png      — Linear regression scatter (30-min)\n")
-cat("  fig_wind_vs_cibai_sunset.png     — Linear regression scatter (sunset)\n")
-cat("  fig_partial_effects_30min.png    — Partial effects 1x3 (M50)\n")
-cat("  fig_interaction_30min.png        — Wind×sun heatmap (M50)\n")
-cat("  fig_diagnostics_30min.png        — Q-Q + residuals (M50)\n")
-cat("  fig_acf_30min.png                — ACF (M50)\n")
-cat("  fig_interaction_30min_threshold.png — Wind threshold×sun heatmap (T50)\n")
-cat("  fig_partial_effects_sunset.png   — Partial effects 1x2 (M32)\n")
-cat("  fig_interaction_sunset.png       — Wind×sun heatmap (M32 sunset)\n")
-cat("  fig_diagnostics_sunset.png       — Q-Q + residuals (M32)\n")
-cat("  fig_acf_sunset.png               — ACF (M32)\n")
-cat("  fig_interaction_24hr.png         — Wind×sun heatmap (M31 24hr)\n")
+cat("  fig02_wind_vs_dbi_30min.png          — Linear regression scatter (30-min)\n")
+cat("  fig03_wind_vs_dbi_nextday.png        — Linear regression scatter (Next Day Window)\n")
+cat("  fig04_partial_effects_30min.png      — Partial effects 1x3 (M50)\n")
+cat("  fig05_interaction_wind_sun_30min.png  — Wind×sun heatmap (M50)\n")
+cat("  fig06_diagnostics_30min.png          — Q-Q + residuals (M50)\n")
+cat("  fig07_acf_30min.png                  — ACF (M50)\n")
+cat("  fig08_threshold_interaction.png      — Wind threshold×sun heatmap (T50)\n")
+cat("  fig09_partial_effects_nextday.png    — Partial effects 1x2 (M32)\n")
+cat("  fig10_interaction_wind_sun_nextday.png — Wind×sun heatmap (M32 Next Day)\n")
+cat("  fig11_diagnostics_nextday.png        — Q-Q + residuals (M32)\n")
+cat("  fig12_acf_nextday.png                — ACF (M32)\n")
+cat("  fig13_interaction_wind_sun_24hr.png   — Wind×sun heatmap (M31 24hr)\n")

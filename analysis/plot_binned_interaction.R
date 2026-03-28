@@ -37,6 +37,8 @@ create_binned_interaction_plot <- function(
     barwidth = 1.4,
     legend_text_size = 9,
     legend_key_height_cm = 0.6,
+    legend_name = expression(paste("Partial effect on ", Delta, "BI")),
+    base_size = 14,
     # Distance-based mask for excluding far-away grid points
     # Default mirrors mgcv::vis.gam (0.1)
     too_far = 0.1,
@@ -57,7 +59,7 @@ create_binned_interaction_plot <- function(
     limits = limits,
     breaks = breaks,
     labels = labels,
-    name = "Partial\neffect",
+    name = legend_name,
     guide = guide_coloursteps(
       barwidth = barwidth,
       barheight = barheight,
@@ -102,10 +104,11 @@ create_binned_interaction_plot <- function(
       x = if (is.null(xlab)) x_var else xlab,
       y = if (is.null(ylab)) y_var else ylab
     ) +
-    theme_minimal(base_size = 11) +
+    theme_minimal(base_size = base_size) +
     theme(
-      plot.title = element_text(face = "bold", size = 13),
-      plot.subtitle = element_text(size = 10, color = "gray40"),
+      plot.title = element_blank(),
+      plot.subtitle = element_blank(),
+      plot.caption = element_blank(),
       panel.grid = element_line(color = "gray95", linewidth = 0.2),
       panel.background = element_rect(fill = NA, color = NA),
       plot.background = element_rect(fill = "white", color = NA),
