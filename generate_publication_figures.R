@@ -32,19 +32,19 @@ cfg <- list(
   # Output directory
   out_dir = here("thesis_exports", "publication_figures"),
 
-  # Font sizes (increased for half-page publication)
-  base_size      = 14,
-  axis_title     = 14,
-  axis_text      = 12,
-  legend_title   = 12,
-  legend_text    = 11,
-  strip_text     = 12,
+  # Display width: ~0.9\textwidth on MDPI's 17.1cm page ≈ 6 inches
+  # All font sizes are computed from these targets so every figure
+  # renders at the same apparent size in the final PDF.
+  display_width = 6,  # inches
+  target_axis_title = 12,  # pt at final display size
+  target_axis_text  = 10,
+  target_legend_title = 11,
+  target_legend_text  = 10,
 
   # Figure dimensions (inches)
   scatter_w = 7, scatter_h = 6,
-  partial_w = 16, partial_h = 5,
   interaction_w = 7, interaction_h = 6,
-  diagnostic_w = 12, diagnostic_h = 5,
+  diagnostic_h = 5,
   acf_w = 7, acf_h = 5,
 
   # DPI
@@ -64,7 +64,7 @@ cfg <- list(
   interaction_too_far = 0.04,
   interaction_limits = c(-6, 6),
   interaction_breaks = c(-6, -5, -4, -3, -2, -1, -0.5, 0, 0.5, 1, 2, 3, 4, 5, 6),
-  interaction_labels = c("-6", "-5", "-4", "-3", "-2", "-1", "-0.5", "0",
+  interaction_labels = c("\u22126", "\u22125", "\u22124", "\u22123", "\u22122", "\u22121", "\u22120.5", "0",
                          "+0.5", "+1", "+2", "+3", "+4", "+5", "+6")
 )
 
@@ -72,21 +72,33 @@ cfg <- list(
 if (!dir.exists(cfg$out_dir)) dir.create(cfg$out_dir, recursive = TRUE)
 
 # ============================================================================
-# SHARED THEME
+# SHARED THEME — scales font sizes so all figures render identically in LaTeX
 # ============================================================================
-pub_theme <- theme_minimal(base_size = cfg$base_size) +
-  theme(
-    panel.grid.major = element_line(color = "gray90", linewidth = 0.5),
-    panel.grid.minor = element_line(color = "gray95", linewidth = 0.3),
-    axis.text = element_text(color = "black", size = cfg$axis_text),
-    axis.title = element_text(color = "black", size = cfg$axis_title),
-    plot.title = element_blank(),
-    plot.subtitle = element_blank(),
-    plot.caption = element_blank(),
-    legend.title = element_text(size = cfg$legend_title),
-    legend.text = element_text(size = cfg$legend_text),
-    strip.text = element_text(size = cfg$strip_text)
+make_pub_theme <- function(fig_width) {
+  s <- fig_width / cfg$display_width
+  theme_minimal(base_size = round(cfg$target_axis_title * s)) +
+    theme(
+      panel.grid.major = element_line(color = "gray90", linewidth = 0.5),
+      panel.grid.minor = element_line(color = "gray95", linewidth = 0.3),
+      axis.text = element_text(color = "black", size = round(cfg$target_axis_text * s)),
+      axis.title = element_text(color = "black", size = round(cfg$target_axis_title * s)),
+      plot.title = element_blank(),
+      plot.subtitle = element_blank(),
+      plot.caption = element_blank(),
+      legend.title = element_text(size = round(cfg$target_legend_title * s)),
+      legend.text = element_text(size = round(cfg$target_legend_text * s)),
+      strip.text = element_text(size = round(cfg$target_legend_title * s))
+    )
+}
+
+# Convenience: compute base R cex values for ACF plots
+make_acf_cex <- function(fig_width) {
+  s <- fig_width / cfg$display_width
+  list(
+    lab  = cfg$target_axis_title * s / 12,  # 12pt = cex 1.0
+    axis = cfg$target_axis_text * s / 12
   )
+}
 
 lighten_color <- function(hex, amount = 0.12) {
   rgbv <- col2rgb(hex)
@@ -215,7 +227,7 @@ p_main <- ggplot(model_data, aes(x = max_gust, y = butterfly_difference)) +
   geom_hline(yintercept = 0, color = "gray65", linewidth = 0.5) +
   labs(x = "Maximum wind speed (m/s)",
        y = expression(paste("Change in Butterfly Index (", Delta, "BI)"))) +
-  pub_theme
+  make_pub_theme(cfg$scatter_w)
 
 if (cfg$show_threshold_line) {
   p_main <- p_main +
@@ -241,7 +253,7 @@ p_sunset_scatter <- ggplot(sunset_lm_data, aes(x = wind_max_gust, y = butterfly_
   geom_hline(yintercept = 0, color = "gray65", linewidth = 0.5) +
   labs(x = "Maximum wind speed (m/s)",
        y = expression(paste("Change in Butterfly Index (", Delta, "BI)"))) +
-  pub_theme
+  make_pub_theme(cfg$scatter_w)
 
 if (cfg$show_threshold_line) {
   p_sunset_scatter <- p_sunset_scatter +
@@ -274,7 +286,8 @@ y_max <- max(sapply(y_ranges, "[", 2)) * 1.1
 style_partial <- function(p, xlab, ylab, col, col_light) {
   p <- p +
     labs(x = xlab, y = ylab) +
-    pub_theme +
+    make_pub_theme(12) +
+    theme(plot.margin = margin(5, 15, 5, 5)) +
     coord_cartesian(ylim = c(y_min, y_max))
   for (i in seq_along(p$layers)) {
     if ("colour" %in% names(p$layers[[i]]$aes_params)) p$layers[[i]]$aes_params$colour <- col
@@ -283,10 +296,10 @@ style_partial <- function(p, xlab, ylab, col, col_light) {
   p
 }
 
-p_prev <- style_partial(p_prev_raw, "Previous butterfly count",
+p_prev <- style_partial(p_prev_raw, "Previous BI",
                          expression(paste("Partial effect on ", Delta, "BI")),
                          cfg$col_prev, lighten_color(cfg$col_prev))
-p_time <- style_partial(p_time_raw, "Time since sunrise (minutes)",
+p_time <- style_partial(p_time_raw, "Minutes since sunrise",
                          "",
                          cfg$col_time, lighten_color(cfg$col_time))
 p_temp <- style_partial(p_temp_raw, expression(paste("Temperature (", degree, "C)")),
@@ -313,7 +326,7 @@ for (i in 1:5) {
 }
 
 fig3 <- wrap_plots(p_prev, p_time, p_temp, nrow = 1)
-save_fig("fig04_partial_effects_30min.png", fig3, cfg$partial_w, cfg$partial_h)
+save_fig("fig04_partial_effects_30min.png", fig3, 12, 6)
 
 # ============================================================================
 # FIGURE 4: Interaction heatmap (30-min M50, wind × sun)
@@ -333,11 +346,11 @@ fig4 <- create_binned_interaction_plot(
   labels = cfg$interaction_labels,
   too_far = cfg$interaction_too_far,
   barheight = 40, barwidth = 1.0,
-  legend_text_size = cfg$legend_text,
+  legend_text_size = round(cfg$target_legend_text * cfg$interaction_w / cfg$display_width),
   legend_key_height_cm = 2.0
 ) +
-  theme(axis.title = element_text(size = cfg$axis_title),
-        axis.text = element_text(size = cfg$axis_text))
+  theme(axis.title = element_text(size = round(cfg$target_axis_title * cfg$interaction_w / cfg$display_width)),
+        axis.text = element_text(size = round(cfg$target_axis_text * cfg$interaction_w / cfg$display_width)))
 
 if (cfg$show_threshold_line) {
   fig4 <- fig4 +
@@ -358,24 +371,25 @@ diag_qq <- ggplot(res_30, aes(sample = resid)) +
   stat_qq(alpha = 0.25, size = 0.8, color = "#4d4d4d") +
   stat_qq_line(color = "#2c7fb8", linewidth = 0.8) +
   labs(x = "Theoretical quantiles", y = "Sample quantiles") +
-  pub_theme
+  make_pub_theme(9)
 
 diag_resid <- ggplot(res_30, aes(fitted, resid)) +
   geom_point(alpha = 0.25, size = 0.8, color = "#4d4d4d") +
   geom_smooth(se = FALSE, color = "#2c7fb8", linewidth = 0.8, method = "loess", span = 0.8) +
   geom_hline(yintercept = 0, color = "gray65") +
   labs(x = "Fitted values", y = "Standardized residuals") +
-  pub_theme
+  make_pub_theme(9)
 
 fig5 <- wrap_plots(diag_qq, diag_resid, nrow = 1)
-save_fig("fig06_diagnostics_30min.png", fig5, cfg$diagnostic_w, cfg$diagnostic_h)
+save_fig("fig06_diagnostics_30min.png", fig5, 9, cfg$diagnostic_h)
 
 # ============================================================================
 # FIGURE 6: ACF (30-min M50)
 # ============================================================================
+acf_cex <- make_acf_cex(cfg$acf_w)
 png(file.path(cfg$out_dir, "fig07_acf_30min.png"),
     width = cfg$acf_w, height = cfg$acf_h, units = "in", res = cfg$dpi)
-par(cex.lab = 1.3, cex.axis = 1.2, cex.main = 1.4, mar = c(5, 5, 2, 2))
+par(cex.lab = acf_cex$lab, cex.axis = acf_cex$axis, cex.main = acf_cex$lab, mar = c(5, 5, 2, 2))
 acf(res_30$resid, main = "", xlab = "Lag", ylab = "Autocorrelation")
 dev.off()
 cat("  Saved: fig07_acf_30min.png\n")
@@ -396,11 +410,11 @@ fig7 <- create_binned_interaction_plot(
   labels = cfg$interaction_labels,
   too_far = cfg$interaction_too_far,
   barheight = 40, barwidth = 1.0,
-  legend_text_size = cfg$legend_text,
+  legend_text_size = round(cfg$target_legend_text * cfg$interaction_w / cfg$display_width),
   legend_key_height_cm = 2.0
 ) +
-  theme(axis.title = element_text(size = cfg$axis_title),
-        axis.text = element_text(size = cfg$axis_text))
+  theme(axis.title = element_text(size = round(cfg$target_axis_title * cfg$interaction_w / cfg$display_width)),
+        axis.text = element_text(size = round(cfg$target_axis_text * cfg$interaction_w / cfg$display_width)))
 
 save_fig("fig08_threshold_interaction.png", fig7,
          cfg$interaction_w, cfg$interaction_h)
@@ -412,9 +426,9 @@ p_sunset_prev <- ggplot(sunset_data, aes(x = max_butterflies_t_1,
                                           y = butterfly_diff_sqrt)) +
   geom_point(alpha = 0.4, size = 1.5, color = "#4d4d4d") +
   geom_smooth(method = "lm", se = TRUE, color = cfg$col_prev, fill = lighten_color(cfg$col_prev)) +
-  labs(x = "Previous day maximum butterfly count",
+  labs(x = "Previous day maximum Butterfly Index",
        y = expression(paste("Partial effect on ", Delta, "BI"))) +
-  pub_theme
+  make_pub_theme(9)
 
 # For window duration, use the model's linear coefficient
 p_sunset_dur <- ggplot(sunset_data, aes(x = lag_duration_hours,
@@ -423,10 +437,10 @@ p_sunset_dur <- ggplot(sunset_data, aes(x = lag_duration_hours,
   geom_smooth(method = "lm", se = TRUE, color = cfg$col_time, fill = lighten_color(cfg$col_time)) +
   labs(x = "Window duration (hours)",
        y = "") +
-  pub_theme
+  make_pub_theme(9)
 
 fig8 <- wrap_plots(p_sunset_prev, p_sunset_dur, nrow = 1)
-save_fig("fig09_partial_effects_nextday.png", fig8, 12, 5)
+save_fig("fig09_partial_effects_nextday.png", fig8, 9, 5)
 
 # ============================================================================
 # FIGURE 9: Interaction heatmap (sunset M32, wind × sun)
@@ -441,15 +455,15 @@ fig9 <- create_binned_interaction_plot(
   n = cfg$interaction_n,
   limits = c(-16, 16),
   breaks = seq(-16, 16, by = 2),
-  labels = c("-16...", "-14", "-12", "-10", "-8", "-6", "-4", "-2",
-             "0", "+2", "+4", "+6", "+8", "+10", "+12", "+14", "+16+"),
+  labels = c("\u221216", "\u221214", "\u221212", "\u221210", "\u22128", "\u22126", "\u22124", "\u22122",
+             "0", "+2", "+4", "+6", "+8", "+10", "+12", "+14", "+16"),
   too_far = cfg$interaction_too_far,
   barheight = 40, barwidth = 1.0,
-  legend_text_size = cfg$legend_text,
+  legend_text_size = round(cfg$target_legend_text * cfg$interaction_w / cfg$display_width),
   legend_key_height_cm = 2.0
 ) +
-  theme(axis.title = element_text(size = cfg$axis_title),
-        axis.text = element_text(size = cfg$axis_text))
+  theme(axis.title = element_text(size = round(cfg$target_axis_title * cfg$interaction_w / cfg$display_width)),
+        axis.text = element_text(size = round(cfg$target_axis_text * cfg$interaction_w / cfg$display_width)))
 
 save_fig("fig10_interaction_wind_sun_nextday.png", fig9, cfg$interaction_w, cfg$interaction_h)
 
@@ -465,22 +479,22 @@ fig10 <- wrap_plots(
   ggplot(res_sunset, aes(sample = resid)) +
     stat_qq(alpha = 0.3, size = 1, color = "#4d4d4d") +
     stat_qq_line(color = "#2c7fb8", linewidth = 0.8) +
-    labs(x = "Theoretical quantiles", y = "Sample quantiles") + pub_theme,
+    labs(x = "Theoretical quantiles", y = "Sample quantiles") + make_pub_theme(9),
   ggplot(res_sunset, aes(fitted, resid)) +
     geom_point(alpha = 0.3, size = 1, color = "#4d4d4d") +
     geom_smooth(se = FALSE, color = "#2c7fb8", linewidth = 0.8, method = "loess", span = 0.8) +
     geom_hline(yintercept = 0, color = "gray65") +
-    labs(x = "Fitted values", y = "Standardized residuals") + pub_theme,
+    labs(x = "Fitted values", y = "Standardized residuals") + make_pub_theme(9),
   nrow = 1
 )
-save_fig("fig11_diagnostics_nextday.png", fig10, cfg$diagnostic_w, cfg$diagnostic_h)
+save_fig("fig11_diagnostics_nextday.png", fig10, 9, cfg$diagnostic_h)
 
 # ============================================================================
 # FIGURE 11: ACF (sunset M32)
 # ============================================================================
 png(file.path(cfg$out_dir, "fig12_acf_nextday.png"),
     width = cfg$acf_w, height = cfg$acf_h, units = "in", res = cfg$dpi)
-par(cex.lab = 1.3, cex.axis = 1.2, cex.main = 1.4, mar = c(5, 5, 2, 2))
+par(cex.lab = acf_cex$lab, cex.axis = acf_cex$axis, cex.main = acf_cex$lab, mar = c(5, 5, 2, 2))
 acf(res_sunset$resid, main = "", xlab = "Lag", ylab = "Autocorrelation")
 dev.off()
 cat("  Saved: fig12_acf_nextday.png\n")
@@ -498,15 +512,15 @@ fig12 <- create_binned_interaction_plot(
   n = cfg$interaction_n,
   limits = c(-16, 16),
   breaks = seq(-16, 16, by = 2),
-  labels = c("-16...", "-14", "-12", "-10", "-8", "-6", "-4", "-2",
-             "0", "+2", "+4", "+6", "+8", "+10", "+12", "+14", "+16+"),
+  labels = c("\u221216", "\u221214", "\u221212", "\u221210", "\u22128", "\u22126", "\u22124", "\u22122",
+             "0", "+2", "+4", "+6", "+8", "+10", "+12", "+14", "+16"),
   too_far = cfg$interaction_too_far,
   barheight = 40, barwidth = 1.0,
-  legend_text_size = cfg$legend_text,
+  legend_text_size = round(cfg$target_legend_text * cfg$interaction_w / cfg$display_width),
   legend_key_height_cm = 2.0
 ) +
-  theme(axis.title = element_text(size = cfg$axis_title),
-        axis.text = element_text(size = cfg$axis_text))
+  theme(axis.title = element_text(size = round(cfg$target_axis_title * cfg$interaction_w / cfg$display_width)),
+        axis.text = element_text(size = round(cfg$target_axis_text * cfg$interaction_w / cfg$display_width)))
 
 save_fig("fig13_interaction_wind_sun_24hr.png", fig12, cfg$interaction_w, cfg$interaction_h)
 
